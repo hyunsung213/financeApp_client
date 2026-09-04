@@ -1,0 +1,220 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/theme.dart';
+import '../features/auth/providers/auth_provider.dart';
+
+// Screens placeholders
+import '../features/auth/screens/login_screen.dart';
+import '../features/auth/screens/onboarding_screen.dart';
+import '../features/home/screens/home_screen.dart';
+import '../features/calendar/screens/calendar_screen.dart';
+import '../features/report/screens/report_screen.dart';
+import '../features/policy/screens/policy_screen.dart';
+import '../features/policy/screens/policy_detail_screen.dart';
+import '../features/mypage/screens/my_page_screen.dart';
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final authState = ref.watch(authProvider);
+
+  return GoRouter(
+    initialLocation: '/login',
+    redirect: (context, state) {
+      final isLoggingIn = state.uri.toString() == '/login';
+      final isAuth = authState.isAuthenticated;
+      final hasOnboarded = authState.hasCompletedOnboarding;
+
+      if (!isAuth && !isLoggingIn) return '/login';
+      if (isAuth && !hasOnboarded && state.uri.toString() != '/onboarding') return '/onboarding';
+      if (isAuth && hasOnboarded && (isLoggingIn || state.uri.toString() == '/onboarding')) return '/home';
+
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/mypage',
+        builder: (context, state) => const MyPageScreen(),
+      ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return ScaffoldWithNavBar(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (context, state) => const HomeScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/calendar', builder: (context, state) => const CalendarScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/report', builder: (context, state) => const ReportScreen())]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/policy', 
+              builder: (context, state) => const PolicyScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) => PolicyDetailScreen(policyId: state.pathParameters['id']!),
+                ),
+              ]
+            )
+          ]),
+        ],
+      ),
+    ],
+  );
+});
+
+class ScaffoldWithNavBar extends StatelessWidget {
+  const ScaffoldWithNavBar({
+    required this.navigationShell,
+    super.key,
+  });
+
+  final StatefulNavigationShell navigationShell;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // Main screen content
+          navigationShell,
+
+          // Floating translucent bottom navigation bar
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 0, 28, 14),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 380),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(32),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(32),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                                blurRadius: 20,
+                                offset: const Offset(0, 6),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildNavItem(
+                                index: 0,
+                                label: '홈',
+                                icon: Icons.home_rounded,
+                              ),
+                              _buildNavItem(
+                                index: 1,
+                                label: '달력',
+                                icon: Icons.calendar_month_rounded,
+                              ),
+                              _buildNavItem(
+                                index: 2,
+                                label: '분석',
+                                icon: Icons.pie_chart_rounded,
+                              ),
+                              _buildNavItem(
+                                index: 3,
+                                label: '정책',
+                                icon: Icons.shield_rounded,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required String label,
+    required IconData icon,
+  }) {
+    final isSelected = navigationShell.currentIndex == index;
+    const activeColor = Color(0xFF0066FF); // Brand blue from screenshot
+    const inactiveColor = Color(0xFF6B7280); // Cool slate gray from screenshot
+
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            navigationShell.goBranch(
+              index,
+              initialLocation: index == navigationShell.currentIndex,
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Center(
+                    child: Icon(
+                      icon,
+                      size: 22,
+                      color: isSelected ? activeColor : inactiveColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? activeColor : inactiveColor,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
