@@ -7,35 +7,20 @@ import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/api/category_api.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
-
-int _toInt(dynamic value) {
-  if (value == null) return 0;
-  if (value is num) return value.toInt();
-  if (value is String) {
-    final clean = value.replaceAll(RegExp(r'[^0-9.-]'), '');
-    return double.tryParse(clean)?.toInt() ?? 0;
-  }
-  return 0;
-}
+import '../../transaction/screens/transaction_detail_screen.dart';
+import '../theme/home_tokens.dart';
+import '../utils/category_icons.dart';
+import '../widgets/category_filter_chip.dart';
+import '../widgets/home_section_header.dart';
+import '../widgets/gauge_progress_bar.dart';
+import '../widgets/transaction_grid_card.dart';
+import '../widgets/regret_spending_section.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   String _formatCurrency(int amount) {
     return '${NumberFormat('#,###').format(amount)}원';
-  }
-
-  IconData _getCategoryIcon(String? categoryId, String? name) {
-    final cat = (categoryId ?? '').toLowerCase();
-    final n = (name ?? '').toLowerCase();
-    if (cat.contains('food') || n.contains('식비')) return Icons.restaurant;
-    if (cat.contains('cafe') || n.contains('카페')) return Icons.coffee;
-    if (cat.contains('transport') || n.contains('교통')) return Icons.directions_bus_outlined;
-    if (cat.contains('housing') || n.contains('주거')) return Icons.home_outlined;
-    if (cat.contains('communication') || n.contains('통신')) return Icons.phone_android;
-    if (cat.contains('invest') || n.contains('투자')) return Icons.trending_up;
-    if (cat.contains('saving') || n.contains('저축')) return Icons.savings_outlined;
-    return Icons.receipt_long_outlined;
   }
 
   @override
@@ -47,19 +32,14 @@ class HomeScreen extends ConsumerWidget {
     final recentTxAsync = ref.watch(homeRecentTransactionsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF9),
+      backgroundColor: HomeTokens.pageBackground,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00C875),
-              Color(0xFF10B981),
-              Color(0xFFE8FAF0),
-              Color(0xFFF8FAF9),
-            ],
-            stops: [0.0, 0.3, 0.6, 1.0],
+            colors: HomeTokens.heroGradient,
+            stops: HomeTokens.heroGradientStops,
           ),
         ),
         child: SafeArea(
@@ -97,17 +77,12 @@ class HomeScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      // NOTE: The Figma header (335:8091) only shows the bell
+                      // icon; the profile avatar was removed because MyPage
+                      // is now reached via the 5th bottom-nav tab.
                       IconButton(
                         icon: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
                         onPressed: () {},
-                      ),
-                      GestureDetector(
-                        onTap: () => context.push('/mypage'),
-                        child: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.white.withValues(alpha: 0.25),
-                          child: const Icon(Icons.person, color: Colors.white, size: 20),
-                        ),
                       ),
                     ],
                   ),
@@ -156,7 +131,7 @@ class HomeScreen extends ConsumerWidget {
                             Text('홈 데이터 로딩 실패\n$err', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Colors.grey)),
                             const SizedBox(height: 12),
                             ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C875), foregroundColor: Colors.white),
+                              style: ElevatedButton.styleFrom(backgroundColor: HomeTokens.accent, foregroundColor: Colors.white),
                               onPressed: () => ref.invalidate(homeDataProvider),
                               child: const Text('다시 시도'),
                             ),
@@ -193,10 +168,10 @@ class HomeScreen extends ConsumerWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('권장 소비액', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
+                                    const Text('권장 소비액', style: TextStyle(color: HomeTokens.textOnHero, fontSize: 13)),
                                     Text(
                                       '/ ${_formatCurrency(data.recommendedAmount)}',
-                                      style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(color: HomeTokens.textOnHero, fontSize: 13, fontWeight: FontWeight.w600),
                                     ),
                                   ],
                                 ),
@@ -226,8 +201,8 @@ class HomeScreen extends ConsumerWidget {
                                   children: [
                                     Row(
                                       children: [
-                                        const Text('다음 월급일까지 앞으로  ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937))),
-                                        Text('D-${data.daysUntilSalary}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF00C875))),
+                                        const Text('다음 월급일까지 앞으로 ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937))),
+                                        Text('D-${data.daysUntilSalary}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: HomeTokens.accent)),
                                       ],
                                     ),
                                     const SizedBox(height: 10),
@@ -245,25 +220,12 @@ class HomeScreen extends ConsumerWidget {
                                       ],
                                     ),
                                     const SizedBox(height: 14),
-                                    // Segmented gauge: 4 quarters, each 25% of the bar
-                                    Row(
-                                      children: List.generate(4, (i) {
-                                        final segmentFill = (data.flexibleUsageRatio * 4 - i).clamp(0.0, 1.0);
-                                        return Expanded(
-                                          child: Padding(
-                                            padding: EdgeInsets.only(right: i == 3 ? 0 : 4),
-                                            child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(4),
-                                              child: LinearProgressIndicator(
-                                                value: segmentFill,
-                                                minHeight: 6,
-                                                backgroundColor: Colors.white.withValues(alpha: 0.5),
-                                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00C875)),
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      }),
+                                    // Single continuous gauge with 25/50/75% ticks
+                                    // (replaces the previous 4-segment row) -
+                                    // ratio calculation itself is unchanged.
+                                    GaugeProgressBar(
+                                      ratio: data.flexibleUsageRatio,
+                                      backgroundColor: Colors.white.withValues(alpha: 0.5),
                                     ),
                                   ],
                                 ),
@@ -282,15 +244,10 @@ class HomeScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('실시간 거래 내역', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
-                      GestureDetector(
-                        onTap: () => context.go('/calendar'),
-                        child: const Text('더보기', style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))),
-                      ),
-                    ],
+                  child: HomeSectionHeader(
+                    title: '실시간 거래 내역',
+                    actionLabel: '더보기',
+                    onActionTap: () => context.go('/calendar'),
                   ),
                 ),
               ),
@@ -313,13 +270,28 @@ class HomeScreen extends ConsumerWidget {
                           itemCount: expenseCategories.length + 1,
                           itemBuilder: (ctx, i) {
                             if (i == 0) {
-                              return _buildChip(ref, '전체', 'ALL', selectedFilter == 'ALL');
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: CategoryFilterChip(
+                                  label: '전체',
+                                  selected: selectedFilter == 'ALL',
+                                  onTap: () => ref.read(homeCategoryFilterProvider.notifier).setFilter('ALL'),
+                                ),
+                              );
                             }
                             final c = expenseCategories[i - 1];
                             if (c is! Map) return const SizedBox.shrink();
                             final id = (c['id'] ?? '').toString();
                             final name = (c['name'] ?? '').toString();
-                            return _buildChip(ref, name, id, selectedFilter == id);
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: CategoryFilterChip(
+                                label: name,
+                                icon: categoryIconFor(id, name),
+                                selected: selectedFilter == id,
+                                onTap: () => ref.read(homeCategoryFilterProvider.notifier).setFilter(id),
+                              ),
+                            );
                           },
                         );
                       },
@@ -335,7 +307,7 @@ class HomeScreen extends ConsumerWidget {
                   child: recentTxAsync.when(
                     loading: () => const Padding(
                       padding: EdgeInsets.all(32),
-                      child: Center(child: CircularProgressIndicator(color: Color(0xFF00C875))),
+                      child: Center(child: CircularProgressIndicator(color: HomeTokens.accent)),
                     ),
                     error: (e, st) => Padding(
                       padding: const EdgeInsets.all(16),
@@ -349,10 +321,18 @@ class HomeScreen extends ConsumerWidget {
                           child: const Center(child: Text('오늘 등록된 거래 내역이 없습니다.', style: TextStyle(color: Color(0xFF9CA3AF)))),
                         );
                       }
-                      return _buildTransactionGrid(transactions);
+                      return _buildTransactionGrid(context, transactions);
                     },
                   ),
                 ),
+              ),
+
+              // "어제 소비 돌아보기" - presentation-only shell. There is no
+              // backend endpoint today that classifies regret spending, so
+              // `items` stays null and this renders nothing. Wire it to a
+              // real provider once that contract exists.
+              const SliverToBoxAdapter(
+                child: RegretSpendingSection(items: null),
               ),
 
               // Bottom spacer
@@ -364,7 +344,7 @@ class HomeScreen extends ConsumerWidget {
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 72),
         child: FloatingActionButton(
-          backgroundColor: const Color(0xFF00C875),
+          backgroundColor: HomeTokens.accent,
           foregroundColor: Colors.white,
           elevation: 4,
           onPressed: () => AddTransactionModal.show(context),
@@ -390,7 +370,7 @@ class HomeScreen extends ConsumerWidget {
           _DetailRow(Icons.event_outlined, '다음 월급일까지', 'D-${data.daysUntilSalary}'),
           _DetailRow(Icons.account_balance_wallet_outlined, '남은 가용금액', _formatCurrency(data.remainingFlexibleAmount)),
         ],
-        footer: '현재 월급 주기와 남은 금액을 기준으로 계산했어요.',
+        footer: '현재 월급 주기와 남은 금액을 기준으로 계산되었어요.',
       ),
     );
   }
@@ -409,7 +389,7 @@ class HomeScreen extends ConsumerWidget {
         title: '이번 월급 주기',
         subtitle: '${dateFormat.format(cycleStart)} ~ ${dateFormat.format(cycleEnd)}',
         headline: 'D-${data.daysUntilSalary}',
-        headlineColor: const Color(0xFF00C875),
+        headlineColor: HomeTokens.accent,
         rows: [
           _DetailRow(Icons.check_circle_outline, '현재 남은 금액', _formatCurrency(data.remainingFlexibleAmount)),
           _DetailRow(Icons.payments_outlined, '사용한 금액', _formatCurrency(data.usedFlexibleAmount)),
@@ -421,35 +401,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildChip(WidgetRef ref, String label, String categoryId, bool isSelected) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: () => ref.read(homeCategoryFilterProvider.notifier).setFilter(categoryId),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isSelected ? const Color(0xFF00C875) : const Color(0xFFE5E7EB),
-              width: isSelected ? 1.5 : 1,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? const Color(0xFF00C875) : const Color(0xFF4B5563),
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTransactionGrid(List<dynamic> transactions) {
+  Widget _buildTransactionGrid(BuildContext context, List<dynamic> transactions) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = (constraints.maxWidth - 12) / 2;
@@ -458,54 +410,12 @@ class HomeScreen extends ConsumerWidget {
           runSpacing: 12,
           children: transactions.map((tx) {
             if (tx is! Map) return const SizedBox.shrink();
-            final amount = _toInt(tx['amount']);
-            final title = (tx['merchantOrTitle'] ?? (tx['category'] is Map ? tx['category']['name'] : null) ?? '내역').toString();
-            final categoryName = ((tx['category'] is Map ? tx['category']['name'] : null) ?? '지출').toString();
-            final categoryId = (tx['categoryId'] ?? '').toString();
-            final dateStr = (tx['occurredAt'] ?? '').toString();
-            final timeOrDate = dateStr.length >= 10 ? dateStr.substring(5) : dateStr;
-
             return SizedBox(
               width: cardWidth,
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF374151)), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(6)),
-                          child: Text(categoryName, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text('${NumberFormat('#,###').format(amount)}원', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(timeOrDate, style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
-                        Container(
-                          width: 28, height: 28,
-                          decoration: BoxDecoration(color: const Color(0xFFE8FAF0), borderRadius: BorderRadius.circular(8)),
-                          child: Icon(_getCategoryIcon(categoryId, categoryName), size: 16, color: const Color(0xFF00C875)),
-                        ),
-                      ],
-                    ),
-                  ],
+              child: TransactionGridCard(
+                transaction: tx,
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(builder: (_) => TransactionDetailScreen(transaction: Map<String, dynamic>.from(tx))),
                 ),
               ),
             );
@@ -571,7 +481,7 @@ class _DetailSheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     children: [
-                      Icon(row.icon, size: 18, color: const Color(0xFF00C875)),
+                      Icon(row.icon, size: 18, color: HomeTokens.accent),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(row.label, style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563))),
@@ -588,7 +498,7 @@ class _DetailSheet extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C875), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: HomeTokens.accent, foregroundColor: Colors.white),
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('확인'),
               ),

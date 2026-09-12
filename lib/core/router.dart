@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
+import '../features/home/theme/home_tokens.dart';
 import '../features/auth/providers/auth_provider.dart';
 
 // Screens placeholders
@@ -40,10 +41,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: '/mypage',
-        builder: (context, state) => const MyPageScreen(),
-      ),
+      // Five-tab bottom navigation (Figma node 335:8091 "Bottom Navigation
+      // Component"): 홈 / 캘린더 / 리포트 / 뉴스 / 마이. Each tab is a real
+      // StatefulShellBranch so navigation state (scroll position, provider
+      // caches, etc.) is preserved when switching tabs, matching go_router's
+      // IndexedStack semantics. "뉴스" reuses PolicyScreen/policy routes
+      // unchanged - only the nav label/icon differ from before. MyPage was
+      // previously a standalone push route reached from Home's avatar; it is
+      // now branch #4 (index 4) so it participates in the shell like the
+      // other tabs.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return ScaffoldWithNavBar(navigationShell: navigationShell);
@@ -54,7 +60,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [GoRoute(path: '/report', builder: (context, state) => const ReportScreen())]),
           StatefulShellBranch(routes: [
             GoRoute(
-              path: '/policy', 
+              path: '/policy',
               builder: (context, state) => const PolicyScreen(),
               routes: [
                 GoRoute(
@@ -64,6 +70,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ]
             )
           ]),
+          StatefulShellBranch(routes: [GoRoute(path: '/mypage', builder: (context, state) => const MyPageScreen())]),
         ],
       ),
     ],
@@ -124,7 +131,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
                               ),
                             ],
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
@@ -135,18 +142,23 @@ class ScaffoldWithNavBar extends StatelessWidget {
                               ),
                               _buildNavItem(
                                 index: 1,
-                                label: '달력',
+                                label: '캘린더',
                                 icon: Icons.calendar_month_rounded,
                               ),
                               _buildNavItem(
                                 index: 2,
-                                label: '분석',
+                                label: '리포트',
                                 icon: Icons.pie_chart_rounded,
                               ),
                               _buildNavItem(
                                 index: 3,
-                                label: '정책',
-                                icon: Icons.shield_rounded,
+                                label: '뉴스',
+                                icon: Icons.article_rounded,
+                              ),
+                              _buildNavItem(
+                                index: 4,
+                                label: '마이',
+                                icon: Icons.person_rounded,
                               ),
                             ],
                           ),
@@ -169,22 +181,27 @@ class ScaffoldWithNavBar extends StatelessWidget {
     required IconData icon,
   }) {
     final isSelected = navigationShell.currentIndex == index;
-    const activeColor = Color(0xFF0066FF); // Brand blue from screenshot
-    const inactiveColor = Color(0xFF6B7280); // Cool slate gray from screenshot
 
+    // Active tab gets a pill background (Figma: #D6F3E8 fill, #007C4F
+    // content) instead of just a color swap, matching node 335:8091's
+    // Bottom Navigation Component.
     return Expanded(
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           onTap: () {
             navigationShell.goBranch(
               index,
               initialLocation: index == navigationShell.currentIndex,
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            decoration: BoxDecoration(
+              color: isSelected ? HomeTokens.navActiveBg : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -196,7 +213,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
                     child: Icon(
                       icon,
                       size: 22,
-                      color: isSelected ? activeColor : inactiveColor,
+                      color: isSelected ? HomeTokens.navActiveText : HomeTokens.navInactive,
                     ),
                   ),
                 ),
@@ -206,7 +223,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? activeColor : inactiveColor,
+                    color: isSelected ? HomeTokens.navActiveText : HomeTokens.navInactive,
                     letterSpacing: -0.2,
                   ),
                 ),
