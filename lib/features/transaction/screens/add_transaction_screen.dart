@@ -1,13 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../../data/api/category_api.dart';
 import '../../home/providers/home_provider.dart';
+import '../../home/theme/home_tokens.dart';
 import '../../calendar/screens/calendar_screen.dart';
 import '../widgets/category_picker_screen.dart';
 
+class CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+    
+    final cleanText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanText.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    final int value = int.parse(cleanText);
+    final formatter = NumberFormat('#,###');
+    final String newText = formatter.format(value);
+
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newText.length),
+    );
+  }
+}
+
+/// "수기 거래 입력" (Figma node 362:3036). Presentation is now a full screen
+/// (pushed via Navigator) matching Figma, instead of the previous bottom
+/// sheet modal - per product direction the create/update/delete API calls,
+/// validation, and transaction model below are unchanged; only the outer
+/// shell and field styling moved.
 class AddTransactionModal extends ConsumerStatefulWidget {
   final DateTime? initialDate;
   final Map<String, dynamic>? existingTransaction;
@@ -15,12 +46,10 @@ class AddTransactionModal extends ConsumerStatefulWidget {
   const AddTransactionModal({super.key, this.initialDate, this.existingTransaction});
 
   static Future<void> show(BuildContext context, {DateTime? initialDate, Map<String, dynamic>? existingTransaction}) {
-    return showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AddTransactionModal(initialDate: initialDate, existingTransaction: existingTransaction),
+    return Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (context) => AddTransactionModal(initialDate: initialDate, existingTransaction: existingTransaction),
+      ),
     );
   }
 
@@ -38,10 +67,14 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   bool _isSubmitting = false;
   bool _categoryInitialized = false;
   String? _categoryPathLabel;
-  int _moodIndex = 1; // 0:좋음 1:보통 2:아쉬움 3:나쁨 — local UI only, not yet persisted by the backend.
+  // 0:아쉬운 1:평범한 2:만족한 - local UI only, not yet persisted by the
+  // backend (same constraint as before; Figma's 3-state mood picker is a
+  // presentation-only change, so it's safe to match exactly).
+  int _moodIndex = 1;
 
-  static const _moodEmojis = ['😊', '🙂', '😐', '☹️'];
-  static const _moodLabels = ['좋음', '보통', '아쉬움', '나쁨'];
+  static const _moodIcons = [Icons.sentiment_dissatisfied, Icons.sentiment_neutral, Icons.sentiment_satisfied];
+  static const _moodLabels = ['아쉬운', '평범한', '만족한'];
+  static const _moodColors = [HomeTokens.negative, HomeTokens.textMuted, HomeTokens.accent];
 
   bool get _isEditing => widget.existingTransaction != null;
 
@@ -80,73 +113,36 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
-    final viewInsets = MediaQuery.of(context).viewInsets;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final modalHeight = screenHeight * 0.85;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: viewInsets.bottom),
-      child: Container(
-        height: modalHeight,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return Scaffold(
+      backgroundColor: HomeTokens.pageBackground,
+      appBar: AppBar(
+        backgroundColor: HomeTokens.pageBackground,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: HomeTokens.textDark),
+          onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          _isEditing ? '내역 수정하기' : '수기 거래 입력',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: HomeTokens.textDark),
+        ),
+        centerTitle: false,
+        actions: [
+          if (_isEditing)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+              onPressed: _isSubmitting ? null : _delete,
+            ),
+        ],
+      ),
+      body: SafeArea(
         child: Column(
           children: [
-            // Pinned Header Bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-              child: Column(
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _isEditing ? '내역 수정하기' : '내역 추가하기',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                      ),
-                      Row(
-                        children: [
-                          if (_isEditing)
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: AppColors.danger),
-                              onPressed: _isSubmitting ? null : _delete,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: Color(0xFFF1F5F9)),
-
-            // Scrollable Form Content
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -154,70 +150,137 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryLight,
+                          color: HomeTokens.chipActiveBg,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
                           '분류/날짜/내용은 그대로 두고 금액과 메모만 수정할 수 있어요.',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: TextStyle(fontSize: 12, color: HomeTokens.textFaint),
                         ),
                       ),
                       const SizedBox(height: 16),
                     ],
-                    // Major Type Selector Tabs (지출, 저축, 투자, 수입)
+
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6, bottom: 10),
+                      child: Text('거래 유형', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+                    ),
                     IgnorePointer(
                       ignoring: _isEditing,
                       child: Opacity(
                         opacity: _isEditing ? 0.5 : 1,
-                        child: Row(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
-                            _buildTypeTab('지출', 'core.expense', AppColors.danger),
-                            const SizedBox(width: 8),
-                            _buildTypeTab('저축', 'core.saving', AppColors.primary),
-                            const SizedBox(width: 8),
-                            _buildTypeTab('투자', 'core.investment', const Color(0xFF26A69A)),
-                            const SizedBox(width: 8),
-                            _buildTypeTab('수입', 'core.income', Colors.blue),
+                            _buildTypePill('지출', 'core.expense', Icons.remove_circle_outline, HomeTokens.negative),
+                            _buildTypePill('저축', 'core.saving', Icons.add_circle_outline, HomeTokens.accent),
+                            _buildTypePill('투자', 'core.investment', Icons.trending_up, const Color(0xFF26A69A)),
+                            _buildTypePill('수입', 'core.income', Icons.attach_money, Colors.blue),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
 
-                    // Amount row
-                    _formRow(
-                      label: '금액',
-                      child: TextField(
-                        controller: _amountController,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          hintText: '0',
-                          suffixText: '원',
+                    // 거래명 card
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                      decoration: _cardDecoration(),
+                      child: Row(
+                        children: [
+                          const Text('거래명', style: TextStyle(fontSize: 16, color: HomeTokens.textDark)),
+                          const Spacer(),
+                          Flexible(
+                            child: TextField(
+                              controller: _titleController,
+                              readOnly: _isEditing,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: HomeTokens.textDark),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                hintText: '내용을 입력하세요',
+                                hintStyle: TextStyle(color: HomeTokens.textMuted, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.edit_outlined, size: 18, color: HomeTokens.textFaint),
+                        ],
+                      ),
+                    ),
+
+                    // 금액
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      decoration: _cardDecoration(),
+                      child: Row(
+                        children: [
+                          const Text('금액', style: TextStyle(fontSize: 16, color: HomeTokens.textDark)),
+                          Expanded(
+                            child: TextField(
+                              controller: _amountController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [CurrencyInputFormatter()],
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: HomeTokens.textDark),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                hintText: '0',
+                                suffixText: '원',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // 날짜
+                    IgnorePointer(
+                      ignoring: _isEditing,
+                      child: Opacity(
+                        opacity: _isEditing ? 0.5 : 1,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (date != null) {
+                              setState(() => _selectedDate = date);
+                            }
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                            decoration: _cardDecoration(border: HomeTokens.chipInactiveBorder),
+                            child: Row(
+                              children: [
+                                const Text('날짜', style: TextStyle(fontSize: 16, color: HomeTokens.textDark)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').format(_selectedDate),
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: HomeTokens.textMuted),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.calendar_today_outlined, size: 20, color: HomeTokens.accent),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
 
-                    // Title / Merchant row
-                    _formRow(
-                      label: '거래명',
-                      child: TextField(
-                        controller: _titleController,
-                        readOnly: _isEditing,
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          hintText: '사용처를 입력하세요',
-                        ),
-                      ),
-                    ),
-
-                    // Category row: tap opens the 대분류 → 소분류 picker screen.
+                    // 카테고리
                     categoriesAsync.when(
                       loading: () => const Padding(
                         padding: EdgeInsets.symmetric(vertical: 14),
@@ -233,114 +296,102 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           _pickDefaultCategory(categories);
                         }
 
-                        return _formRow(
-                          label: '카테고리',
-                          onTap: _isEditing ? null : () => _openCategoryPicker(categories),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  _categoryPathLabel ?? '카테고리를 선택하세요',
-                                  textAlign: TextAlign.right,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: GestureDetector(
+                            onTap: _isEditing ? null : () => _openCategoryPicker(categories),
+                            child: Row(
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 6),
+                                  child: Text('카테고리', style: TextStyle(fontSize: 16, color: HomeTokens.textDark)),
                                 ),
-                              ),
-                              if (!_isEditing) ...[
-                                const SizedBox(width: 4),
-                                const Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
+                                const Spacer(),
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: HomeTokens.chipInactiveBg,
+                                      borderRadius: BorderRadius.circular(30),
+                                      border: Border.all(color: HomeTokens.chipInactiveBorder),
+                                    ),
+                                    child: Text(
+                                      _categoryPathLabel ?? '카테고리를 선택하세요',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: HomeTokens.textDark),
+                                    ),
+                                  ),
+                                ),
+                                if (!_isEditing) const Icon(Icons.chevron_right, size: 22, color: HomeTokens.textFaint),
                               ],
-                            ],
+                            ),
                           ),
                         );
                       },
                     ),
 
-                    const SizedBox(height: 20),
-                    const Text('소비 평가', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6, bottom: 10),
+                      child: Text('소비 평가', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+                    ),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(_moodEmojis.length, (i) {
+                      children: List.generate(_moodLabels.length, (i) {
                         final isSelected = _moodIndex == i;
-                        return InkWell(
-                          onTap: () => setState(() => _moodIndex = i),
-                          borderRadius: BorderRadius.circular(28),
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                alignment: Alignment.center,
+                        return Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(right: i == _moodLabels.length - 1 ? 0 : 8),
+                            child: GestureDetector(
+                              onTap: () => setState(() => _moodIndex = i),
+                              child: Container(
+                                height: 66,
                                 decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isSelected ? AppColors.primaryLight : Colors.grey.shade100,
-                                  border: isSelected ? Border.all(color: AppColors.primary, width: 1.5) : null,
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: isSelected ? _moodColors[i] : HomeTokens.chipInactiveBorder, width: isSelected ? 1.5 : 1),
                                 ),
-                                child: Text(_moodEmojis[i], style: const TextStyle(fontSize: 22)),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _moodLabels[i],
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(_moodIcons[i], size: 24, color: isSelected ? _moodColors[i] : HomeTokens.textMuted),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      _moodLabels[i],
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isSelected ? _moodColors[i] : HomeTokens.textMuted),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         );
                       }),
                     ),
                     const SizedBox(height: 12),
 
-                    // Memo row
-                    _formRow(
-                      label: '메모',
-                      child: TextField(
-                        controller: _memoController,
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontSize: 14),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          hintText: '메모를 입력하세요 (선택)',
-                        ),
-                      ),
-                    ),
-
-                    // Date row
-                    IgnorePointer(
-                      ignoring: _isEditing,
-                      child: Opacity(
-                        opacity: _isEditing ? 0.5 : 1,
-                        child: _formRow(
-                          label: '날짜',
-                          onTap: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: _selectedDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime.now(),
-                            );
-                            if (date != null) {
-                              setState(() => _selectedDate = date);
-                            }
-                          },
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text(
-                                DateFormat('yyyy. M. d (E)', 'ko_KR').format(_selectedDate),
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    // 메모
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                      decoration: _cardDecoration(border: HomeTokens.chipInactiveBorder),
+                      child: Row(
+                        children: [
+                          const Text('메모', style: TextStyle(fontSize: 16, color: HomeTokens.textDark)),
+                          Expanded(
+                            child: TextField(
+                              controller: _memoController,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(fontSize: 14, color: HomeTokens.textDark),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                hintText: '메모를 입력하세요 (선택)',
+                                hintStyle: TextStyle(color: HomeTokens.textMuted),
                               ),
-                              const SizedBox(width: 6),
-                              const Icon(Icons.calendar_month, size: 18, color: AppColors.primary),
-                            ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.edit_outlined, size: 18, color: HomeTokens.textFaint),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -351,9 +402,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
             // Pinned Bottom Submit Button
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: HomeTokens.pageBackground,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.04),
@@ -362,36 +413,42 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                   ),
                 ],
               ),
-              child: SafeArea(
-                top: false,
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text(
-                            '저장',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HomeTokens.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
                   ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          _isEditing ? '저장' : '저장',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  BoxDecoration _cardDecoration({Color border = Colors.transparent}) {
+    return BoxDecoration(
+      color: HomeTokens.cardSurface,
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: border == Colors.transparent ? HomeTokens.chipInactiveBorder : border),
+      boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 2, offset: Offset(0, 1))],
     );
   }
 
@@ -449,58 +506,39 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     }
   }
 
-  Widget _formRow({required String label, required Widget child, VoidCallback? onTap}) {
-    final row = Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 64,
-            child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-          ),
-          Expanded(child: child),
-        ],
-      ),
-    );
-    if (onTap == null) return row;
-    return InkWell(onTap: onTap, child: row);
-  }
-
-  Widget _buildTypeTab(String label, String parentId, Color activeColor) {
+  Widget _buildTypePill(String label, String parentId, IconData icon, Color color) {
     final isSelected = _selectedParentId == parentId;
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedParentId = parentId;
-            _selectedCategoryId = null;
-            _categoryPathLabel = null;
-          });
-        },
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? activeColor.withValues(alpha: 0.12) : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected ? activeColor : Colors.transparent,
-              width: 1.5,
-            ),
-          ),
-          child: Center(
-            child: Text(
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedParentId = parentId;
+          _selectedCategoryId = null;
+          _categoryPathLabel = null;
+        });
+      },
+      child: Container(
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: isSelected ? color : HomeTokens.chipInactiveBorder, width: isSelected ? 1.5 : 1),
+          boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 1, offset: Offset(0, 1))],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: isSelected ? color : HomeTokens.textMuted),
+            const SizedBox(width: 6),
+            Text(
               label,
               style: TextStyle(
-                color: isSelected ? activeColor : AppColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 14,
+                color: isSelected ? color : HomeTokens.textMuted,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
