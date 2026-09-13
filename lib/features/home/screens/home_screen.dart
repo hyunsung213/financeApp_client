@@ -2,12 +2,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:go_router/go_router.dart';
 import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/api/category_api.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
 import '../../transaction/screens/transaction_detail_screen.dart';
+import '../../transaction/screens/transaction_list_screen.dart';
 import '../theme/home_tokens.dart';
 import '../utils/category_icons.dart';
 import '../widgets/category_filter_chip.dart';
@@ -247,7 +247,9 @@ class HomeScreen extends ConsumerWidget {
                   child: HomeSectionHeader(
                     title: '실시간 거래 내역',
                     actionLabel: '더보기',
-                    onActionTap: () => context.go('/calendar'),
+                    onActionTap: () => Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(builder: (_) => const TransactionListScreen()),
+                    ),
                   ),
                 ),
               ),
@@ -415,7 +417,7 @@ class HomeScreen extends ConsumerWidget {
               child: TransactionGridCard(
                 transaction: tx,
                 onTap: () => Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(builder: (_) => TransactionDetailScreen(transaction: Map<String, dynamic>.from(tx))),
+                  MaterialPageRoute(builder: (_) => TransactionDetailScreen(transactionId: tx['id'].toString())),
                 ),
               ),
             );

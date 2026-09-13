@@ -5,10 +5,9 @@ import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../../data/api/category_api.dart';
-import '../../home/providers/home_provider.dart';
 import '../../home/theme/home_tokens.dart';
-import '../../calendar/screens/calendar_screen.dart';
 import '../widgets/category_picker_screen.dart';
+import '../providers/transaction_provider.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
@@ -545,9 +544,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   }
 
   void _refreshAfterChange() {
-    ref.invalidate(homeDataProvider);
-    ref.invalidate(monthlyReportProvider);
-    ref.invalidate(dailyTransactionsProvider);
+    invalidateTransactionDependents(ref);
   }
 
   Future<void> _submit() async {
