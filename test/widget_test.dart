@@ -24,9 +24,12 @@ void main() {
       remainingToday: 12849,
       daysUntilSalary: 14,
       remainingFlexibleAmount: 500000,
+      totalFlexibleAmount: 1000000,
+      usedFlexibleAmount: 500000,
       potentialExtraSaving: 0,
       paceStatus: 'UNDER',
       paceDifference: 60000,
+      flexibleUsageRatio: 0.5,
     );
 
     final mockCategories = [

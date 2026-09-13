@@ -38,10 +38,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   bool _isSubmitting = false;
   bool _categoryInitialized = false;
   String? _categoryPathLabel;
-  int _moodIndex = 1; // 0:좋음 1:보통 2:아쉬움 3:나쁨 — local UI only, not yet persisted by the backend.
+  int _moodIndex = 1; // 0:좋음 1:보통 2:아쉬움 3:나쁨
 
   static const _moodEmojis = ['😊', '🙂', '😐', '☹️'];
   static const _moodLabels = ['좋음', '보통', '아쉬움', '나쁨'];
+  static const _moodValues = ['GOOD', 'NORMAL', 'REGRETTABLE', 'BAD'];
 
   bool get _isEditing => widget.existingTransaction != null;
 
@@ -55,6 +56,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       _titleController.text = (tx['merchantOrTitle'] ?? '').toString();
       _memoController.text = (tx['memo'] ?? '').toString();
       _selectedCategoryId = tx['categoryId']?.toString();
+      final existingMoodIndex = _moodValues.indexOf((tx['consumptionEvaluation'] ?? '').toString());
+      if (existingMoodIndex != -1) _moodIndex = existingMoodIndex;
     } else {
       _selectedDate = widget.initialDate ?? DateTime.now();
     }
@@ -508,6 +511,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
   void _refreshAfterChange() {
     ref.invalidate(homeDataProvider);
+    ref.invalidate(homeRecentTransactionsProvider);
+    ref.invalidate(yesterdayRegrettableTransactionsProvider);
     ref.invalidate(monthlyReportProvider);
     ref.invalidate(dailyTransactionsProvider);
   }
@@ -533,7 +538,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
       if (_isEditing) {
         final id = widget.existingTransaction!['id'].toString();
-        await transactionApi.updateTransaction(id, amount: amount, memo: memo);
+        await transactionApi.updateTransaction(id, amount: amount, memo: memo, consumptionEvaluation: _moodValues[_moodIndex]);
 
         if (mounted) {
           Navigator.pop(context);
@@ -567,6 +572,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         occurredAt: DateFormat('yyyy-MM-dd').format(_selectedDate),
         merchantOrTitle: title,
         memo: memo,
+        consumptionEvaluation: _moodValues[_moodIndex],
         source: 'MANUAL',
         status: 'CONFIRMED',
       );
