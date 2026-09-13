@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../policy/providers/policy_provider.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
 import '../screens/calendar_screen.dart';
@@ -75,10 +76,7 @@ class DayDetailSheet extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     transactionsAsync.when(
-                      loading: () => const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 32),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
+                      loading: () => const TransactionRowsSkeleton(),
                       error: (e, st) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         child: Text('불러오지 못했습니다: $e', style: const TextStyle(color: AppColors.textSecondary)),
@@ -228,72 +226,79 @@ class DayDetailSheet extends ConsumerWidget {
   }
 
   Widget _buildInterestedPolicy(BuildContext context, WidgetRef ref) {
-    final recommendedAsync = ref.watch(recommendedPoliciesProvider);
+    final calendarEventsAsync = ref.watch(policyCalendarEventsProvider);
 
-    return recommendedAsync.maybeWhen(
-      data: (data) {
-        final policies = data['policies'] as List<dynamic>? ?? [];
+    return calendarEventsAsync.maybeWhen(
+      data: (policies) {
         if (policies.isEmpty) return const SizedBox.shrink();
-        final policy = policies.first as Map<String, dynamic>;
-        final deadline = policy['applicationEndDate'] ?? policy['deadline'];
-        String? dDayLabel;
-        if (deadline is String && deadline.isNotEmpty) {
-          final end = DateTime.tryParse(deadline);
-          if (end != null) {
-            final days = end.difference(DateTime(day.year, day.month, day.day)).inDays;
-            dDayLabel = days >= 0 ? 'D-$days' : '마감';
-          }
-        }
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('관심 정책', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            InkWell(
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/policy/${policy['id']}');
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
-                      child: Text(
-                        (policy['category'] ?? '정책').toString(),
-                        style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        (policy['title'] ?? '').toString(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    if (dDayLabel != null) ...[
-                      const SizedBox(width: 8),
-                      Text(dDayLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+            ...policies.map((p) => _policyRow(context, p)),
           ],
         );
       },
       orElse: () => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _policyRow(BuildContext context, dynamic policyRaw) {
+    if (policyRaw is! Map) return const SizedBox.shrink();
+    final policy = policyRaw;
+    final deadline = policy['applicationEndDate'] ?? policy['deadline'];
+    String? dDayLabel;
+    if (deadline is String && deadline.isNotEmpty) {
+      final end = DateTime.tryParse(deadline);
+      if (end != null) {
+        final days = DateTime(end.year, end.month, end.day).difference(DateTime(day.year, day.month, day.day)).inDays;
+        dDayLabel = days >= 0 ? 'D-$days' : '마감';
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          context.push('/policy/${policy['id']}');
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
+                child: Text(
+                  (policy['category'] ?? '정책').toString(),
+                  style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  (policy['title'] ?? '').toString(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (dDayLabel != null) ...[
+                const SizedBox(width: 8),
+                Text(dDayLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

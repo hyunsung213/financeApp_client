@@ -14,6 +14,9 @@ class AppColors {
   static const Color warning = Color(0xFFFFAB00);
   static const Color danger = Color(0xFFFF3D00);
   static const Color dangerLight = Color(0xFFFFE8E0);
+  // Softer red for spots where the full-strength `danger` reads too harsh
+  // (e.g. a large hero number) while staying within the app's warm palette.
+  static const Color dangerSoft = Color(0xFFF2665A);
   
   static const Color border = Color(0xFFEEEEEE);
 }

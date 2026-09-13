@@ -11,7 +11,9 @@ class PolicyApi {
 
   PolicyApi(this._dio);
 
-  Future<Map<String, dynamic>> getPolicies({
+  /// Returns the raw policy list (each item includes a `presentation` object:
+  /// badgeText/headline/summary/targetText/benefitText/applicationText/categoryText/deadlineLabel).
+  Future<List<dynamic>> getPolicies({
     String? category,
     String? region,
     int? age,
@@ -59,12 +61,37 @@ class PolicyApi {
     }
   }
 
+  /// Returns `[{ bookmarkId, bookmarkedAt, policy: {...} }]` — the policy is nested.
   Future<List<dynamic>> getBookmarks() async {
     final response = await _dio.get('/api/policies/bookmarks');
     if (response.data['success'] == true) {
       return response.data['data'];
     } else {
       throw Exception(response.data['error']['message'] ?? 'Failed to get bookmarks');
+    }
+  }
+
+  /// Returns `[{ id, eventDate, note, createdAt, policy: {...} }]` — the policy is nested.
+  Future<List<dynamic>> getCalendarEvents() async {
+    final response = await _dio.get('/api/policies/calendar');
+    if (response.data['success'] == true) {
+      return response.data['data'];
+    } else {
+      throw Exception(response.data['error']['message'] ?? 'Failed to get calendar events');
+    }
+  }
+
+  Future<void> addCalendarEvent(String id, {required String eventDate}) async {
+    final response = await _dio.post('/api/policies/$id/calendar', data: {'eventDate': eventDate});
+    if (response.data['success'] != true) {
+      throw Exception(response.data['error']['message'] ?? 'Failed to add calendar event');
+    }
+  }
+
+  Future<void> removeCalendarEvent(String id) async {
+    final response = await _dio.delete('/api/policies/$id/calendar');
+    if (response.data['success'] != true) {
+      throw Exception(response.data['error']['message'] ?? 'Failed to remove calendar event');
     }
   }
 

@@ -54,6 +54,7 @@ class TransactionApi {
     required String occurredAt,
     required String merchantOrTitle,
     String? memo,
+    String? consumptionEvaluation,
     required String source,
     required String status,
   }) async {
@@ -64,6 +65,7 @@ class TransactionApi {
       'occurredAt': occurredAt,
       'merchantOrTitle': merchantOrTitle,
       if (memo != null) 'memo': memo,
+      if (consumptionEvaluation != null) 'consumptionEvaluation': consumptionEvaluation,
       'source': source,
       'status': status,
     });
@@ -77,11 +79,13 @@ class TransactionApi {
   Future<void> updateTransaction(String id, {
     int? amount,
     String? memo,
+    String? consumptionEvaluation,
     String? status,
   }) async {
     final data = <String, dynamic>{};
     if (amount != null) data['amount'] = amount;
     if (memo != null) data['memo'] = memo;
+    if (consumptionEvaluation != null) data['consumptionEvaluation'] = consumptionEvaluation;
     if (status != null) data['status'] = status;
 
     final response = await _dio.patch('/api/transactions/$id', data: data);

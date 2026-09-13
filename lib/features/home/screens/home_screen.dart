@@ -7,6 +7,10 @@ import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../data/api/category_api.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
+import '../../transaction/widgets/category_picker_screen.dart' show categoryIconFor;
+import '../../../core/widgets/gradient_progress_bar.dart';
+import '../../../core/widgets/skeleton.dart';
+import '../../../core/theme.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -25,19 +29,6 @@ class HomeScreen extends ConsumerWidget {
     return '${NumberFormat('#,###').format(amount)}원';
   }
 
-  IconData _getCategoryIcon(String? categoryId, String? name) {
-    final cat = (categoryId ?? '').toLowerCase();
-    final n = (name ?? '').toLowerCase();
-    if (cat.contains('food') || n.contains('식비')) return Icons.restaurant;
-    if (cat.contains('cafe') || n.contains('카페')) return Icons.coffee;
-    if (cat.contains('transport') || n.contains('교통')) return Icons.directions_bus_outlined;
-    if (cat.contains('housing') || n.contains('주거')) return Icons.home_outlined;
-    if (cat.contains('communication') || n.contains('통신')) return Icons.phone_android;
-    if (cat.contains('invest') || n.contains('투자')) return Icons.trending_up;
-    if (cat.contains('saving') || n.contains('저축')) return Icons.savings_outlined;
-    return Icons.receipt_long_outlined;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final homeDataAsync = ref.watch(homeDataProvider);
@@ -45,6 +36,7 @@ class HomeScreen extends ConsumerWidget {
     final selectedFilter = ref.watch(homeCategoryFilterProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final recentTxAsync = ref.watch(homeRecentTransactionsProvider);
+    final yesterdayRegretAsync = ref.watch(yesterdayRegrettableTransactionsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF9),
@@ -64,7 +56,11 @@ class HomeScreen extends ConsumerWidget {
         ),
         child: SafeArea(
           bottom: false,
-          child: CustomScrollView(
+          child: RefreshIndicator(
+            color: const Color(0xFF00C875),
+            onRefresh: () => _onRefresh(ref),
+            child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // Top Header
               SliverToBoxAdapter(
@@ -102,7 +98,7 @@ class HomeScreen extends ConsumerWidget {
                         onPressed: () {},
                       ),
                       GestureDetector(
-                        onTap: () => context.push('/mypage'),
+                        onTap: () => context.go('/mypage'),
                         child: CircleAvatar(
                           radius: 18,
                           backgroundColor: Colors.white.withValues(alpha: 0.25),
@@ -139,10 +135,8 @@ class HomeScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: homeDataAsync.when(
-                    loading: () => const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 60),
-                      child: Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)),
-                    ),
+                    skipLoadingOnRefresh: false,
+                    loading: () => const HomeHeroSkeleton(),
                     error: (err, st) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 20),
                       child: Container(
@@ -181,8 +175,9 @@ class HomeScreen extends ConsumerWidget {
                                   alignment: Alignment.bottomLeft,
                                   child: Text(
                                     NumberFormat('#,###').format(data.remainingToday),
-                                    style: const TextStyle(
-                                      color: Colors.white, fontSize: 48, fontWeight: FontWeight.w800, letterSpacing: -1,
+                                    style: TextStyle(
+                                      color: data.remainingToday < 0 ? AppColors.dangerSoft : Colors.white,
+                                      fontSize: 48, fontWeight: FontWeight.w800, letterSpacing: -1,
                                     ),
                                   ),
                                 ),
@@ -252,14 +247,11 @@ class HomeScreen extends ConsumerWidget {
                                         return Expanded(
                                           child: Padding(
                                             padding: EdgeInsets.only(right: i == 3 ? 0 : 4),
-                                            child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(4),
-                                              child: LinearProgressIndicator(
-                                                value: segmentFill,
-                                                minHeight: 6,
-                                                backgroundColor: Colors.white.withValues(alpha: 0.5),
-                                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00C875)),
-                                              ),
+                                            child: GradientProgressBar(
+                                              value: segmentFill,
+                                              height: 6,
+                                              backgroundColor: Colors.white.withValues(alpha: 0.5),
+                                              colors: const [Color(0xFF6EE7B7), Color(0xFF00C875)],
                                             ),
                                           ),
                                         );
@@ -313,13 +305,13 @@ class HomeScreen extends ConsumerWidget {
                           itemCount: expenseCategories.length + 1,
                           itemBuilder: (ctx, i) {
                             if (i == 0) {
-                              return _buildChip(ref, '전체', 'ALL', selectedFilter == 'ALL');
+                              return _buildChip(ref, '전체', null, 'ALL', selectedFilter == 'ALL');
                             }
                             final c = expenseCategories[i - 1];
                             if (c is! Map) return const SizedBox.shrink();
                             final id = (c['id'] ?? '').toString();
                             final name = (c['name'] ?? '').toString();
-                            return _buildChip(ref, name, id, selectedFilter == id);
+                            return _buildChip(ref, name, categoryIconFor(name), id, selectedFilter == id);
                           },
                         );
                       },
@@ -333,10 +325,8 @@ class HomeScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   child: recentTxAsync.when(
-                    loading: () => const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Center(child: CircularProgressIndicator(color: Color(0xFF00C875))),
-                    ),
+                    skipLoadingOnRefresh: false,
+                    loading: () => const TransactionCardsSkeleton(),
                     error: (e, st) => Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text('거래 내역 로딩 오류: $e', style: const TextStyle(color: Colors.grey)),
@@ -349,8 +339,21 @@ class HomeScreen extends ConsumerWidget {
                           child: const Center(child: Text('오늘 등록된 거래 내역이 없습니다.', style: TextStyle(color: Color(0xFF9CA3AF)))),
                         );
                       }
-                      return _buildTransactionGrid(transactions);
+                      return _buildTransactionGrid(context, transactions);
                     },
+                  ),
+                ),
+              ),
+
+              // Yesterday's regretted spending
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                  child: yesterdayRegretAsync.maybeWhen(
+                    data: (transactions) => transactions.isEmpty
+                        ? const SizedBox.shrink()
+                        : _buildYesterdayRegretSection(context, transactions),
+                    orElse: () => const SizedBox.shrink(),
                   ),
                 ),
               ),
@@ -358,6 +361,7 @@ class HomeScreen extends ConsumerWidget {
               // Bottom spacer
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
+            ),
           ),
         ),
       ),
@@ -374,6 +378,17 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _onRefresh(WidgetRef ref) async {
+    ref.invalidate(homeDataProvider);
+    ref.invalidate(homeRecentTransactionsProvider);
+    ref.invalidate(yesterdayRegrettableTransactionsProvider);
+    await Future.wait([
+      ref.read(homeDataProvider.future),
+      ref.read(homeRecentTransactionsProvider.future),
+      ref.read(yesterdayRegrettableTransactionsProvider.future),
+    ]);
+  }
+
   void _showTodayDetailSheet(BuildContext context, HomeData data) {
     showModalBottomSheet(
       context: context,
@@ -383,6 +398,7 @@ class HomeScreen extends ConsumerWidget {
       builder: (context) => _DetailSheet(
         title: '오늘 쓸 수 있는 돈',
         headline: _formatCurrency(data.remainingToday),
+        headlineColor: data.remainingToday < 0 ? AppColors.dangerSoft : const Color(0xFF1F2937),
         rows: [
           _DetailRow(Icons.stars_outlined, '오늘 권장 소비액', _formatCurrency(data.recommendedAmount)),
           _DetailRow(Icons.access_time, '오늘 사용한 금액', _formatCurrency(data.spentAmount)),
@@ -421,7 +437,8 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildChip(WidgetRef ref, String label, String categoryId, bool isSelected) {
+  Widget _buildChip(WidgetRef ref, String label, IconData? icon, String categoryId, bool isSelected) {
+    final color = isSelected ? const Color(0xFF00C875) : const Color(0xFF4B5563);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
@@ -436,20 +453,125 @@ class HomeScreen extends ConsumerWidget {
               width: isSelected ? 1.5 : 1,
             ),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? const Color(0xFF00C875) : const Color(0xFF4B5563),
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              fontSize: 13,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 15, color: color),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTransactionGrid(List<dynamic> transactions) {
+  Widget _buildYesterdayRegretSection(BuildContext context, List<dynamic> transactions) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('어제 소비 돌아보기', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+        const SizedBox(height: 4),
+        const Text(
+          "'아쉬운 소비'로 평가한 전날 거래를 보여드립니다.",
+          style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('😞', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 6),
+                  const Text('아쉬운 소비', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF374151))),
+                  const SizedBox(width: 8),
+                  Text('총 ${transactions.length}건', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.dangerSoft)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              for (var i = 0; i < transactions.length; i++) ...[
+                _yesterdayRegretRow(context, transactions[i]),
+                if (i != transactions.length - 1) const Divider(height: 20),
+              ],
+              const Divider(height: 20),
+              const Text(
+                '항목을 터치하면 거래 상세로 이동합니다.',
+                style: TextStyle(fontSize: 11, color: Color(0xFFB0B7C1)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _yesterdayRegretRow(BuildContext context, dynamic tx) {
+    if (tx is! Map) return const SizedBox.shrink();
+    final amount = _toInt(tx['amount']);
+    final name = (tx['merchantOrTitle'] ?? (tx['category'] is Map ? tx['category']['name'] : null) ?? '내역').toString();
+    final categoryName = ((tx['category'] is Map ? tx['category']['name'] : null) ?? '기타').toString();
+    final dateStr = (tx['occurredAt'] ?? '').toString();
+    final dateLabel = dateStr.length >= 10 ? dateStr.substring(5) : dateStr;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => AddTransactionModal.show(context, existingTransaction: Map<String, dynamic>.from(tx)),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(color: AppColors.dangerLight, shape: BoxShape.circle),
+            child: Icon(categoryIconFor(categoryName), size: 18, color: AppColors.dangerSoft),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(6)),
+                      child: Text(categoryName, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(dateLabel, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('-${NumberFormat('#,###').format(amount)}원', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.dangerSoft)),
+          const Icon(Icons.chevron_right, size: 18, color: Color(0xFFD1D5DB)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionGrid(BuildContext context, List<dynamic> transactions) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = (constraints.maxWidth - 12) / 2;
@@ -461,51 +583,66 @@ class HomeScreen extends ConsumerWidget {
             final amount = _toInt(tx['amount']);
             final title = (tx['merchantOrTitle'] ?? (tx['category'] is Map ? tx['category']['name'] : null) ?? '내역').toString();
             final categoryName = ((tx['category'] is Map ? tx['category']['name'] : null) ?? '지출').toString();
-            final categoryId = (tx['categoryId'] ?? '').toString();
             final dateStr = (tx['occurredAt'] ?? '').toString();
             final timeOrDate = dateStr.length >= 10 ? dateStr.substring(5) : dateStr;
 
             return SizedBox(
               width: cardWidth,
               child: Container(
-                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF374151)), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(6)),
-                          child: Text(categoryName, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
-                        ),
-                      ],
+                child: Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => AddTransactionModal.show(context, existingTransaction: Map<String, dynamic>.from(tx)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF374151)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(6)),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(categoryIconFor(categoryName), size: 11, color: const Color(0xFF6B7280)),
+                                    const SizedBox(width: 3),
+                                    Text(categoryName, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text('${NumberFormat('#,###').format(amount)}원', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(timeOrDate, style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+                              Container(
+                                width: 30, height: 30,
+                                decoration: const BoxDecoration(color: Color(0xFFE8FAF0), shape: BoxShape.circle),
+                                child: Icon(categoryIconFor(categoryName), size: 16, color: const Color(0xFF00C875)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Text('${NumberFormat('#,###').format(amount)}원', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(timeOrDate, style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
-                        Container(
-                          width: 28, height: 28,
-                          decoration: BoxDecoration(color: const Color(0xFFE8FAF0), borderRadius: BorderRadius.circular(8)),
-                          child: Icon(_getCategoryIcon(categoryId, categoryName), size: 16, color: const Color(0xFF00C875)),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             );
