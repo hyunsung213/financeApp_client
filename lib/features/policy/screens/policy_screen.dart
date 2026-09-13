@@ -1,39 +1,213 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme.dart';
+import '../../home/theme/home_tokens.dart';
 import '../providers/policy_provider.dart';
+import '../widgets/policy_featured_card.dart';
+import '../widgets/policy_filter_chips.dart';
+import '../widgets/policy_list_card.dart';
 
-class PolicyScreen extends StatelessWidget {
+/// Figma node 238:4676 (FINAL_POLICY_SCREENS, "Frame 116"): a single scroll
+/// (header -> Featured Card -> filter chips -> list), replacing the old
+/// Material AppBar + 3-tab (추천/전체검색/관심) layout. Nothing from the old
+/// tabs was deleted - `recommendedPoliciesProvider`, `allPoliciesProvider`,
+/// `bookmarkedPoliciesProvider` and `policyActionsProvider` are all reused
+/// here, just re-arranged to match Figma's IA. See
+/// docs/development-work-policy.md and the Policy backend audit for why the
+/// data-source and fallback rules below were chosen.
+class PolicyScreen extends ConsumerStatefulWidget {
   const PolicyScreen({super.key});
 
   @override
+  ConsumerState<PolicyScreen> createState() => _PolicyScreenState();
+}
+
+class _PolicyScreenState extends ConsumerState<PolicyScreen> {
+  String? _selectedCategory;
+
+  @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: const Text('청년 정책', style: TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.textPrimary,
-          elevation: 0,
-          bottom: const TabBar(
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.textSecondary,
-            indicatorColor: AppColors.primary,
-            tabs: [
-              Tab(text: '추천 정책'),
-              Tab(text: '전체 검색'),
-              Tab(text: '관심 정책'),
-            ],
+    final recommendedAsync = ref.watch(recommendedPoliciesProvider);
+
+    return Scaffold(
+      backgroundColor: HomeTokens.pageBackground,
+      body: SafeArea(
+        child: recommendedAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, st) => _buildBody(
+            context,
+            source: _PolicySource.fallback,
+            isProfileRequired: error.toString().contains('PROFILE_REQUIRED'),
+          ),
+          data: (data) {
+            final policies = (data['policies'] as List<dynamic>? ?? []);
+            if (policies.isEmpty) {
+              return _buildBody(context, source: _PolicySource.fallback, isProfileRequired: false);
+            }
+            return _buildBody(context, source: _PolicySource.recommended, recommended: policies);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context, {
+    required _PolicySource source,
+    List<dynamic>? recommended,
+    bool isProfileRequired = false,
+  }) {
+    if (source == _PolicySource.recommended) {
+      return _PolicyList(
+        policies: recommended!,
+        selectedCategory: _selectedCategory,
+        onCategorySelected: (c) => setState(() => _selectedCategory = c),
+        profileBanner: null,
+      );
+    }
+
+    // Recommended is unavailable (no profile, no matches, or the recommended
+    // API call failed) - fall back to the public "all policies" list so the
+    // Policy Main layout itself never disappears. No fake recommendation
+    // data is synthesized here.
+    final allAsync = ref.watch(allPoliciesProvider);
+    return allAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, st) => Center(child: Text('정책 정보를 불러오지 못했습니다.', style: const TextStyle(color: HomeTokens.textMuted))),
+      data: (policies) => _PolicyList(
+        policies: policies,
+        selectedCategory: _selectedCategory,
+        onCategorySelected: (c) => setState(() => _selectedCategory = c),
+        profileBanner: isProfileRequired ? _ProfileBanner(onSetup: () => _showProfileSheet(context)) : null,
+      ),
+    );
+  }
+
+  void _showProfileSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _ProfileQuickSetupSheet(),
+    );
+  }
+}
+
+enum _PolicySource { recommended, fallback }
+
+class _PolicyList extends ConsumerWidget {
+  final List<dynamic> policies;
+  final String? selectedCategory;
+  final ValueChanged<String?> onCategorySelected;
+  final Widget? profileBanner;
+
+  const _PolicyList({
+    required this.policies,
+    required this.selectedCategory,
+    required this.onCategorySelected,
+    required this.profileBanner,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = policies.whereType<Map>().map((p) => Map<String, dynamic>.from(p)).toList();
+    final bookmarkedIds = ref.watch(bookmarkedPolicyIdsProvider);
+
+    if (items.isEmpty) {
+      return CustomScrollView(
+        slivers: [
+          _sliverHeader(context),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.search_off_rounded, size: 56, color: HomeTokens.textMuted.withValues(alpha: 0.6)),
+                  const SizedBox(height: 12),
+                  const Text('표시할 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final featured = items.first;
+    final rest = items.skip(1).toList();
+    final categories = rest
+        .map((p) => (p['category'] ?? '').toString())
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList();
+    final filtered = selectedCategory == null ? rest : rest.where((p) => p['category'] == selectedCategory).toList();
+
+    return CustomScrollView(
+      slivers: [
+        _sliverHeader(context),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+          sliver: SliverToBoxAdapter(child: PolicyFeaturedCard(policy: featured, onTap: () => context.push('/policy/${featured['id']}'))),
+        ),
+        if (profileBanner != null)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+            sliver: SliverToBoxAdapter(child: profileBanner!),
+          ),
+        SliverPadding(
+          padding: const EdgeInsets.only(top: 16),
+          sliver: SliverToBoxAdapter(
+            child: PolicyFilterChips(categories: categories, selected: selectedCategory, onSelected: onCategorySelected),
           ),
         ),
-        body: const TabBarView(
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
+          sliver: filtered.isEmpty
+              ? const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: Text('선택한 카테고리의 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted))),
+                  ),
+                )
+              : SliverList.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final policy = filtered[index];
+                    final id = (policy['id'] ?? '').toString();
+                    return PolicyListCard(
+                      policy: policy,
+                      isBookmarked: bookmarkedIds.contains(id),
+                      onTap: () => context.push('/policy/$id'),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sliverHeader(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+        child: Row(
           children: [
-            _RecommendedTab(),
-            _SearchTab(),
-            _BookmarkTab(),
+            const Text('청년정책', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+            const Spacer(),
+            // Figma's header only has a bell icon; the bookmark entry point
+            // is an intentional addition since the old "관심" tab was
+            // removed and Figma's exported frames have no dedicated
+            // bookmark-list screen to point to instead (see
+            // docs/development-work-policy.md scope notes for Policy).
+            IconButton(
+              icon: const Icon(Icons.bookmark_border_rounded, color: HomeTokens.textDark),
+              onPressed: () => context.push('/policy/bookmarks'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.notifications_none_rounded, color: HomeTokens.textDark),
+              onPressed: () {},
+            ),
           ],
         ),
       ),
@@ -41,317 +215,121 @@ class PolicyScreen extends StatelessWidget {
   }
 }
 
-class _RecommendedTab extends ConsumerWidget {
-  const _RecommendedTab();
+class _ProfileBanner extends StatelessWidget {
+  final VoidCallback onSetup;
+
+  const _ProfileBanner({required this.onSetup});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(profileProvider);
-
-    return profileAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, st) {
-        if (e.toString().contains('PROFILE_REQUIRED')) {
-          return const _ProfileForm();
-        }
-        return Center(child: Text('에러 발생: $e'));
-      },
-      data: (profile) {
-        final recommendedAsync = ref.watch(recommendedPoliciesProvider);
-        return recommendedAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, st) => Center(child: Text('추천 정책을 불러오지 못했습니다.')),
-          data: (data) {
-            final policies = data['policies'] as List<dynamic>? ?? [];
-            if (policies.isEmpty) {
-              return _buildEmptyState('현재 조건에 맞는 추천 정책이 없습니다.');
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: policies.length,
-              itemBuilder: (context, index) => _PolicyCard(policy: policies[index]),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildEmptyState(String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: HomeTokens.chipActiveBg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: HomeTokens.chipActiveBorder),
+      ),
+      child: Row(
         children: [
-          Icon(Icons.search_off, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
-          Text(message, style: const TextStyle(color: AppColors.textSecondary)),
+          const Expanded(
+            child: Text(
+              '나이·지역을 입력하면 나에게 맞는 정책을 추천해 드려요.',
+              style: TextStyle(fontSize: 13, color: HomeTokens.accentDark, fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: onSetup,
+            child: const Text('설정하기', style: TextStyle(color: HomeTokens.accentDark, fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ProfileForm extends ConsumerStatefulWidget {
-  const _ProfileForm();
+/// Same fields/action the old full-page `_ProfileForm` gate had
+/// (`policyActionsProvider.updateProfile`), just presented as a dismissible
+/// bottom sheet instead of blocking the entire Policy Main screen - Figma's
+/// Main layout has no such gate, and the approved scope says PROFILE_REQUIRED
+/// must not hide it.
+class _ProfileQuickSetupSheet extends ConsumerStatefulWidget {
+  const _ProfileQuickSetupSheet();
 
   @override
-  ConsumerState<_ProfileForm> createState() => _ProfileFormState();
+  ConsumerState<_ProfileQuickSetupSheet> createState() => _ProfileQuickSetupSheetState();
 }
 
-class _ProfileFormState extends ConsumerState<_ProfileForm> {
+class _ProfileQuickSetupSheetState extends ConsumerState<_ProfileQuickSetupSheet> {
   final _ageController = TextEditingController();
   String? _selectedRegion;
+  bool _saving = false;
 
-  final List<String> _regions = [
-    '서울', '부산', '대구', '인천', '광주', '대전', '울산', 
-    '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'
+  static const _regions = [
+    '서울', '부산', '대구', '인천', '광주', '대전', '울산',
+    '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
   ];
+
+  @override
+  void dispose() {
+    _ageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final age = int.tryParse(_ageController.text);
+    if (age == null && _selectedRegion == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('나이 또는 지역을 입력해주세요.')));
+      return;
+    }
+    setState(() => _saving = true);
+    await ref.read(policyActionsProvider.notifier).updateProfile(age: age, region: _selectedRegion);
+    if (mounted) Navigator.pop(context);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Icon(Icons.person_pin, size: 64, color: AppColors.primary),
-          const SizedBox(height: 24),
-          Text(
-            '맞춤형 정책을 추천해 드릴게요!',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '나이와 거주 지역을 입력하시면\n조건에 딱 맞는 정책만 모아서 보여드립니다.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 32),
-          TextField(
-            controller: _ageController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: '만 나이',
-              hintText: '예: 25',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _selectedRegion,
-            decoration: const InputDecoration(
-              labelText: '거주 지역',
-              border: OutlineInputBorder(),
-            ),
-            items: _regions.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-            onChanged: (val) => setState(() => _selectedRegion = val),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              final age = int.tryParse(_ageController.text);
-              if (age == null && _selectedRegion == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('나이 또는 지역을 입력해주세요.')),
-                );
-                return;
-              }
-              await ref.read(policyActionsProvider.notifier).updateProfile(
-                age: age,
-                region: _selectedRegion,
-              );
-            },
-            child: const Text('저장하고 추천받기', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SearchTab extends ConsumerWidget {
-  const _SearchTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final allAsync = ref.watch(allPoliciesProvider);
-    final filter = ref.watch(policyFilterProvider);
-
-    return Column(
-      children: [
-        // Filter Bar
-        Container(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: '정책 이름 또는 키워드 검색',
-                    prefixIcon: const Icon(Icons.search),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: AppColors.background,
-                  ),
-                  onSubmitted: (value) {
-                    ref.read(policyFilterProvider.notifier).updateFilter(filter.copyWith(keyword: value));
-                  },
-                ),
-              ),
-            ],
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        
-        Expanded(
-          child: allAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, st) => Center(child: Text('에러 발생: $e')),
-            data: (policies) {
-              if (policies.isEmpty) {
-                return const Center(child: Text('조건에 맞는 정책이 없습니다.'));
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: policies.length,
-                itemBuilder: (context, index) => _PolicyCard(policy: policies[index]),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BookmarkTab extends ConsumerWidget {
-  const _BookmarkTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bookmarksAsync = ref.watch(bookmarkedPoliciesProvider);
-
-    return bookmarksAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, st) => Center(child: Text('에러 발생: $e')),
-      data: (policies) {
-        if (policies.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.bookmark_border, size: 64, color: AppColors.textSecondary),
-                SizedBox(height: 16),
-                Text('관심 등록한 정책이 없습니다.', style: TextStyle(color: AppColors.textSecondary)),
-              ],
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('맞춤형 정책을 추천해 드릴게요', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _ageController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: '만 나이', hintText: '예: 25', border: OutlineInputBorder()),
             ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: policies.length,
-          itemBuilder: (context, index) => _PolicyCard(policy: policies[index]),
-        );
-      },
-    );
-  }
-}
-
-class _PolicyCard extends ConsumerWidget {
-  final Map<String, dynamic> policy;
-  
-  const _PolicyCard({required this.policy});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bool isBookmarked = policy['isBookmarked'] == true;
-    final String title = policy['title'] ?? '제목 없음';
-    final String summary = policy['summary'] ?? '';
-    final String region = policy['region'] ?? '전국';
-    final String category = policy['category'] ?? '기타';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 0,
-      color: Colors.white,
-      child: InkWell(
-        onTap: () {
-          context.push('/policy/${policy['id']}');
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      category,
-                      style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      region,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                    ),
-                  ),
-                  const Spacer(),
-                  InkWell(
-                    onTap: () {
-                      ref.read(policyActionsProvider.notifier).toggleBookmark(policy['id'], isBookmarked);
-                    },
-                    child: Icon(
-                      isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                      color: isBookmarked ? AppColors.primary : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (summary.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  summary,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedRegion,
+              decoration: const InputDecoration(labelText: '거주 지역', border: OutlineInputBorder()),
+              items: _regions.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+              onChanged: (val) => setState(() => _selectedRegion = val),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: HomeTokens.accent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-              ],
-            ],
-          ),
+                onPressed: _saving ? null : _save,
+                child: _saving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('저장하고 추천받기', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
         ),
       ),
     );

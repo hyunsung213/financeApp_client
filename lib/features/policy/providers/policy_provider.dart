@@ -46,23 +46,46 @@ final policyFilterProvider = NotifierProvider<PolicyFilterNotifier, PolicyFilter
 });
 
 // --- All Policies Provider ---
+// `getPolicies` already returns the raw list (see policy_api.dart for why
+// the old `data['items']` unwrap was wrong against the real backend shape).
 final allPoliciesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.watch(policyApiProvider);
   final filter = ref.watch(policyFilterProvider);
-  
-  final data = await api.getPolicies(
+
+  return await api.getPolicies(
     category: filter.category,
     region: filter.region,
     age: filter.age,
     keyword: filter.keyword,
   );
-  return data['items'] as List<dynamic>? ?? [];
 });
 
 // --- Bookmarked Policies Provider ---
+// Rows are `PolicyBookmark` records (id/userId/policyId/createdAt/policy),
+// not flat Policy objects - see bookmarkedPolicyIdsProvider below and
+// PolicyBookmarksScreen for how callers unwrap `row['policy']`.
 final bookmarkedPoliciesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.watch(policyApiProvider);
   return await api.getBookmarks();
+});
+
+// --- Bookmarked Policy Id Set ---
+// Neither `/api/policies`, `/api/policies/recommended`, nor
+// `/api/policies/:id` return an `isBookmarked` flag on a policy (see
+// docs/backend/policy-backend-requirements.md item 5). This derives the
+// same information from the existing `/api/policies/bookmarks` endpoint so
+// every card/detail screen computes bookmark state the same way, from one
+// place, instead of each one calling a bookmark-status API individually.
+final bookmarkedPolicyIdsProvider = Provider.autoDispose<Set<String>>((ref) {
+  final bookmarksAsync = ref.watch(bookmarkedPoliciesProvider);
+  return bookmarksAsync.maybeWhen(
+    data: (rows) => rows
+        .whereType<Map>()
+        .map((row) => (row['policyId'] ?? (row['policy'] is Map ? row['policy']['id'] : null) ?? '').toString())
+        .where((id) => id.isNotEmpty)
+        .toSet(),
+    orElse: () => <String>{},
+  );
 });
 
 // --- Policy Actions Notifier ---

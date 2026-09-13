@@ -14,6 +14,7 @@ import '../features/calendar/screens/calendar_screen.dart';
 import '../features/report/screens/report_screen.dart';
 import '../features/policy/screens/policy_screen.dart';
 import '../features/policy/screens/policy_detail_screen.dart';
+import '../features/policy/screens/policy_bookmarks_screen.dart';
 import '../features/mypage/screens/my_page_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -63,6 +64,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               path: '/policy',
               builder: (context, state) => const PolicyScreen(),
               routes: [
+                // Registered before ':id' so '/policy/bookmarks' resolves as
+                // the literal bookmarks route, not id == "bookmarks" (same
+                // ordering concern the backend's own API_SPEC.md calls out
+                // for '/api/policies/bookmarks' vs '/api/policies/:id').
+                GoRoute(
+                  path: 'bookmarks',
+                  builder: (context, state) => const PolicyBookmarksScreen(),
+                ),
                 GoRoute(
                   path: ':id',
                   builder: (context, state) => PolicyDetailScreen(policyId: state.pathParameters['id']!),

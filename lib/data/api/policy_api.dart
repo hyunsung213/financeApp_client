@@ -11,7 +11,14 @@ class PolicyApi {
 
   PolicyApi(this._dio);
 
-  Future<Map<String, dynamic>> getPolicies({
+  // Backend returns `data` as a plain array of Policy rows here (no
+  // `{items: [...]}` wrapper - confirmed against
+  // financeApp_backend/src/controllers/policyController.ts and
+  // policyService.ts `list()`, which resolves straight to
+  // `Policy.findAll(...)`). The previous `Future<Map<String, dynamic>>`
+  // signature would have thrown a cast error the first time this hit a real
+  // backend; fixed while wiring Policy Main's fallback to this call.
+  Future<List<dynamic>> getPolicies({
     String? category,
     String? region,
     int? age,
@@ -30,7 +37,7 @@ class PolicyApi {
     // No auth token required typically, but interceptor will add it if logged in.
     final response = await _dio.get('/api/policies', queryParameters: queryParameters);
     if (response.data['success'] == true) {
-      return response.data['data'];
+      return response.data['data'] as List<dynamic>? ?? [];
     } else {
       throw Exception(response.data['error']['message'] ?? 'Failed to get policies');
     }
