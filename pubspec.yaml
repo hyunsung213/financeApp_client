@@ -45,6 +45,7 @@ dependencies:
   form_builder_validators: ^11.3.0
   table_calendar: ^3.2.1
   url_launcher: ^6.3.2
+  package_info_plus: ^10.2.1
 
 dev_dependencies:
   flutter_test:

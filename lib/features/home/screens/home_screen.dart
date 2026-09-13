@@ -16,6 +16,16 @@ import '../widgets/gauge_progress_bar.dart';
 import '../widgets/transaction_grid_card.dart';
 import '../widgets/regret_spending_section.dart';
 
+int _toInt(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value.toInt();
+  if (value is String) {
+    final clean = value.replaceAll(RegExp(r'[^0-9.-]'), '');
+    return double.tryParse(clean)?.toInt() ?? 0;
+  }
+  return 0;
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -30,6 +40,7 @@ class HomeScreen extends ConsumerWidget {
     final selectedFilter = ref.watch(homeCategoryFilterProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final recentTxAsync = ref.watch(homeRecentTransactionsProvider);
+    final yesterdayRegretAsync = ref.watch(yesterdayRegrettableTransactionsProvider);
 
     return Scaffold(
       backgroundColor: HomeTokens.pageBackground,
@@ -44,7 +55,11 @@ class HomeScreen extends ConsumerWidget {
         ),
         child: SafeArea(
           bottom: false,
-          child: CustomScrollView(
+          child: RefreshIndicator(
+            color: const Color(0xFF00C875),
+            onRefresh: () => _onRefresh(ref),
+            child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // Top Header
               SliverToBoxAdapter(
@@ -84,6 +99,7 @@ class HomeScreen extends ConsumerWidget {
                         icon: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
                         onPressed: () {},
                       ),
+
                     ],
                   ),
                 ),
@@ -156,8 +172,9 @@ class HomeScreen extends ConsumerWidget {
                                   alignment: Alignment.bottomLeft,
                                   child: Text(
                                     NumberFormat('#,###').format(data.remainingToday),
-                                    style: const TextStyle(
-                                      color: Colors.white, fontSize: 48, fontWeight: FontWeight.w800, letterSpacing: -1,
+                                    style: TextStyle(
+                                      color: data.remainingToday < 0 ? HomeTokens.negative : Colors.white,
+                                      fontSize: 48, fontWeight: FontWeight.w800, letterSpacing: -1,
                                     ),
                                   ),
                                 ),
@@ -333,17 +350,37 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
 
-              // "어제 소비 돌아보기" - presentation-only shell. There is no
-              // backend endpoint today that classifies regret spending, so
-              // `items` stays null and this renders nothing. Wire it to a
-              // real provider once that contract exists.
-              const SliverToBoxAdapter(
-                child: RegretSpendingSection(items: null),
+              // "어제 소비 돌아보기" - now wired to yesterdayRegrettableTransactionsProvider
+              // (real `/api/transactions` data filtered client-side for
+              // consumptionEvaluation == 'REGRETTABLE'; see home_provider.dart).
+              // `occurredAt` is date-only (no time-of-day - API_SPEC.md), so
+              // `time` is left blank rather than showing a fake timestamp.
+              SliverToBoxAdapter(
+                child: yesterdayRegretAsync.maybeWhen(
+                  data: (transactions) => RegretSpendingSection(
+                    items: transactions.whereType<Map>().map((tx) => {
+                          'merchantOrTitle': (tx['merchantOrTitle'] ?? (tx['category'] is Map ? tx['category']['name'] : null) ?? '내역').toString(),
+                          'time': '',
+                          'amountLabel': '-${NumberFormat('#,###').format(_toInt(tx['amount']))}원',
+                          'categoryPath': ((tx['category'] is Map ? tx['category']['name'] : null) ?? '기타').toString(),
+                          'id': tx['id'],
+                        }).toList(),
+                    // Branch-local push (not rootNavigator) so the shared
+                    // Bottom Navigation shell stays visible here, matching
+                    // every other entry point into Transaction Detail
+                    // (docs/figma/report-spec.md C.8).
+                    onItemTap: (item) => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => TransactionDetailScreen(transactionId: item['id'].toString())),
+                    ),
+                  ),
+                  orElse: () => const RegretSpendingSection(items: null),
+                ),
               ),
 
               // Bottom spacer
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
+            ),
           ),
         ),
       ),
@@ -360,6 +397,17 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _onRefresh(WidgetRef ref) async {
+    ref.invalidate(homeDataProvider);
+    ref.invalidate(homeRecentTransactionsProvider);
+    ref.invalidate(yesterdayRegrettableTransactionsProvider);
+    await Future.wait([
+      ref.read(homeDataProvider.future),
+      ref.read(homeRecentTransactionsProvider.future),
+      ref.read(yesterdayRegrettableTransactionsProvider.future),
+    ]);
+  }
+
   void _showTodayDetailSheet(BuildContext context, HomeData data) {
     showModalBottomSheet(
       context: context,
@@ -369,6 +417,7 @@ class HomeScreen extends ConsumerWidget {
       builder: (context) => _DetailSheet(
         title: '오늘 쓸 수 있는 돈',
         headline: _formatCurrency(data.remainingToday),
+        headlineColor: data.remainingToday < 0 ? HomeTokens.negative : const Color(0xFF1F2937),
         rows: [
           _DetailRow(Icons.stars_outlined, '오늘 권장 소비액', _formatCurrency(data.recommendedAmount)),
           _DetailRow(Icons.access_time, '오늘 사용한 금액', _formatCurrency(data.spentAmount)),
@@ -406,6 +455,7 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+
 
   Widget _buildTransactionGrid(BuildContext context, List<dynamic> transactions) {
     return LayoutBuilder(

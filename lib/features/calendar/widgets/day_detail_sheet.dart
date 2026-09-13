@@ -93,7 +93,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                     const SizedBox(height: 10),
                     transactionsAsync.when(
                       loading: () => const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 32),
+                        padding: EdgeInsets.symmetric(vertical: 16),
                         child: Center(child: CircularProgressIndicator()),
                       ),
                       error: (e, st) => Padding(

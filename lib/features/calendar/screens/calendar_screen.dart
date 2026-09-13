@@ -16,12 +16,15 @@ int _toInt(dynamic value) {
   return int.tryParse(value.toString()) ?? 0;
 }
 
-// One day of `/api/reports/daily`. `recommendedAmount`/`spendingRatio` are
-// nullable because the backend does not compute a per-day usable-amount /
-// spending-ratio yet (see docs/backend/calendar-daily-spending-ratio-requirements.md).
-// Until that ships, both stay null and the Calendar cell simply omits the
-// percentage - income/expense parsing here is unaffected either way, so
-// today's `/api/reports/daily` contract keeps working unchanged.
+// One day of `/api/reports/daily`. The backend now returns `recommended`/
+// `difference` per day (see API_SPEC.md), but per
+// docs/backend/calendar-daily-spending-ratio-requirements.md section H, the
+// current calculation applies one flat `dailyRecommended` to every date in
+// the requested range instead of resolving each date's own BudgetCycle -
+// wrong across a cycle boundary, which most calendar months cross. So
+// `recommendedAmount`/`spendingRatio` stay nullable and unpopulated here
+// until that per-date fix ships; the Calendar cell simply omits the
+// percentage until then. income/expense parsing is unaffected either way.
 class DailyReportEntry {
   final int income;
   final int expense;
@@ -52,13 +55,20 @@ final monthlyReportProvider = FutureProvider.family<Map<DateTime, DailyReportEnt
   final startDate = DateTime(month.year, month.month, 1);
   final endDate = DateTime(month.year, month.month + 1, 0); // Last day of month
 
+  // getDaily() now returns the full `{period, summary, daily}` envelope
+  // (API_SPEC.md's `GET /api/reports/daily`), not a bare list - unwrap
+  // `daily` here. `summary` isn't used: _buildSummaryRow recomputes
+  // income/expense/no-spend-days itself from `daily` (see below), since the
+  // backend's `summary` covers the whole requested range rather than "up to
+  // today" like the Figma card wants.
   final data = await reportApi.getDaily(
     startDate: DateFormat('yyyy-MM-dd').format(startDate),
     endDate: DateFormat('yyyy-MM-dd').format(endDate),
   );
+  final daily = data['daily'] as List<dynamic>? ?? const [];
 
   final Map<DateTime, DailyReportEntry> reportMap = {};
-  for (var item in data) {
+  for (var item in daily) {
     final date = DateTime.parse(item['date']);
     reportMap[DateTime(date.year, date.month, date.day)] = DailyReportEntry.fromJson(item as Map<String, dynamic>);
   }

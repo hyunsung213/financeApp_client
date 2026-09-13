@@ -50,7 +50,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       // unchanged - only the nav label/icon differ from before. MyPage was
       // previously a standalone push route reached from Home's avatar; it is
       // now branch #4 (index 4) so it participates in the shell like the
-      // other tabs.
+      // other tabs. Policy Detail/Bookmarks stay nested *inside* the
+      // '/policy' branch (below) rather than pushed as a root-level route,
+      // so the floating nav pill stays visible on them - only truly
+      // full-screen flows (Add/Edit Transaction, pushed with
+      // `Navigator.of(context, rootNavigator: true)`) hide it, via
+      // `isShellOnTop` in `ScaffoldWithNavBar` below.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return ScaffoldWithNavBar(navigationShell: navigationShell);
@@ -96,6 +101,11 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // False while anything sits above the shell (a bottom sheet, dialog, or a
+    // pushed full-screen route), so the floating pill slides away instead of
+    // hovering over modals.
+    final isShellOnTop = ModalRoute.of(context)?.isCurrent ?? true;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -108,78 +118,94 @@ class ScaffoldWithNavBar extends StatelessWidget {
             left: 0,
             right: 0,
             bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(28, 0, 28, 14),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 380),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(32),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.88),
-                            borderRadius: BorderRadius.circular(32),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.95),
-                              width: 1.2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                              BoxShadow(
-                                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildNavItem(
-                                index: 0,
-                                label: '홈',
-                                icon: Icons.home_rounded,
-                              ),
-                              _buildNavItem(
-                                index: 1,
-                                label: '캘린더',
-                                icon: Icons.calendar_month_rounded,
-                              ),
-                              _buildNavItem(
-                                index: 2,
-                                label: '리포트',
-                                icon: Icons.pie_chart_rounded,
-                              ),
-                              _buildNavItem(
-                                index: 3,
-                                label: '뉴스',
-                                icon: Icons.article_rounded,
-                              ),
-                              _buildNavItem(
-                                index: 4,
-                                label: '마이',
-                                icon: Icons.person_rounded,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+            child: IgnorePointer(
+              ignoring: !isShellOnTop,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                offset: isShellOnTop ? Offset.zero : const Offset(0, 1.4),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 180),
+                  opacity: isShellOnTop ? 1 : 0,
+                  child: _buildNavBar(),
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNavBar() {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 0, 28, 14),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(
+                        index: 0,
+                        label: '홈',
+                        icon: Icons.home_rounded,
+                      ),
+                      _buildNavItem(
+                        index: 1,
+                        label: '캘린더',
+                        icon: Icons.calendar_month_rounded,
+                      ),
+                      _buildNavItem(
+                        index: 2,
+                        label: '리포트',
+                        icon: Icons.pie_chart_rounded,
+                      ),
+                      _buildNavItem(
+                        index: 3,
+                        label: '뉴스',
+                        icon: Icons.article_rounded,
+                      ),
+                      _buildNavItem(
+                        index: 4,
+                        label: '마이',
+                        icon: Icons.person_rounded,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -14,11 +14,11 @@ final transactionByIdProvider = FutureProvider.autoDispose.family<Map<String, dy
 
 /// Invalidates every provider whose data depends on the transaction list:
 /// this transaction's own detail cache, Home's recent-transactions +
-/// dashboard summary, Report's main/monthly data (all months), and
-/// Calendar's monthly/daily views. Call this after any create/update/delete
-/// so every screen stays in sync — used by both the existing
-/// `AddTransactionModal` (create/update/delete) and the new Transaction
-/// Detail screen's delete button.
+/// dashboard summary + yesterday-regrettable-spend list, Report's
+/// main/monthly data (all months), and Calendar's monthly/daily views. Call
+/// this after any create/update/delete so every screen stays in sync — used
+/// by both the existing `AddTransactionModal` (create/update/delete) and the
+/// new Transaction Detail screen's delete button.
 ///
 /// The "전체 거래내역" list screen manages its own pagination as local
 /// widget state (matching this codebase's existing pattern for one-off
@@ -28,6 +28,7 @@ void invalidateTransactionDependents(WidgetRef ref) {
   ref.invalidate(transactionByIdProvider);
   ref.invalidate(homeRecentTransactionsProvider);
   ref.invalidate(homeDataProvider);
+  ref.invalidate(yesterdayRegrettableTransactionsProvider);
   ref.invalidate(reportMainDataProvider);
   ref.invalidate(monthlyReportDataProvider);
   ref.invalidate(monthlyReportProvider);

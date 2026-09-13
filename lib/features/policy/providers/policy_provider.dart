@@ -60,13 +60,52 @@ final allPoliciesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) asyn
   );
 });
 
-// --- Bookmarked Policies Provider ---
-// Rows are `PolicyBookmark` records (id/userId/policyId/createdAt/policy),
-// not flat Policy objects - see bookmarkedPolicyIdsProvider below and
-// PolicyBookmarksScreen for how callers unwrap `row['policy']`.
-final bookmarkedPoliciesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+/// Full unfiltered policy list — used to derive the category filter chips
+/// (filtering by the already-selected category would shrink the chip set).
+final allPolicyCategoriesProvider = FutureProvider.autoDispose<List<String>>((ref) async {
   final api = ref.watch(policyApiProvider);
-  return await api.getBookmarks();
+  final policies = await api.getPolicies();
+  final categories = policies
+      .whereType<Map>()
+      .map((p) => (p['category'] ?? '').toString())
+      .where((c) => c.isNotEmpty)
+      .toSet()
+      .toList()
+    ..sort();
+  return categories;
+});
+
+/// Flattens `{bookmarkId, bookmarkedAt, policy: {...}}` into a plain policy
+/// map (with `bookmarkId`/`bookmarkedAt` merged in) so callers can treat it
+/// like any other policy object.
+final bookmarkedPoliciesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.watch(policyApiProvider);
+  final raw = await api.getBookmarks();
+  return raw
+      .whereType<Map>()
+      .where((b) => b['policy'] is Map)
+      .map((b) => {
+            ...Map<String, dynamic>.from(b['policy'] as Map),
+            'bookmarkId': b['bookmarkId'],
+            'bookmarkedAt': b['bookmarkedAt'],
+          })
+      .toList();
+});
+
+/// Flattens `{id, eventDate, note, policy: {...}}` into a plain policy map
+/// (with `calendarEventId`/`calendarEventDate` merged in).
+final policyCalendarEventsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.watch(policyApiProvider);
+  final raw = await api.getCalendarEvents();
+  return raw
+      .whereType<Map>()
+      .where((e) => e['policy'] is Map)
+      .map((e) => {
+            ...Map<String, dynamic>.from(e['policy'] as Map),
+            'calendarEventId': e['id'],
+            'calendarEventDate': e['eventDate'],
+          })
+      .toList();
 });
 
 // --- Bookmarked Policy Id Set ---
@@ -110,6 +149,18 @@ class PolicyActionsNotifier extends Notifier<void> {
     ref.invalidate(bookmarkedPoliciesProvider);
     ref.invalidate(recommendedPoliciesProvider);
     ref.invalidate(allPoliciesProvider);
+  }
+
+  Future<void> addToCalendar(String policyId, String eventDate) async {
+    final api = ref.read(policyApiProvider);
+    await api.addCalendarEvent(policyId, eventDate: eventDate);
+    ref.invalidate(policyCalendarEventsProvider);
+  }
+
+  Future<void> removeFromCalendar(String policyId) async {
+    final api = ref.read(policyApiProvider);
+    await api.removeCalendarEvent(policyId);
+    ref.invalidate(policyCalendarEventsProvider);
   }
 }
 

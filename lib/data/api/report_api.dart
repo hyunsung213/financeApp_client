@@ -24,7 +24,8 @@ class ReportApi {
     }
   }
 
-  Future<List<dynamic>> getDaily({String? startDate, String? endDate}) async {
+  /// Returns `{ period: {startDate,endDate}, summary: {totalIncome,totalExpense,noSpendDays,noActivityDays}, daily: [{date,income,expense,spent,recommended,difference}] }`.
+  Future<Map<String, dynamic>> getDaily({String? startDate, String? endDate}) async {
     final queryParameters = <String, dynamic>{};
     if (startDate != null) queryParameters['startDate'] = startDate;
     if (endDate != null) queryParameters['endDate'] = endDate;

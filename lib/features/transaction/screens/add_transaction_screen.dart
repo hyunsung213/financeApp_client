@@ -69,14 +69,17 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   bool _isSubmitting = false;
   bool _categoryInitialized = false;
   String? _categoryPathLabel;
-  // 0:아쉬운 1:평범한 2:만족한 - local UI only, not yet persisted by the
-  // backend (same constraint as before; Figma's 3-state mood picker is a
-  // presentation-only change, so it's safe to match exactly).
+  // 0:아쉬운 1:평범한 2:만족한 - Figma's 3-state mood picker (icon + label);
+  // persisted to the backend via consumptionEvaluation using the subset of
+  // the backend's 4-value enum this UI can express (REGRETTABLE/NORMAL/
+  // GOOD). There's no 4th slot for "나쁨"/BAD, so that enum value is never
+  // sent from this screen - flagged for product/design follow-up.
   int _moodIndex = 1;
 
   static const _moodIcons = [Icons.sentiment_dissatisfied, Icons.sentiment_neutral, Icons.sentiment_satisfied];
   static const _moodLabels = ['아쉬운', '평범한', '만족한'];
   static const _moodColors = [HomeTokens.negative, HomeTokens.textMuted, HomeTokens.accent];
+  static const _moodValues = ['REGRETTABLE', 'NORMAL', 'GOOD'];
 
   bool get _isEditing => widget.existingTransaction != null;
 
@@ -90,6 +93,15 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       _titleController.text = (tx['merchantOrTitle'] ?? '').toString();
       _memoController.text = (tx['memo'] ?? '').toString();
       _selectedCategoryId = tx['categoryId']?.toString();
+      // 'BAD' is a valid backend enum value (API_SPEC.md) but this 3-state
+      // UI has no slot for it (product decision: no 4th "나쁨" option).
+      // Treat it as a legacy/compatibility alias of 'REGRETTABLE' so an
+      // existing BAD-tagged transaction still opens on the "아쉬운 소비"
+      // bucket instead of silently falling back to the NORMAL default.
+      var existingEvaluation = (tx['consumptionEvaluation'] ?? '').toString();
+      if (existingEvaluation == 'BAD') existingEvaluation = 'REGRETTABLE';
+      final existingMoodIndex = _moodValues.indexOf(existingEvaluation);
+      if (existingMoodIndex != -1) _moodIndex = existingMoodIndex;
     } else {
       _selectedDate = widget.initialDate ?? DateTime.now();
     }
@@ -536,6 +548,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   }
 
   void _refreshAfterChange() {
+    // Also covers Home's "yesterday regrettable spend" list (origin/main's
+    // yesterdayRegrettableTransactionsProvider) via the shared helper below.
     invalidateTransactionDependents(ref);
   }
 
@@ -567,6 +581,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
           type: _getTransactionType(_selectedParentId),
           occurredAt: DateFormat('yyyy-MM-dd').format(_selectedDate),
           categoryId: _selectedCategoryId,
+          consumptionEvaluation: _moodValues[_moodIndex],
         );
 
         if (mounted) {
@@ -601,6 +616,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         occurredAt: DateFormat('yyyy-MM-dd').format(_selectedDate),
         merchantOrTitle: title,
         memo: memo,
+        consumptionEvaluation: _moodValues[_moodIndex],
         source: 'MANUAL',
         status: 'CONFIRMED',
       );

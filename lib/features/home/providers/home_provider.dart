@@ -20,6 +20,8 @@ class HomeData {
   final int remainingToday;
   final int daysUntilSalary;
   final int remainingFlexibleAmount;
+  final int totalFlexibleAmount;
+  final int usedFlexibleAmount;
   final int potentialExtraSaving;
   final String paceStatus;
   final int paceDifference;
@@ -31,24 +33,18 @@ class HomeData {
     required this.remainingToday,
     required this.daysUntilSalary,
     required this.remainingFlexibleAmount,
+    required this.totalFlexibleAmount,
+    required this.usedFlexibleAmount,
     required this.potentialExtraSaving,
     required this.paceStatus,
     required this.paceDifference,
     required this.flexibleUsageRatio,
   });
 
-  // Total flexible budget for this salary cycle, derived from the usage ratio
-  // since the backend only exposes the remaining amount today.
-  int get totalFlexibleAmount => flexibleUsageRatio >= 1
-      ? remainingFlexibleAmount
-      : (remainingFlexibleAmount / (1 - flexibleUsageRatio)).round();
-
-  int get usedFlexibleAmount => totalFlexibleAmount - remainingFlexibleAmount;
-
   factory HomeData.fromJson(Map<String, dynamic> json) {
-    final rawRatio = json['budget']?['usagePercentage'] ?? json['budget']?['usedPercentage'];
-    // ponytail: placeholder 0.75 ratio until backend exposes real usage %, upgrade when that field lands.
-    final ratio = rawRatio is num ? (rawRatio / 100).clamp(0.0, 1.0).toDouble() : 0.75;
+    final flexibleBudget = _toInt(json['budget']?['flexibleBudget']);
+    final flexibleSpent = _toInt(json['budget']?['flexibleSpent']);
+    final ratio = flexibleBudget > 0 ? (flexibleSpent / flexibleBudget).clamp(0.0, 1.0) : 0.0;
 
     return HomeData(
       recommendedAmount: _toInt(json['today']?['recommendedAmount']),
@@ -56,6 +52,8 @@ class HomeData {
       remainingToday: _toInt(json['today']?['remainingToday']),
       daysUntilSalary: _toInt(json['daysUntilSalary']),
       remainingFlexibleAmount: _toInt(json['budget']?['remainingFlexibleAmount']),
+      totalFlexibleAmount: flexibleBudget,
+      usedFlexibleAmount: flexibleSpent,
       potentialExtraSaving: _toInt(json['savingProjection']?['potentialExtraSaving']),
       paceStatus: json['pace']?['status']?.toString() ?? 'UNKNOWN',
       paceDifference: _toInt(json['pace']?['difference']),
@@ -112,6 +110,36 @@ final homeRecentTransactionsProvider = FutureProvider.autoDispose<List<dynamic>>
       final occurredAt = (tx['occurredAt'] ?? '').toString();
       return occurredAt.startsWith(todayStr);
     }).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+/// Yesterday's expenses the user rated as "아쉬운 소비" (REGRETTABLE), for the
+/// home screen's "어제 소비 돌아보기" section. This filtering happens entirely
+/// client-side (the API call below has no consumptionEvaluation filter), so
+/// legacy 'BAD' rows - a valid backend enum value (API_SPEC.md) with no slot
+/// in the current 3-state mood picker - are included here too, bucketed
+/// with REGRETTABLE rather than silently dropped.
+final yesterdayRegrettableTransactionsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final txApi = ref.watch(transactionApiProvider);
+  final yesterdayStr = DateFormat('yyyy-MM-dd').format(DateTime.now().subtract(const Duration(days: 1)));
+
+  try {
+    final res = await txApi.getTransactions(
+      startDate: yesterdayStr,
+      endDate: yesterdayStr,
+      type: 'EXPENSE',
+      limit: 100,
+    );
+    List<dynamic> list = [];
+    if (res['items'] is List) {
+      list = res['items'] as List<dynamic>;
+    } else if (res['transactions'] is List) {
+      list = res['transactions'] as List<dynamic>;
+    }
+
+    return list.where((tx) => tx is Map && (tx['consumptionEvaluation'] == 'REGRETTABLE' || tx['consumptionEvaluation'] == 'BAD')).toList();
   } catch (e) {
     return [];
   }

@@ -4,6 +4,23 @@ import '../../../data/api/policy_api.dart';
 import '../../home/providers/home_provider.dart';
 import '../../policy/providers/policy_provider.dart';
 
+/// Maps a budget allocation's display name to the backend enums it needs.
+/// Matches the color/name convention already used across the mypage UI.
+(String, String) _allocationTypeFor(String name) {
+  switch (name) {
+    case '저축':
+      return ('SAVING', 'LOCKED');
+    case '투자':
+      return ('INVESTMENT', 'LOCKED');
+    case '고정생활':
+      return ('FIXED_LIVING', 'RESERVED');
+    case '소비':
+      return ('FLEXIBLE', 'FLEXIBLE');
+    default:
+      return ('OTHER', 'FLEXIBLE');
+  }
+}
+
 class MyPageData {
   final Map<String, dynamic> setting;
   final List<dynamic> allocations;
@@ -74,9 +91,12 @@ class MyPageActionsNotifier extends Notifier<void> {
       reportingStartDay: reportingStartDay,
     );
 
-    // 2. Update Allocations if IDs exist, or create if needed
+    // 2. Update existing allocations by id, or create ones that don't exist on
+    // the backend yet (e.g. the default 저축/투자/고정생활/소비 split shown to a
+    // brand-new user has no real id — PATCHing a made-up id would 404 silently).
     for (final alloc in allocations) {
       final id = alloc['id']?.toString();
+      final name = alloc['name'] as String? ?? '항목';
       final rawPercentage = alloc['percentage'];
       double percentage = 0.0;
       if (rawPercentage is num) {
@@ -87,11 +107,16 @@ class MyPageActionsNotifier extends Notifier<void> {
       final active = alloc['active'] as bool? ?? true;
 
       if (id != null && id.isNotEmpty) {
-        try {
-          await financeApi.updateAllocation(id, percentage: percentage, active: active);
-        } catch (_) {
-          // ignore or handle
-        }
+        await financeApi.updateAllocation(id, percentage: percentage, active: active);
+      } else {
+        final (allocationType, spendability) = _allocationTypeFor(name);
+        await financeApi.createAllocation(
+          name: name,
+          allocationType: allocationType,
+          percentage: percentage,
+          spendability: spendability,
+          active: active,
+        );
       }
     }
 

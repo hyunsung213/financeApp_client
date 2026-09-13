@@ -81,7 +81,10 @@ final reportMainDataProvider = FutureProvider.autoDispose.family<ReportMainData,
 
   final fullMonth = DateOnlyRange(startOfMonth(month), endOfMonth(month));
   final currentSummary = await api.getSummary(startDate: range.current.startStr, endDate: range.current.endStr);
-  final dailyRaw = await api.getDaily(startDate: fullMonth.startStr, endDate: fullMonth.endStr);
+  // getDaily() returns the full {period, summary, daily} envelope
+  // (API_SPEC.md's GET /api/reports/daily) - unwrap `daily` here.
+  final dailyEnvelope = await api.getDaily(startDate: fullMonth.startStr, endDate: fullMonth.endStr);
+  final dailyRaw = dailyEnvelope['daily'] as List<dynamic>? ?? const [];
   final categoriesRaw = await api.getCategories(startDate: range.current.startStr, endDate: range.current.endStr);
 
   int previousExpense = 0;
@@ -163,13 +166,17 @@ final monthlyReportDataProvider = FutureProvider.autoDispose.family<MonthlyRepor
   // comparison data" rather than failing the whole screen (see
   // docs/development-work-policy.md §7 - Backend gap safely disabled, not
   // a broken page).
-  final currentDailyRaw = await api.getDaily(startDate: range.current.startStr, endDate: range.current.endStr);
+  // getDaily() returns the full {period, summary, daily} envelope
+  // (API_SPEC.md's GET /api/reports/daily) - unwrap `daily` here.
+  final currentDailyEnvelope = await api.getDaily(startDate: range.current.startStr, endDate: range.current.endStr);
+  final currentDailyRaw = currentDailyEnvelope['daily'] as List<dynamic>? ?? const [];
   final currentCategoriesRaw = await api.getCategories(startDate: range.current.startStr, endDate: range.current.endStr);
 
   List<dynamic> previousDailyRaw = const [];
   List<dynamic> previousCategoriesRaw = const [];
   try {
-    previousDailyRaw = await api.getDaily(startDate: range.previous.startStr, endDate: range.previous.endStr);
+    final previousDailyEnvelope = await api.getDaily(startDate: range.previous.startStr, endDate: range.previous.endStr);
+    previousDailyRaw = previousDailyEnvelope['daily'] as List<dynamic>? ?? const [];
     previousCategoriesRaw = await api.getCategories(startDate: range.previous.startStr, endDate: range.previous.endStr);
   } catch (_) {
     // Keep defaults above; momPercent/topGrowthCategory already handle an
