@@ -16,16 +16,27 @@ import '../widgets/month_picker_sheet.dart';
 /// instead of a new provider, since the "지난달(1일-N일) 대비" figure it
 /// needs is exactly what that provider already computes for the Monthly
 /// Report screen's category-growth insight.
+///
+/// [initialCategoryName] lets a caller (Monthly Report's "~증가 영향이
+/// 컸어요" category insight) deep-link straight into this screen with that
+/// category already expanded/selected, per the product rule that a
+/// category-impact insight should land here instead of only explaining
+/// itself in place. Matched by name (not id) because `/api/reports/categories`
+/// still doesn't return a stable `categoryId` (see
+/// docs/backend/report-backend-requirements.md #6) — this reuses the same
+/// name-based lookup pattern already used by this screen's own "거래 내역
+/// 보기" button below.
 class CategoryReportScreen extends ConsumerStatefulWidget {
   final DateTime initialMonth;
-  const CategoryReportScreen({super.key, required this.initialMonth});
+  final String? initialCategoryName;
+  const CategoryReportScreen({super.key, required this.initialMonth, this.initialCategoryName});
 
   @override
   ConsumerState<CategoryReportScreen> createState() => _CategoryReportScreenState();
 }
 
 class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
-  String? _expandedCategory;
+  late String? _expandedCategory = widget.initialCategoryName;
 
   static const _colors = [
     HomeTokens.accent,
@@ -158,6 +169,7 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
               const SizedBox(height: 16),
               for (var i = 0; i < categories.length; i++) ...[
                 _CategoryRow(
+                  month: month,
                   category: categories[i],
                   color: _colors[i % _colors.length],
                   previousAmount: data.previousCategories.where((c) => c.name == categories[i].name).map((c) => c.amount).firstOrNull,
@@ -176,6 +188,7 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
 }
 
 class _CategoryRow extends ConsumerWidget {
+  final DateTime month;
   final CategoryAmount category;
   final Color color;
   final int? previousAmount;
@@ -184,6 +197,7 @@ class _CategoryRow extends ConsumerWidget {
   final VoidCallback onTap;
 
   const _CategoryRow({
+    required this.month,
     required this.category,
     required this.color,
     required this.previousAmount,
@@ -224,8 +238,13 @@ class _CategoryRow extends ConsumerWidget {
               ),
             ),
           ),
-          if (expanded)
-            Padding(
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: !expanded
+                ? const SizedBox(width: double.infinity, height: 0)
+                : Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,7 +274,7 @@ class _CategoryRow extends ConsumerWidget {
                       final match = categories.whereType<Map>().where((c) => c['name'] == category.name).firstOrNull;
                       if (!context.mounted) return;
                       Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => TransactionListScreen(initialCategoryId: match?['id']?.toString()),
+                        builder: (_) => TransactionListScreen(initialMonth: month, initialCategoryId: match?['id']?.toString()),
                       ));
                     },
                     style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44), side: const BorderSide(color: HomeTokens.chipInactiveBorder)),
@@ -264,6 +283,7 @@ class _CategoryRow extends ConsumerWidget {
                 ],
               ),
             ),
+          ),
         ],
       ),
     );

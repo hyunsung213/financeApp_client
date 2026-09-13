@@ -247,7 +247,11 @@ class HomeScreen extends ConsumerWidget {
                   child: HomeSectionHeader(
                     title: '실시간 거래 내역',
                     actionLabel: '더보기',
-                    onActionTap: () => Navigator.of(context, rootNavigator: true).push(
+                    // Branch-local push (not rootNavigator) so the shared
+                    // Bottom Navigation shell stays visible here, matching
+                    // Report/Category Report's entry into the same screen
+                    // (docs/figma/report-spec.md C.8).
+                    onActionTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const TransactionListScreen()),
                     ),
                   ),
@@ -416,7 +420,11 @@ class HomeScreen extends ConsumerWidget {
               width: cardWidth,
               child: TransactionGridCard(
                 transaction: tx,
-                onTap: () => Navigator.of(context, rootNavigator: true).push(
+                // Branch-local push (not rootNavigator) so the shared
+                // Bottom Navigation shell stays visible here, matching
+                // every other entry point into Transaction Detail
+                // (docs/figma/report-spec.md C.8).
+                onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => TransactionDetailScreen(transactionId: tx['id'].toString())),
                 ),
               ),

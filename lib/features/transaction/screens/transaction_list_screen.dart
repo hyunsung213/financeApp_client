@@ -6,6 +6,7 @@ import '../../../data/api/transaction_api.dart';
 import '../../home/theme/home_tokens.dart';
 import '../../home/utils/category_icons.dart';
 import '../../report/providers/report_provider.dart';
+import '../../report/utils/report_date_utils.dart';
 import '../../report/utils/report_insight_utils.dart';
 import 'transaction_detail_screen.dart';
 
@@ -22,13 +23,25 @@ int _toInt(dynamic value) {
 /// "최근 거래내역 전체" (Figma node 470:9780): category filter chips, then
 /// month-grouped + day-grouped transaction rows with a timeline rail.
 ///
+/// Two entry points share this screen:
+/// - Home's "실시간 거래 내역 → 더보기" opens it with [initialMonth] == null,
+///   so it lists the most recent transactions across all time (unfiltered
+///   by month), same as before.
+/// - Report/Category Report's "거래 내역 보기" passes the currently selected
+///   Report month as [initialMonth], so the list is scoped to that month's
+///   `startDate`/`endDate` (via the existing `GET /api/transactions` date
+///   range params) instead of showing unrelated, more-recent months first.
+///
 /// Pagination follows the existing `GET /api/transactions` page/limit/total
 /// contract as-is — this screen keeps its own paging state locally (same
 /// pattern as `AddTransactionModal`) rather than introducing a new shared
-/// provider, since only this screen needs it.
+/// provider, since only this screen needs it. [initialMonth] is a fixed
+/// snapshot for this screen instance (not reactive to later changes of
+/// Report's own selected month elsewhere in the app).
 class TransactionListScreen extends ConsumerStatefulWidget {
   final String? initialCategoryId;
-  const TransactionListScreen({super.key, this.initialCategoryId});
+  final DateTime? initialMonth;
+  const TransactionListScreen({super.key, this.initialCategoryId, this.initialMonth});
 
   @override
   ConsumerState<TransactionListScreen> createState() => _TransactionListScreenState();
@@ -38,6 +51,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
   static const _pageLimit = 30;
 
   String? _categoryId;
+  DateTime? _month;
   final _scrollController = ScrollController();
   final List<Map<String, dynamic>> _items = [];
   int _page = 0;
@@ -50,6 +64,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
   void initState() {
     super.initState();
     _categoryId = widget.initialCategoryId;
+    _month = widget.initialMonth;
     _scrollController.addListener(_onScroll);
     _loadFirstPage();
   }
@@ -66,6 +81,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
     }
   }
 
+  String? get _startDate => _month == null ? null : formatDateOnly(startOfMonth(_month!));
+  String? get _endDate => _month == null ? null : formatDateOnly(endOfMonth(_month!));
+
   Future<void> _loadFirstPage() async {
     setState(() {
       _isLoading = true;
@@ -73,7 +91,13 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
     });
     try {
       final api = ref.read(transactionApiProvider);
-      final res = await api.getTransactions(categoryId: _categoryId, page: 1, limit: _pageLimit);
+      final res = await api.getTransactions(
+        categoryId: _categoryId,
+        startDate: _startDate,
+        endDate: _endDate,
+        page: 1,
+        limit: _pageLimit,
+      );
       setState(() {
         _items
           ..clear()
@@ -96,7 +120,13 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
     try {
       final api = ref.read(transactionApiProvider);
       final nextPage = _page + 1;
-      final res = await api.getTransactions(categoryId: _categoryId, page: nextPage, limit: _pageLimit);
+      final res = await api.getTransactions(
+        categoryId: _categoryId,
+        startDate: _startDate,
+        endDate: _endDate,
+        page: nextPage,
+        limit: _pageLimit,
+      );
       setState(() {
         _items.addAll((res['items'] as List<dynamic>).cast<Map<String, dynamic>>());
         _page = nextPage;
@@ -106,6 +136,16 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
     } catch (_) {
       setState(() => _isLoadingMore = false);
     }
+  }
+
+  /// Re-fetches page 1 under the current filter/month after returning from
+  /// Transaction Detail, so an edit or delete made there never leaves this
+  /// list showing stale data (Detail's own provider invalidation already
+  /// keeps Home/Report/Calendar in sync, but this screen manages its own
+  /// local paging state and isn't covered by that invalidation).
+  Future<void> _refreshAfterDetailReturn() async {
+    if (!mounted) return;
+    await _loadFirstPage();
   }
 
   void _selectCategory(String? categoryId) {
@@ -124,7 +164,10 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
         backgroundColor: HomeTokens.pageBackground,
         elevation: 0,
         foregroundColor: HomeTokens.textDark,
-        title: const Text('최근 거래내역 전체', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(
+          _month == null ? '최근 거래내역 전체' : '${_month!.month}월 거래내역',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
       ),
       body: Column(
         children: [
@@ -162,7 +205,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
           );
         }
         final group = groups[index];
-        return _MonthSection(group: group);
+        return _MonthSection(group: group, onDetailReturn: _refreshAfterDetailReturn);
       },
     );
   }
@@ -255,7 +298,8 @@ class _CategoryFilterRow extends StatelessWidget {
 
 class _MonthSection extends ConsumerWidget {
   final _MonthGroup group;
-  const _MonthSection({required this.group});
+  final Future<void> Function() onDetailReturn;
+  const _MonthSection({required this.group, required this.onDetailReturn});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -302,7 +346,7 @@ class _MonthSection extends ConsumerWidget {
             ],
           ),
         ),
-        for (final day in group.days) _DaySection(day: day),
+        for (final day in group.days) _DaySection(day: day, onDetailReturn: onDetailReturn),
       ],
     );
   }
@@ -310,7 +354,8 @@ class _MonthSection extends ConsumerWidget {
 
 class _DaySection extends StatelessWidget {
   final _DayGroup day;
-  const _DaySection({required this.day});
+  final Future<void> Function() onDetailReturn;
+  const _DaySection({required this.day, required this.onDetailReturn});
 
   @override
   Widget build(BuildContext context) {
@@ -346,7 +391,7 @@ class _DaySection extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Column(
-                children: day.items.map((tx) => _TransactionRow(tx: tx)).toList(),
+                children: day.items.map((tx) => _TransactionRow(tx: tx, onDetailReturn: onDetailReturn)).toList(),
               ),
             ),
           ],
@@ -358,7 +403,8 @@ class _DaySection extends StatelessWidget {
 
 class _TransactionRow extends StatelessWidget {
   final Map<String, dynamic> tx;
-  const _TransactionRow({required this.tx});
+  final Future<void> Function() onDetailReturn;
+  const _TransactionRow({required this.tx, required this.onDetailReturn});
 
   @override
   Widget build(BuildContext context) {
@@ -369,9 +415,14 @@ class _TransactionRow extends StatelessWidget {
     final date = DateTime.tryParse((tx['occurredAt'] ?? '').toString());
 
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => TransactionDetailScreen(transactionId: tx['id'].toString())),
-      ),
+      onTap: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => TransactionDetailScreen(transactionId: tx['id'].toString())),
+        );
+        // Always refetch on return (not just when Detail reports a change)
+        // so this screen's local paging state can never go stale.
+        await onDetailReturn();
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

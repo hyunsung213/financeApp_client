@@ -78,11 +78,19 @@ class TransactionApi {
     int? amount,
     String? memo,
     String? status,
+    String? type,
+    String? occurredAt,
+    String? categoryId,
+    String? merchantOrTitle,
   }) async {
     final data = <String, dynamic>{};
     if (amount != null) data['amount'] = amount;
     if (memo != null) data['memo'] = memo;
     if (status != null) data['status'] = status;
+    if (type != null) data['type'] = type;
+    if (occurredAt != null) data['occurredAt'] = occurredAt;
+    if (categoryId != null) data['categoryId'] = categoryId;
+    if (merchantOrTitle != null) data['merchantOrTitle'] = merchantOrTitle;
 
     final response = await _dio.patch('/api/transactions/$id', data: data);
     if (response.data['success'] != true) {

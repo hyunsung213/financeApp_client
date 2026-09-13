@@ -44,8 +44,11 @@ class AddTransactionModal extends ConsumerStatefulWidget {
 
   const AddTransactionModal({super.key, this.initialDate, this.existingTransaction});
 
-  static Future<void> show(BuildContext context, {DateTime? initialDate, Map<String, dynamic>? existingTransaction}) {
-    return Navigator.of(context, rootNavigator: true).push(
+  /// Returns `true` when a create/update/delete actually succeeded (so
+  /// callers like Transaction Detail/List can decide whether to refresh),
+  /// `null`/`false` when the user just backed out without changing anything.
+  static Future<bool?> show(BuildContext context, {DateTime? initialDate, Map<String, dynamic>? existingTransaction}) {
+    return Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute(
         builder: (context) => AddTransactionModal(initialDate: initialDate, existingTransaction: existingTransaction),
       ),
@@ -153,7 +156,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
-                          '분류/날짜/내용은 그대로 두고 금액과 메모만 수정할 수 있어요.',
+                          '거래명은 그대로 유지돼요. 나머지 항목은 눌러서 수정할 수 있어요.',
                           style: TextStyle(fontSize: 12, color: HomeTokens.textFaint),
                         ),
                       ),
@@ -164,21 +167,15 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                       padding: EdgeInsets.only(left: 6, bottom: 10),
                       child: Text('거래 유형', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
                     ),
-                    IgnorePointer(
-                      ignoring: _isEditing,
-                      child: Opacity(
-                        opacity: _isEditing ? 0.5 : 1,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildTypePill('지출', 'core.expense', Icons.remove_circle_outline, HomeTokens.negative),
-                            _buildTypePill('저축', 'core.saving', Icons.add_circle_outline, HomeTokens.accent),
-                            _buildTypePill('투자', 'core.investment', Icons.trending_up, const Color(0xFF26A69A)),
-                            _buildTypePill('수입', 'core.income', Icons.attach_money, Colors.blue),
-                          ],
-                        ),
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildTypePill('지출', 'core.expense', Icons.remove_circle_outline, HomeTokens.negative),
+                        _buildTypePill('저축', 'core.saving', Icons.add_circle_outline, HomeTokens.accent),
+                        _buildTypePill('투자', 'core.investment', Icons.trending_up, const Color(0xFF26A69A)),
+                        _buildTypePill('수입', 'core.income', Icons.attach_money, Colors.blue),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -238,43 +235,38 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                       ),
                     ),
 
-                    // 날짜
-                    IgnorePointer(
-                      ignoring: _isEditing,
-                      child: Opacity(
-                        opacity: _isEditing ? 0.5 : 1,
-                        child: GestureDetector(
-                          onTap: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: _selectedDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime.now(),
-                            );
-                            if (date != null) {
-                              setState(() => _selectedDate = date);
-                            }
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                            decoration: _cardDecoration(border: HomeTokens.chipInactiveBorder),
-                            child: Row(
-                              children: [
-                                const Text('날짜', style: TextStyle(fontSize: 16, color: HomeTokens.textDark)),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').format(_selectedDate),
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: HomeTokens.textMuted),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.calendar_today_outlined, size: 20, color: HomeTokens.accent),
-                              ],
+                    // 날짜 (edit 모드에서도 탭하여 변경 가능 - date picker 자체는 항상
+                    // readOnly 텍스트 표시이므로 GestureDetector로 감싸 탭만으로 연다).
+                    GestureDetector(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() => _selectedDate = date);
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                        decoration: _cardDecoration(border: HomeTokens.chipInactiveBorder),
+                        child: Row(
+                          children: [
+                            const Text('날짜', style: TextStyle(fontSize: 16, color: HomeTokens.textDark)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').format(_selectedDate),
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: HomeTokens.textMuted),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.calendar_today_outlined, size: 20, color: HomeTokens.accent),
+                          ],
                         ),
                       ),
                     ),
@@ -298,7 +290,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: GestureDetector(
-                            onTap: _isEditing ? null : () => _openCategoryPicker(categories),
+                            onTap: () => _openCategoryPicker(categories),
                             child: Row(
                               children: [
                                 const Padding(
@@ -321,7 +313,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                     ),
                                   ),
                                 ),
-                                if (!_isEditing) const Icon(Icons.chevron_right, size: 22, color: HomeTokens.textFaint),
+                                const Icon(Icons.chevron_right, size: 22, color: HomeTokens.textFaint),
                               ],
                             ),
                           ),
@@ -568,10 +560,17 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
       if (_isEditing) {
         final id = widget.existingTransaction!['id'].toString();
-        await transactionApi.updateTransaction(id, amount: amount, memo: memo);
+        await transactionApi.updateTransaction(
+          id,
+          amount: amount,
+          memo: memo,
+          type: _getTransactionType(_selectedParentId),
+          occurredAt: DateFormat('yyyy-MM-dd').format(_selectedDate),
+          categoryId: _selectedCategoryId,
+        );
 
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('내역이 수정되었습니다.'), backgroundColor: AppColors.primary),
           );
@@ -607,7 +606,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       );
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('[$categoryName] ${NumberFormat('#,###').format(amount)}원이 등록되었습니다! ✨'),
@@ -651,7 +650,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       final id = widget.existingTransaction!['id'].toString();
       await ref.read(transactionApiProvider).deleteTransaction(id);
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('내역이 삭제되었습니다.')),
         );
