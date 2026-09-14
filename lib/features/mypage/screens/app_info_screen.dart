@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import '../../../core/theme.dart';
+import '../theme/my_tokens.dart';
 
 class AppInfoScreen extends StatefulWidget {
   const AppInfoScreen({super.key});
@@ -25,14 +25,26 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
     final appName = _packageInfo?.appName ?? 'Finance Client';
     final version = _packageInfo?.version;
     final buildNumber = _packageInfo?.buildNumber;
-    final versionText = version == null ? '' : (buildNumber == null || buildNumber.isEmpty ? version : '$version ($buildNumber)');
+    final versionText = version == null
+        ? ''
+        : (buildNumber == null || buildNumber.isEmpty
+              ? version
+              : '$version ($buildNumber)');
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: MyTokens.pageBackground,
       appBar: AppBar(
-        title: const Text('앱 정보'),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
+        title: const Text(
+          '앱 정보',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: MyTokens.textPrimary,
+          ),
+        ),
+        backgroundColor: MyTokens.pageBackground,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: MyTokens.textPrimary,
         elevation: 0,
       ),
       body: ListView(
@@ -44,15 +56,33 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                 Container(
                   width: 72,
                   height: 72,
-                  decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
-                  child: const Icon(Icons.savings_outlined, color: Colors.white, size: 36),
+                  decoration: BoxDecoration(
+                    color: MyTokens.accent,
+                    borderRadius: BorderRadius.circular(MyTokens.buttonRadius),
+                  ),
+                  child: const Icon(
+                    Icons.savings_outlined,
+                    color: Colors.white,
+                    size: 36,
+                  ),
                 ),
                 const SizedBox(height: 12),
-                Text(appName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                Text(
+                  appName,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: MyTokens.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   versionText.isEmpty ? '버전 정보를 불러오는 중...' : '버전 $versionText',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  style: const TextStyle(
+                    color: MyTokens.textMuted,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -60,7 +90,15 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
           const SizedBox(height: 32),
           _infoRow(context, '이용약관'),
           _infoRow(context, '개인정보 처리방침'),
-          _infoRow(context, '오픈소스 라이선스', onTap: () => showLicensePage(context: context, applicationName: appName, applicationVersion: versionText)),
+          _infoRow(
+            context,
+            '오픈소스 라이선스',
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: appName,
+              applicationVersion: versionText,
+            ),
+          ),
           _infoRow(context, '문의하기'),
         ],
       ),
@@ -70,14 +108,34 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   Widget _infoRow(BuildContext context, String title, {VoidCallback? onTap}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-        trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-        onTap: onTap ??
-            () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$title 페이지는 준비 중이에요.')),
-                ),
+      decoration: BoxDecoration(
+        color: MyTokens.cardSurface,
+        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+        boxShadow: MyTokens.cardShadow,
+      ),
+      // Transparent Material so the ListTile ripple paints above the card
+      // decoration instead of behind it.
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: MyTokens.textPrimary,
+            ),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: MyTokens.textMuted),
+          onTap:
+              onTap ??
+              () => ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('$title 페이지는 준비 중이에요.'))),
+        ),
       ),
     );
   }

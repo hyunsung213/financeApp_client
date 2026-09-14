@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme.dart';
+import '../theme/my_tokens.dart';
 
 /// Shared "coming soon" placeholder for settings rows that don't have a real
 /// screen yet (backend support is missing — see aiProgress.md API 요구사항).
@@ -17,11 +17,19 @@ class ComingSoonScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: MyTokens.pageBackground,
       appBar: AppBar(
-        title: Text(title),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: MyTokens.textPrimary,
+          ),
+        ),
+        backgroundColor: MyTokens.pageBackground,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: MyTokens.textPrimary,
         elevation: 0,
       ),
       body: Padding(
@@ -32,21 +40,62 @@ class ComingSoonScreen extends StatelessWidget {
             Container(
               width: 120,
               height: 120,
-              decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(20)),
-              child: Icon(Icons.hourglass_empty, size: 48, color: Colors.grey.shade400),
+              decoration: BoxDecoration(
+                color: MyTokens.illustrationPlaceholder,
+                borderRadius: BorderRadius.circular(MyTokens.buttonRadius),
+              ),
+              child: const Icon(
+                Icons.hourglass_empty,
+                size: 48,
+                color: MyTokens.placeholder,
+              ),
             ),
             const SizedBox(height: 24),
-            const Text('아직 준비중이에요', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              '아직 준비중이에요',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: MyTokens.accentDark,
+              ),
+            ),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, height: 1.5)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: MyTokens.textPrimary,
+                fontSize: 16,
+                height: 1.8,
+              ),
+            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back, size: 18),
-                label: const Text('이전화면으로 돌아가기'),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: MyTokens.primaryGradient,
+                  border: Border.all(color: MyTokens.accentSoftBorder),
+                  borderRadius: BorderRadius.circular(MyTokens.buttonRadius),
+                ),
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text(
+                    '이전화면으로 돌아가기',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    foregroundColor: Colors.white,
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        MyTokens.buttonRadius,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -55,10 +104,17 @@ class ComingSoonScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () => context.go('/home'),
                 icon: const Icon(Icons.home_outlined, size: 18),
-                label: const Text('홈으로 이동'),
+                label: const Text(
+                  '홈으로 이동',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white,
+                  foregroundColor: MyTokens.accentDark,
+                  side: const BorderSide(color: MyTokens.accentSoftBorder),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(MyTokens.buttonRadius),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   elevation: 0,
                 ),
