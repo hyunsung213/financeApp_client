@@ -9,6 +9,10 @@ import '../features/auth/providers/auth_provider.dart';
 // Screens placeholders
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
+import '../features/auth/screens/signup_screen.dart';
+import '../features/auth/screens/find_password_screen.dart';
+import '../features/auth/screens/verify_email_screen.dart';
+import '../features/auth/screens/reset_password_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/calendar/screens/calendar_screen.dart';
 import '../features/report/screens/report_screen.dart';
@@ -17,6 +21,15 @@ import '../features/policy/screens/policy_detail_screen.dart';
 import '../features/policy/screens/policy_bookmarks_screen.dart';
 import '../features/mypage/screens/my_page_screen.dart';
 
+/// Auth screens reachable while signed out.
+const Set<String> _authFlowPaths = {
+  '/login',
+  '/signup',
+  '/find-password',
+  '/verify-email',
+  '/reset-password',
+};
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
@@ -24,10 +37,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     redirect: (context, state) {
       final isLoggingIn = state.uri.toString() == '/login';
+      final isAuthFlow = _authFlowPaths.contains(state.uri.path);
       final isAuth = authState.isAuthenticated;
       final hasOnboarded = authState.hasCompletedOnboarding;
 
-      if (!isAuth && !isLoggingIn) return '/login';
+      if (!isAuth && !isAuthFlow) return '/login';
       if (isAuth && !hasOnboarded && state.uri.toString() != '/onboarding') return '/onboarding';
       if (isAuth && hasOnboarded && (isLoggingIn || state.uri.toString() == '/onboarding')) return '/home';
 
@@ -41,6 +55,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/find-password',
+        builder: (context, state) => const FindPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) => VerifyEmailScreen(email: state.extra as String?),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => const ResetPasswordScreen(),
       ),
       // Five-tab bottom navigation (Figma node 335:8091 "Bottom Navigation
       // Component"): 홈 / 캘린더 / 리포트 / 뉴스 / 마이. Each tab is a real
