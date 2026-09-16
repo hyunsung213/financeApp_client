@@ -17,24 +17,38 @@ class TransactionApi {
     String? categoryId,
     String? type,
     String? status,
+    // consumptionEvaluation filter, e.g. ['REGRETTABLE', 'BAD']. Sent as
+    // API_SPEC.md's `evaluation=REGRETTABLE,BAD` comma-separated form.
+    List<String>? evaluation,
+    // Sort column ('occurredAt' default, or 'consumptionEvaluationUpdatedAt')
+    // and direction - see API_SPEC.md GET /api/transactions.
+    String? sort,
+    String? order,
     int page = 1,
     int limit = 50,
   }) async {
-    final queryParameters = <String, dynamic>{
-      'page': page,
-      'limit': limit,
-    };
+    final queryParameters = <String, dynamic>{'page': page, 'limit': limit};
     if (startDate != null) queryParameters['startDate'] = startDate;
     if (endDate != null) queryParameters['endDate'] = endDate;
     if (categoryId != null) queryParameters['categoryId'] = categoryId;
     if (type != null) queryParameters['type'] = type;
     if (status != null) queryParameters['status'] = status;
+    if (evaluation != null && evaluation.isNotEmpty) {
+      queryParameters['evaluation'] = evaluation.join(',');
+    }
+    if (sort != null) queryParameters['sort'] = sort;
+    if (order != null) queryParameters['order'] = order;
 
-    final response = await _dio.get('/api/transactions', queryParameters: queryParameters);
+    final response = await _dio.get(
+      '/api/transactions',
+      queryParameters: queryParameters,
+    );
     if (response.data['success'] == true) {
       return response.data['data'];
     } else {
-      throw Exception(response.data['error']['message'] ?? 'Failed to get transactions');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to get transactions',
+      );
     }
   }
 
@@ -43,7 +57,9 @@ class TransactionApi {
     if (response.data['success'] == true) {
       return response.data['data'];
     } else {
-      throw Exception(response.data['error']['message'] ?? 'Failed to get transaction');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to get transaction',
+      );
     }
   }
 
@@ -58,25 +74,32 @@ class TransactionApi {
     required String source,
     required String status,
   }) async {
-    final response = await _dio.post('/api/transactions', data: {
-      'categoryId': categoryId,
-      'type': type,
-      'amount': amount,
-      'occurredAt': occurredAt,
-      'merchantOrTitle': merchantOrTitle,
-      if (memo != null) 'memo': memo,
-      if (consumptionEvaluation != null) 'consumptionEvaluation': consumptionEvaluation,
-      'source': source,
-      'status': status,
-    });
+    final response = await _dio.post(
+      '/api/transactions',
+      data: {
+        'categoryId': categoryId,
+        'type': type,
+        'amount': amount,
+        'occurredAt': occurredAt,
+        'merchantOrTitle': merchantOrTitle,
+        if (memo != null) 'memo': memo,
+        if (consumptionEvaluation != null)
+          'consumptionEvaluation': consumptionEvaluation,
+        'source': source,
+        'status': status,
+      },
+    );
     if (response.data['success'] == true) {
       return response.data['data'];
     } else {
-      throw Exception(response.data['error']['message'] ?? 'Failed to create transaction');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to create transaction',
+      );
     }
   }
 
-  Future<void> updateTransaction(String id, {
+  Future<void> updateTransaction(
+    String id, {
     int? amount,
     String? memo,
     String? consumptionEvaluation,
@@ -89,7 +112,8 @@ class TransactionApi {
     final data = <String, dynamic>{};
     if (amount != null) data['amount'] = amount;
     if (memo != null) data['memo'] = memo;
-    if (consumptionEvaluation != null) data['consumptionEvaluation'] = consumptionEvaluation;
+    if (consumptionEvaluation != null)
+      data['consumptionEvaluation'] = consumptionEvaluation;
     if (status != null) data['status'] = status;
     if (type != null) data['type'] = type;
     if (occurredAt != null) data['occurredAt'] = occurredAt;
@@ -98,14 +122,18 @@ class TransactionApi {
 
     final response = await _dio.patch('/api/transactions/$id', data: data);
     if (response.data['success'] != true) {
-      throw Exception(response.data['error']['message'] ?? 'Failed to update transaction');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to update transaction',
+      );
     }
   }
 
   Future<void> deleteTransaction(String id) async {
     final response = await _dio.delete('/api/transactions/$id');
     if (response.data['success'] != true) {
-      throw Exception(response.data['error']['message'] ?? 'Failed to delete transaction');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to delete transaction',
+      );
     }
   }
 }

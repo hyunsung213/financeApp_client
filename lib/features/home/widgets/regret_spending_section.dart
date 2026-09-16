@@ -31,7 +31,13 @@ class RegretTransactionRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: HomeTokens.cardSurface,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, offset: const Offset(0, 1))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 1,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -43,28 +49,61 @@ class RegretTransactionRow extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(merchant, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: HomeTokens.textDark)),
+                      Text(
+                        merchant,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: HomeTokens.textDark,
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Text(time, style: const TextStyle(fontSize: 12, color: HomeTokens.textMuted)),
+                      Text(
+                        time,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: HomeTokens.textMuted,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(amountLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: HomeTokens.negative)),
+                  Text(
+                    amountLabel,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: HomeTokens.negative,
+                    ),
+                  ),
                 ],
               ),
             ),
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: HomeTokens.chipInactiveBg,
                     borderRadius: BorderRadius.circular(30),
                     border: Border.all(color: HomeTokens.chipInactiveBorder),
                   ),
-                  child: Text(categoryPath, style: const TextStyle(fontSize: 12, color: HomeTokens.textDark)),
+                  child: Text(
+                    categoryPath,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: HomeTokens.textDark,
+                    ),
+                  ),
                 ),
-                const Icon(Icons.chevron_right, size: 20, color: HomeTokens.textMuted),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: HomeTokens.textMuted,
+                ),
               ],
             ),
           ],
@@ -74,12 +113,15 @@ class RegretTransactionRow extends StatelessWidget {
   }
 }
 
-/// "어제 소비 돌아보기" section (Figma Rectangle 105 / node 335:8358 and
-/// below). This is a presentation-only shell: there is no backend endpoint
-/// today that classifies "아쉬운 소비" (regret spending), so `items` is
-/// nullable and the section renders nothing until a real provider supplies
-/// data. Do not populate `items` with mock or hardcoded data — wire it to a
-/// real provider once the backend contract exists.
+/// "최근 소비 돌아보기" section (Figma Rectangle 105 / node 335:8358 and
+/// below, originally labeled "어제 소비 돌아보기"). Renamed from "어제" to
+/// "최근" because the underlying data is no longer scoped to a single
+/// calendar day - see home_provider.dart's recentRegrettableTransactionsProvider
+/// for why ("어제" went empty whenever yesterday specifically had no
+/// REGRETTABLE/BAD-evaluated transaction, even if older ones existed).
+/// `items` stays nullable and the section renders nothing when there is
+/// truly no evaluated transaction to show - do not populate it with mock or
+/// hardcoded data.
 class RegretSpendingSection extends StatelessWidget {
   final List<Map<String, dynamic>>? items;
   final void Function(Map<String, dynamic> item)? onItemTap;
@@ -96,22 +138,35 @@ class RegretSpendingSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('어제 소비 돌아보기', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: HomeTokens.accent)),
+          const Text(
+            '최근 소비 돌아보기',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: HomeTokens.accent,
+            ),
+          ),
           const SizedBox(height: 6),
           const Text(
-            "'아쉬운 소비'로 평가한 전날 거래를 보여드립니다.",
+            "'아쉬운 소비'로 평가한 최근 거래를 보여드립니다.",
             style: TextStyle(fontSize: 16, color: HomeTokens.textDark),
           ),
           const SizedBox(height: 20),
-          HomeSectionHeader(title: '아쉬운 소비', actionLabel: '총 ${data.length}건', titleColor: HomeTokens.textDark),
+          HomeSectionHeader(
+            title: '아쉬운 소비',
+            actionLabel: '총 ${data.length}건',
+            titleColor: HomeTokens.textDark,
+          ),
           const SizedBox(height: 12),
-          ...data.map((item) => RegretTransactionRow(
-                merchant: (item['merchantOrTitle'] ?? '내역').toString(),
-                time: (item['time'] ?? '').toString(),
-                amountLabel: (item['amountLabel'] ?? '').toString(),
-                categoryPath: (item['categoryPath'] ?? '').toString(),
-                onTap: onItemTap == null ? null : () => onItemTap!(item),
-              )),
+          ...data.map(
+            (item) => RegretTransactionRow(
+              merchant: (item['merchantOrTitle'] ?? '내역').toString(),
+              time: (item['time'] ?? '').toString(),
+              amountLabel: (item['amountLabel'] ?? '').toString(),
+              categoryPath: (item['categoryPath'] ?? '').toString(),
+              onTap: onItemTap == null ? null : () => onItemTap!(item),
+            ),
+          ),
           const SizedBox(height: 8),
           const Text(
             '항목을 터치하면 공통 거래 상세 화면으로 이동합니다.',
