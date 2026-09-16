@@ -66,7 +66,7 @@ void main() {
 
     // Verify UI components rendered properly
     expect(find.text('12,849'), findsOneWidget);
-    expect(find.text('다음 월급일까지 앞으로  '), findsOneWidget);
+    expect(find.text('다음 월급일까지 앞으로 '), findsOneWidget);
     expect(find.text('D-14'), findsOneWidget);
     expect(find.text('스타벅스'), findsOneWidget);
     expect(find.text('13,000원'), findsOneWidget);

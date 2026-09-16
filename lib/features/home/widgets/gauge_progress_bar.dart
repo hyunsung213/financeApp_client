@@ -16,7 +16,10 @@ class GaugeProgressBar extends StatelessWidget {
     required this.ratio,
     this.height = 10,
     this.backgroundColor = Colors.white,
-    this.fillGradient = const [Color(0xFF00AE76), Color(0xFFA9E1CF)],
+    // Both stops stay fully saturated (no fade toward near-white) so the
+    // fill's right edge (cap) always reads distinctly against the track,
+    // regardless of what's rendered behind the card.
+    this.fillGradient = const [Color(0xFF00C875), Color(0xFF00AE76)],
   });
 
   @override
@@ -54,7 +57,11 @@ class GaugeProgressBar extends StatelessWidget {
               for (final fraction in const [0.25, 0.5, 0.75])
                 Positioned(
                   left: constraints.maxWidth * fraction - 1,
-                  child: Container(width: 2, height: height, color: Colors.white),
+                  child: Container(
+                    width: 2,
+                    height: height,
+                    color: Colors.white,
+                  ),
                 ),
             ],
           ),

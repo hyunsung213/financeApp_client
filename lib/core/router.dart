@@ -42,16 +42,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       final hasOnboarded = authState.hasCompletedOnboarding;
 
       if (!isAuth && !isAuthFlow) return '/login';
-      if (isAuth && !hasOnboarded && state.uri.toString() != '/onboarding') return '/onboarding';
-      if (isAuth && hasOnboarded && (isLoggingIn || state.uri.toString() == '/onboarding')) return '/home';
+      if (isAuth && !hasOnboarded && state.uri.toString() != '/onboarding')
+        return '/onboarding';
+      if (isAuth &&
+          hasOnboarded &&
+          (isLoggingIn || state.uri.toString() == '/onboarding'))
+        return '/home';
 
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
@@ -66,7 +67,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/verify-email',
-        builder: (context, state) => VerifyEmailScreen(email: state.extra as String?),
+        builder: (context, state) =>
+            VerifyEmailScreen(email: state.extra as String?),
       ),
       GoRoute(
         path: '/reset-password',
@@ -91,30 +93,62 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ScaffoldWithNavBar(navigationShell: navigationShell);
         },
         branches: [
-          StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (context, state) => const HomeScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/calendar', builder: (context, state) => const CalendarScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/report', builder: (context, state) => const ReportScreen())]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/policy',
-              builder: (context, state) => const PolicyScreen(),
-              routes: [
-                // Registered before ':id' so '/policy/bookmarks' resolves as
-                // the literal bookmarks route, not id == "bookmarks" (same
-                // ordering concern the backend's own API_SPEC.md calls out
-                // for '/api/policies/bookmarks' vs '/api/policies/:id').
-                GoRoute(
-                  path: 'bookmarks',
-                  builder: (context, state) => const PolicyBookmarksScreen(),
-                ),
-                GoRoute(
-                  path: ':id',
-                  builder: (context, state) => PolicyDetailScreen(policyId: state.pathParameters['id']!),
-                ),
-              ]
-            )
-          ]),
-          StatefulShellBranch(routes: [GoRoute(path: '/mypage', builder: (context, state) => const MyPageScreen())]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/calendar',
+                builder: (context, state) => const CalendarScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/report',
+                builder: (context, state) => const ReportScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/policy',
+                builder: (context, state) => const PolicyScreen(),
+                routes: [
+                  // Registered before ':id' so '/policy/bookmarks' resolves as
+                  // the literal bookmarks route, not id == "bookmarks" (same
+                  // ordering concern the backend's own API_SPEC.md calls out
+                  // for '/api/policies/bookmarks' vs '/api/policies/:id').
+                  GoRoute(
+                    path: 'bookmarks',
+                    builder: (context, state) => const PolicyBookmarksScreen(),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) => PolicyDetailScreen(
+                      policyId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/mypage',
+                builder: (context, state) => const MyPageScreen(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
@@ -122,10 +156,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 class ScaffoldWithNavBar extends StatelessWidget {
-  const ScaffoldWithNavBar({
-    required this.navigationShell,
-    super.key,
-  });
+  const ScaffoldWithNavBar({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
 
@@ -142,6 +173,29 @@ class ScaffoldWithNavBar extends StatelessWidget {
         children: [
           // Main screen content
           navigationShell,
+
+          // Soft color backdrop behind the floating nav bar, so the mostly
+          // white/gray page content isn't colorless right at the bottom edge.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 130,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      HomeTokens.navActiveBg.withValues(alpha: 0),
+                      HomeTokens.navActiveBg.withValues(alpha: 0.9),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
 
           // Floating translucent bottom navigation bar
           Positioned(
@@ -200,7 +254,10 @@ class ScaffoldWithNavBar extends StatelessWidget {
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -278,7 +335,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
                     child: Icon(
                       icon,
                       size: 22,
-                      color: isSelected ? HomeTokens.navActiveText : HomeTokens.navInactive,
+                      color: isSelected
+                          ? HomeTokens.navActiveText
+                          : HomeTokens.navInactive,
                     ),
                   ),
                 ),
@@ -288,7 +347,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? HomeTokens.navActiveText : HomeTokens.navInactive,
+                    color: isSelected
+                        ? HomeTokens.navActiveText
+                        : HomeTokens.navInactive,
                     letterSpacing: -0.2,
                   ),
                 ),
