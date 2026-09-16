@@ -26,6 +26,18 @@ int _toInt(dynamic value) {
   return 0;
 }
 
+/// "최근 소비 돌아보기" rows can span several different days (it's no longer
+/// scoped to a single "yesterday"), so each row needs its own date label.
+/// `occurredAt` is date-only (`YYYY-MM-DD`, API_SPEC.md), so this formats
+/// just the date - there is no time-of-day to show.
+String _formatOccurredAt(dynamic occurredAt) {
+  final raw = occurredAt?.toString();
+  if (raw == null || raw.isEmpty) return '';
+  final date = DateTime.tryParse(raw);
+  if (date == null) return '';
+  return DateFormat('M.d').format(date);
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -40,7 +52,7 @@ class HomeScreen extends ConsumerWidget {
     final selectedFilter = ref.watch(homeCategoryFilterProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final recentTxAsync = ref.watch(homeRecentTransactionsProvider);
-    final yesterdayRegretAsync = ref.watch(yesterdayRegrettableTransactionsProvider);
+    final recentRegretAsync = ref.watch(recentRegrettableTransactionsProvider);
 
     return Scaffold(
       backgroundColor: HomeTokens.pageBackground,
@@ -350,17 +362,21 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
 
-              // "어제 소비 돌아보기" - now wired to yesterdayRegrettableTransactionsProvider
-              // (real `/api/transactions` data filtered client-side for
-              // consumptionEvaluation == 'REGRETTABLE'; see home_provider.dart).
-              // `occurredAt` is date-only (no time-of-day - API_SPEC.md), so
-              // `time` is left blank rather than showing a fake timestamp.
+              // "최근 소비 돌아보기" - wired to recentRegrettableTransactionsProvider,
+              // the most recently *evaluated* REGRETTABLE/BAD expenses from
+              // `/api/transactions?evaluation=REGRETTABLE,BAD&sort=consumptionEvaluationUpdatedAt`
+              // (see home_provider.dart and API_SPEC.md). This used to be
+              // scoped to literally "yesterday", which went empty on any day
+              // yesterday had no evaluated transaction even if older ones
+              // existed. Rows can now span several different days, so `time`
+              // shows each transaction's occurredAt date instead of being left
+              // blank.
               SliverToBoxAdapter(
-                child: yesterdayRegretAsync.maybeWhen(
+                child: recentRegretAsync.maybeWhen(
                   data: (transactions) => RegretSpendingSection(
                     items: transactions.whereType<Map>().map((tx) => {
                           'merchantOrTitle': (tx['merchantOrTitle'] ?? (tx['category'] is Map ? tx['category']['name'] : null) ?? '내역').toString(),
-                          'time': '',
+                          'time': _formatOccurredAt(tx['occurredAt']),
                           'amountLabel': '-${NumberFormat('#,###').format(_toInt(tx['amount']))}원',
                           'categoryPath': ((tx['category'] is Map ? tx['category']['name'] : null) ?? '기타').toString(),
                           'id': tx['id'],
@@ -400,11 +416,11 @@ class HomeScreen extends ConsumerWidget {
   Future<void> _onRefresh(WidgetRef ref) async {
     ref.invalidate(homeDataProvider);
     ref.invalidate(homeRecentTransactionsProvider);
-    ref.invalidate(yesterdayRegrettableTransactionsProvider);
+    ref.invalidate(recentRegrettableTransactionsProvider);
     await Future.wait([
       ref.read(homeDataProvider.future),
       ref.read(homeRecentTransactionsProvider.future),
-      ref.read(yesterdayRegrettableTransactionsProvider.future),
+      ref.read(recentRegrettableTransactionsProvider.future),
     ]);
   }
 

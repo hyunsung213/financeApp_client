@@ -548,8 +548,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   }
 
   void _refreshAfterChange() {
-    // Also covers Home's "yesterday regrettable spend" list (origin/main's
-    // yesterdayRegrettableTransactionsProvider) via the shared helper below.
+    // Also covers Home's "recent regrettable spend" list
+    // (recentRegrettableTransactionsProvider) via the shared helper below.
     invalidateTransactionDependents(ref);
   }
 
