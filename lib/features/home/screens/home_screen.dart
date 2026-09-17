@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/surface_style.dart';
 import '../../../core/widgets/manual_input_fab.dart';
 import '../../../data/api/category_api.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
@@ -193,7 +196,7 @@ class HomeScreen extends ConsumerWidget {
                                     padding: const EdgeInsets.all(20),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(AppRadii.button),
                                     ),
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -317,7 +320,7 @@ class HomeScreen extends ConsumerWidget {
                                     child: Container(
                                       width: double.infinity,
                                       decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
+                                        borderRadius: BorderRadius.circular(AppRadii.hero),
                                         boxShadow: [
                                           BoxShadow(
                                             color: HomeTokens.accentDark
@@ -328,7 +331,7 @@ class HomeScreen extends ConsumerWidget {
                                         ],
                                       ),
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(20),
+                                        borderRadius: BorderRadius.circular(AppRadii.hero),
                                         child: BackdropFilter(
                                           filter: ImageFilter.blur(
                                             sigmaX: 12,
@@ -337,28 +340,16 @@ class HomeScreen extends ConsumerWidget {
                                           child: Container(
                                             width: double.infinity,
                                             padding: const EdgeInsets.all(20),
-                                            decoration: BoxDecoration(
-                                              // Near-opaque (not just a faint
-                                              // alpha wash) so the card reads as
-                                              // a solid, self-contained surface
-                                              // even where the hero gradient
-                                              // behind it has already faded to
-                                              // near-white - that stacked
-                                              // transparency was why the right
-                                              // edge used to disappear.
-                                              color: HomeTokens.heroCardSurface
-                                                  .withValues(
-                                                    alpha: HomeTokens
-                                                        .heroCardSurfaceOpacity,
-                                                  ),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                              border: Border.all(
-                                                color:
-                                                    HomeTokens.heroCardBorder,
-                                                width: 1,
-                                              ),
-                                            ),
+                                            // Near-opaque (not just a faint
+                                            // alpha wash) so the card reads as
+                                            // a solid, self-contained surface
+                                            // even where the hero gradient
+                                            // behind it has already faded to
+                                            // near-white - that stacked
+                                            // transparency was why the right
+                                            // edge used to disappear.
+                                            decoration: AppSurfaces.heroCard
+                                                .toBoxDecoration(),
                                             child: Column(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
@@ -546,7 +537,7 @@ class HomeScreen extends ConsumerWidget {
                               padding: const EdgeInsets.all(32),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(AppRadii.button),
                               ),
                               child: const Center(
                                 child: Text(
@@ -814,7 +805,7 @@ class _DetailSheet extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE5E7EB),
+                  color: AppColorTokens.dividerTrack,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

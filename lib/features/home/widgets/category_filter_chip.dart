@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_radii.dart';
 import '../theme/home_tokens.dart';
 
 /// Pill-shaped category filter chip used in the Home "실시간 거래 내역" filter
@@ -26,7 +27,7 @@ class CategoryFilterChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? HomeTokens.chipActiveBg : HomeTokens.chipInactiveBg,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
           border: Border.all(
             color: selected ? HomeTokens.chipActiveBorder : HomeTokens.chipInactiveBorder,
             width: 1,

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../../data/api/category_api.dart';
 import '../../home/theme/home_tokens.dart';
@@ -447,7 +449,16 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                         }
 
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          // Right inset matches the same horizontal padding
+                          // the 날짜/금액/메모 cards use internally, so this
+                          // row's trailing content lines up with their
+                          // calendar/pencil icons even though this row has
+                          // no card decoration of its own.
+                          padding: const EdgeInsets.only(
+                            top: 8,
+                            bottom: 8,
+                            right: 14,
+                          ),
                           child: GestureDetector(
                             onTap: () => _openCategoryPicker(categories),
                             child: Row(
@@ -462,35 +473,51 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                     ),
                                   ),
                                 ),
-                                const Spacer(),
-                                Flexible(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: HomeTokens.chipInactiveBg,
-                                      borderRadius: BorderRadius.circular(30),
-                                      border: Border.all(
-                                        color: HomeTokens.chipInactiveBorder,
+                                // A single Expanded (rather than the previous
+                                // Spacer + separately-Flexible pill) so the
+                                // pill+chevron group is measured together and
+                                // pushed flush to the row's true right edge -
+                                // Spacer competing with a loose Flexible left
+                                // the pill short of the edge with dead space
+                                // after it.
+                                Expanded(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: HomeTokens.chipInactiveBg,
+                                            borderRadius: BorderRadius.circular(
+                                              AppRadii.pill,
+                                            ),
+                                            border: Border.all(
+                                              color: HomeTokens.chipInactiveBorder,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _categoryPathLabel ?? '카테고리를 선택하세요',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: HomeTokens.textDark,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    child: Text(
-                                      _categoryPathLabel ?? '카테고리를 선택하세요',
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: HomeTokens.textDark,
+                                      const Icon(
+                                        Icons.chevron_right,
+                                        size: 22,
+                                        color: HomeTokens.textFaint,
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ),
-                                const Icon(
-                                  Icons.chevron_right,
-                                  size: 22,
-                                  color: HomeTokens.textFaint,
                                 ),
                               ],
                             ),
@@ -525,7 +552,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                 height: 66,
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
                                   border: Border.all(
                                     color: isSelected
                                         ? _moodColors[i]
@@ -643,7 +670,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppRadii.button),
                     ),
                     elevation: 0,
                   ),
@@ -675,19 +702,13 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   BoxDecoration _cardDecoration({Color border = Colors.transparent}) {
     return BoxDecoration(
       color: HomeTokens.cardSurface,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.compactInput),
       border: Border.all(
         color: border == Colors.transparent
             ? HomeTokens.chipInactiveBorder
             : border,
       ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0D000000),
-          blurRadius: 2,
-          offset: Offset(0, 1),
-        ),
-      ],
+      boxShadow: AppShadows.card,
     );
   }
 
@@ -757,6 +778,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       builder: (_) => CategoryPickerScreen(
         categories: categories,
         parentTypeId: _selectedParentId,
+        initialCategoryId: _selectedCategoryId,
       ),
     );
     if (result != null) {
@@ -790,18 +812,12 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadii.compactInput),
           border: Border.all(
             color: isSelected ? color : HomeTokens.chipInactiveBorder,
             width: isSelected ? 1.5 : 1,
           ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 1,
-              offset: Offset(0, 1),
-            ),
-          ],
+          boxShadow: AppShadows.hairline,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

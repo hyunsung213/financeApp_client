@@ -15,23 +15,48 @@ double? spendingRingRatio({
   return (spendingRatioPercent / 100).clamp(0.0, 1.0);
 }
 
-// Continuous green -> yellow -> red ramp for the ring's *color* - a signal
-// kept separate from the ring's *length* (spendingRingRatio above, which
-// clamps at one lap past 100%). 0-50% stays green, 50-75% interpolates
-// green->yellow, 75%+ interpolates yellow->red, so the color never jumps
-// abruptly at the 50%/75% boundaries the way a plain 3-way switch would.
-const Color ringSafeGreen = Color(0xFF00B67A);
-const Color ringWarningYellow = Color(0xFFF4C542);
-const Color ringDangerRed = Color(0xFFFF5A47);
+// The three stops of the ring's color heat-scale - soft, desaturated tones
+// (not the original saturated 0xFF00B67A/0xFFF4C542/0xFFFF5A47) so the scale
+// reads as mint/apricot/coral rather than a hard flourescent outline.
+const Color ringSafeGreen = Color(0xFF4FC994);
+const Color ringMidOrange = Color(0xFFF3A65E);
+const Color ringDangerRed = Color(0xFFF37E6B);
 
-Color spendingRingColor(double spendingRatioPercent) {
-  if (spendingRatioPercent <= 50) return ringSafeGreen;
-  if (spendingRatioPercent <= 75) {
-    final t = (spendingRatioPercent - 50) / 25;
-    return Color.lerp(ringSafeGreen, ringWarningYellow, t)!;
-  }
-  final t = ((spendingRatioPercent - 75) / 25).clamp(0.0, 1.0);
-  return Color.lerp(ringWarningYellow, ringDangerRed, t)!;
+/// Colors a Calendar day's ring by how big `amount` is relative to this
+/// cycle's spending days, as one continuous green -> orange -> red gradient
+/// rather than sorting each day into a fixed green/orange/red bucket.
+///
+/// Two things that matter here:
+///
+/// 1. Normalization is against `minAmount`..`maxAmount` (the cycle's
+///    smallest and biggest spending days - see `_expenseRangeInCycle` in
+///    calendar_screen.dart), not `0`..`maxAmount`. Anchoring the low end to
+///    the actual cheapest spending day (rather than 0) keeps every day's `t`
+///    spread across the full 0..1 range instead of bunching every ordinary
+///    day into the bottom fifth of it, so a day that's only a little pricier
+///    than the cycle's cheapest one doesn't get pushed further up the scale
+///    than it should.
+/// 2. The two half-segments (`low`->`mid`, `mid`->`high`) are interpolated
+///    in HSL space (via [HSLColor.lerp]), not component-wise RGB (the old
+///    plain `Color.lerp`). RGB-lerping a green and an orange averages their
+///    channels directly, and because green is G-heavy/B-mid while orange is
+///    R-heavy/B-low, the midpoint of that average lands on R≈G with low B -
+///    literally khaki/olive, with saturation collapsing from ~0.86 down to
+///    ~0.3 at the worst point. HSL-lerp instead moves hue/saturation/
+///    lightness independently, so the transition sweeps through the actual
+///    green->yellow->orange hue path at consistently high saturation
+///    instead of cutting across the RGB cube through its dull center.
+Color spendIntensityColor(double amount, double minAmount, double maxAmount) {
+  if (amount <= 0) return ringSafeGreen;
+  if (maxAmount <= minAmount) return ringSafeGreen;
+  final t = ((amount - minAmount) / (maxAmount - minAmount)).clamp(0.0, 1.0);
+  final low = HSLColor.fromColor(ringSafeGreen);
+  final mid = HSLColor.fromColor(ringMidOrange);
+  final high = HSLColor.fromColor(ringDangerRed);
+  final hsl = t <= 0.5
+      ? HSLColor.lerp(low, mid, t / 0.5)!
+      : HSLColor.lerp(mid, high, (t - 0.5) / 0.5)!;
+  return hsl.toColor();
 }
 
 /// Draws the "실제 지출 / 하루 권장 사용액" ring around a Calendar date cell.
@@ -87,8 +112,22 @@ class _RingPainter extends CustomPainter {
       size.width - strokeWidth,
       size.height - strokeWidth,
     );
+    // A soft solid stroke reads as a hard, flat outline at this size, so the
+    // ring sweeps between a lighter and a slightly deeper shade of the same
+    // color instead - just enough tonal drift to feel gently drawn rather
+    // than a stamped-on ring, without changing what the color itself means.
+    final hsl = HSLColor.fromColor(color);
+    final startColor = hsl
+        .withLightness((hsl.lightness + 0.12).clamp(0.0, 1.0))
+        .toColor();
+    final endColor = hsl
+        .withLightness((hsl.lightness - 0.08).clamp(0.0, 1.0))
+        .toColor();
     final paint = Paint()
-      ..color = color
+      ..shader = SweepGradient(
+        colors: [startColor, endColor],
+        transform: const GradientRotation(-math.pi / 2),
+      ).createShader(rect)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;

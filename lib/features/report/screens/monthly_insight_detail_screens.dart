@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
 import '../utils/report_insight_utils.dart';
@@ -38,8 +40,8 @@ class MonthlyTotalComparisonDetailScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))],
+            borderRadius: BorderRadius.circular(AppRadii.compactInput),
+            boxShadow: AppShadows.card,
           ),
           child: TotalComparisonDetail(month: month, data: data),
         ),
@@ -69,8 +71,8 @@ class WeeklyComparisonDetailScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))],
+            borderRadius: BorderRadius.circular(AppRadii.compactInput),
+            boxShadow: AppShadows.card,
           ),
           child: WeeklyComparisonDetail(month: month, data: data),
         ),

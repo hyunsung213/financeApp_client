@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../../notification/providers/notification_provider.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/theme/app_colors.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
@@ -234,7 +235,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: AppColorTokens.dividerTrack),
           ),
           child: accessAsync.when(
             loading: () => const Center(

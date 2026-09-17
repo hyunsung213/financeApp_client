@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_shadows.dart';
 
 /// A shimmering placeholder block. Page-level skeletons below compose these
 /// into the actual card/row shapes of each screen so loading looks like the
@@ -17,7 +19,7 @@ class SkeletonBox extends StatefulWidget {
     required this.height,
     this.borderRadius,
     this.baseColor = const Color(0xFFE9EBEE),
-    this.highlightColor = const Color(0xFFF6F7F8),
+    this.highlightColor = AppColorTokens.skeletonShimmerHighlight,
   });
 
   /// Thin rounded bar used for text placeholders.
@@ -26,7 +28,7 @@ class SkeletonBox extends StatefulWidget {
     this.width,
     this.height = 13,
     this.baseColor = const Color(0xFFE9EBEE),
-    this.highlightColor = const Color(0xFFF6F7F8),
+    this.highlightColor = AppColorTokens.skeletonShimmerHighlight,
   }) : borderRadius = const BorderRadius.all(Radius.circular(7));
 
   /// Line variant for dark/green backgrounds.
@@ -97,7 +99,7 @@ class SkeletonCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(radius),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: AppShadows.elevatedSurface,
       ),
       child: child,
     );

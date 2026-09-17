@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_radii.dart';
 import '../theme/home_tokens.dart';
 import '../utils/category_icons.dart';
 
@@ -38,7 +39,7 @@ class TransactionGridCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadii.button),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(
@@ -55,7 +56,7 @@ class TransactionGridCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: HomeTokens.chipInactiveBg,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
                     border: Border.all(color: HomeTokens.chipInactiveBorder),
                   ),
                   child: Text(categoryName, style: const TextStyle(fontSize: 10, color: HomeTokens.textDark, fontWeight: FontWeight.w500)),

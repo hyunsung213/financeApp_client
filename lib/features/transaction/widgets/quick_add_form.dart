@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
+import '../../../core/theme/app_radii.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../../data/api/category_api.dart';
 import '../../home/providers/home_provider.dart';
@@ -62,7 +63,7 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
       elevation: 0,
       color: Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.button),
         side: const BorderSide(color: AppColors.border),
       ),
       child: Padding(
@@ -102,12 +103,12 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
                       setState(() => _selectedDate = date);
                     }
                   },
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadii.input),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.border),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadii.input),
                     ),
                     child: Row(
                       children: [
@@ -129,7 +130,7 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.border),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadii.input),
                     ),
                     child: categoriesAsync.when(
                       loading: () => const SizedBox(
@@ -210,7 +211,7 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
                       hintText: '금액 (원)',
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.input)),
                     ),
                   ),
                 ),
@@ -223,7 +224,7 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
                       hintText: '내용 (선택)',
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadii.input)),
                     ),
                   ),
                 ),
@@ -236,7 +237,7 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.input)),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   elevation: 0,
                 ),

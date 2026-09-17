@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
+import '../core/theme/surface_style.dart';
 import '../features/home/theme/home_tokens.dart';
 import '../features/auth/providers/auth_provider.dart';
 
@@ -232,28 +233,12 @@ class ScaffoldWithNavBar extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                filter: ImageFilter.blur(
+                  sigmaX: AppSurfaces.floatingNav.blurSigma!,
+                  sigmaY: AppSurfaces.floatingNav.blurSigma!,
+                ),
                 child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
-                      ),
-                      BoxShadow(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
+                  decoration: AppSurfaces.floatingNav.toBoxDecoration(),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 8,

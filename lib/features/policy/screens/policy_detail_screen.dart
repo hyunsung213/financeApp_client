@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/theme/app_radii.dart';
 import '../../../data/api/policy_api.dart';
 import '../../home/theme/home_tokens.dart';
 import '../providers/policy_provider.dart';
@@ -157,14 +158,14 @@ class _DetailBody extends ConsumerWidget {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30)),
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.pill)),
                             child: Text(category, style: const TextStyle(fontSize: 13, color: HomeTokens.textDark, fontWeight: FontWeight.w600)),
                           ),
                           if (dDay != null) ...[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                              decoration: BoxDecoration(color: HomeTokens.negative, borderRadius: BorderRadius.circular(6)),
+                              decoration: BoxDecoration(color: HomeTokens.negative, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
                               child: Text(dDay, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                             ),
                           ],
@@ -188,7 +189,7 @@ class _DetailBody extends ConsumerWidget {
           sliver: SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -213,7 +214,7 @@ class _DetailBody extends ConsumerWidget {
                   backgroundColor: HomeTokens.accent,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: HomeTokens.accent.withValues(alpha: 0.4),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
                   elevation: 0,
                 ),
                 onPressed: officialUrl == null || officialUrl.isEmpty ? null : () => _launchOfficialSite(context),

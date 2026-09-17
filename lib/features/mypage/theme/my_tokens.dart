@@ -1,38 +1,42 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_gradients.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
+
 /// Visual tokens for the My (설정) area, sourced from Figma section
 /// FINAL_MY_SCREENS (537:1173).
 ///
-/// Only values that differ from — or are missing in — `HomeTokens` live here,
-/// so Home / Calendar keep their own chip and background colors untouched.
+/// Values shared with other features delegate to `core/theme/`; only values
+/// that differ from - or are missing in - the shared tokens/`HomeTokens`
+/// live here as their own literal.
 class MyTokens {
   MyTokens._();
 
-  static const Color pageBackground = Color(0xFFF7F7F7);
-  static const Color cardSurface = Color(0xFFFCFCFC);
+  static const Color pageBackground = AppColorTokens.pageBackgroundMy;
+  static const Color cardSurface = AppColorTokens.surfaceOffWhite;
 
-  static const Color accent = Color(0xFF00AE76);
-  static const Color accentDark = Color(0xFF007C4F);
-  static const Color accentSoftBg = Color(0xFFD6F3E8);
-  static const Color accentSoftBorder = Color(0xFFA9E1CF);
-  static const Color negative = Color(0xFFEF6C4C);
+  static const Color accent = AppColorTokens.accent;
+  static const Color accentDark = AppColorTokens.accentDark;
+  static const Color accentSoftBg = AppColorTokens.softGreenTint;
+  static const Color accentSoftBorder = AppColorTokens.softGreenBorder;
+  static const Color negative = AppColorTokens.negativeAccent;
 
   static const Color textPrimary = Color(0xFF2F2F2F);
   static const Color textMuted = Color(0xFFADADAD);
   static const Color placeholder = Color(0xFFA0AFA4);
-  static const Color borderNeutral = Color(0xFFE4E4E4);
+  static const Color borderNeutral = AppColorTokens.borderNeutral;
 
   /// Figma illustration placeholder: rgba(217,217,217,0.58).
   static const Color illustrationPlaceholder = Color(0x94D9D9D9);
 
-  static const double cardRadius = 6;
-  static const double buttonRadius = 16;
-  static const double chipRadius = 30;
-  static const double inputRadius = 6;
+  static const double cardRadius = AppRadii.compactInput;
+  static const double buttonRadius = AppRadii.button;
+  static const double chipRadius = AppRadii.pill;
+  static const double inputRadius = AppRadii.compactInput;
 
-  static const List<BoxShadow> cardShadow = [
-    BoxShadow(color: Color(0x0D000000), blurRadius: 2, offset: Offset(0, 1)),
-  ];
+  static const List<BoxShadow> cardShadow = AppShadows.card;
 
   static const List<Color> progressGradient = [accent, accentSoftBorder];
 
@@ -49,35 +53,6 @@ class MyTokens {
       Color(0xFF80D7BA),
     ],
     stops: [0.2596, 0.3522, 0.4447, 0.6298, 0.8149, 1.0],
-    transform: _HorizontalStretch(2.58),
+    transform: HorizontalStretchTransform(2.58),
   );
-}
-
-class _HorizontalStretch extends GradientTransform {
-  const _HorizontalStretch(this.factor);
-
-  final double factor;
-
-  @override
-  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) {
-    final cx = bounds.center.dx;
-    return Matrix4(
-      factor,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      cx * (1 - factor),
-      0,
-      0,
-      1,
-    );
-  }
 }

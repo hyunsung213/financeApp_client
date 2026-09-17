@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
 import '../utils/policy_category_visual.dart';
 import '../utils/policy_dday.dart';
@@ -25,22 +27,22 @@ class PolicyFeaturedCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.compactInput),
       child: InkWell(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadii.compactInput),
         onTap: onTap,
         child: Container(
           height: 210,
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadii.compactInput),
             gradient: LinearGradient(
               colors: visual.gradient,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))],
+            boxShadow: AppShadows.card,
           ),
           child: Stack(
             children: [
@@ -56,14 +58,14 @@ class PolicyFeaturedCard extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30)),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.pill)),
                         child: Text(category, style: const TextStyle(fontSize: 13, color: HomeTokens.textDark, fontWeight: FontWeight.w600)),
                       ),
                       const Spacer(),
                       if (dDay != null)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(color: HomeTokens.negative, borderRadius: BorderRadius.circular(6)),
+                          decoration: BoxDecoration(color: HomeTokens.negative, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
                           child: Text(dDay, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                         ),
                     ],

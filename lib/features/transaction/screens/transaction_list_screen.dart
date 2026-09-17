@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../../data/api/category_api.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../home/theme/home_tokens.dart';
@@ -175,7 +177,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
             loading: () => const SizedBox(height: 48),
             error: (_, _) => const SizedBox(height: 48),
             data: (categories) => _CategoryFilterRow(
-              categories: categories.whereType<Map>().toList(),
+              // Only root-level (대분류) categories: the flat `/api/categories`
+              // payload also contains every leaf sub-category (식사/배달/카페/...
+              // under 식비, 적금/청약 under 저축, etc.) with the same nesting as
+              // this screen's transactions - showing those as chips too would
+              // both flood the row and let a tap filter by a single leaf
+              // instead of its major category (see majorCategoriesFor's
+              // `parentCategoryId == null` fallback in category_picker_screen.dart
+              // for the same EXPENSE-root restructure this relies on).
+              categories: categories.whereType<Map>().where((c) => c['parentCategoryId'] == null).toList(),
               selectedId: _categoryId,
               onSelect: _selectCategory,
             ),
@@ -247,12 +257,36 @@ class _DayGroup {
   _DayGroup({required this.date, required this.dateKey});
 }
 
-class _CategoryFilterRow extends StatelessWidget {
+class _CategoryFilterRow extends StatefulWidget {
   final List<Map> categories;
   final String? selectedId;
   final ValueChanged<String?> onSelect;
 
   const _CategoryFilterRow({required this.categories, required this.selectedId, required this.onSelect});
+
+  @override
+  State<_CategoryFilterRow> createState() => _CategoryFilterRowState();
+}
+
+class _CategoryFilterRowState extends State<_CategoryFilterRow> {
+  // Keyed by category id (null == "전체") so a newly-selected chip can be
+  // scrolled into view even though the row's width is intrinsic per-chip
+  // (no fixed item extent to compute an offset from directly).
+  final Map<String?, GlobalKey> _chipKeys = {};
+
+  @override
+  void didUpdateWidget(covariant _CategoryFilterRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedId != widget.selectedId) _scrollSelectedIntoView();
+  }
+
+  void _scrollSelectedIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _chipKeys[widget.selectedId]?.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(ctx, alignment: 0.5, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -264,7 +298,7 @@ class _CategoryFilterRow extends StatelessWidget {
         children: [
           _chip(context, null, '전체', null),
           const SizedBox(width: 8),
-          for (final c in categories) ...[
+          for (final c in widget.categories) ...[
             _chip(context, c['id']?.toString(), (c['name'] ?? '').toString(), categoryIconFor(c['id']?.toString(), c['name']?.toString())),
             const SizedBox(width: 8),
           ],
@@ -274,21 +308,43 @@ class _CategoryFilterRow extends StatelessWidget {
   }
 
   Widget _chip(BuildContext context, String? id, String label, IconData? icon) {
-    final selected = selectedId == id;
+    final selected = widget.selectedId == id;
+    final key = _chipKeys.putIfAbsent(id, () => GlobalKey());
     return GestureDetector(
-      onTap: () => onSelect(id),
+      key: key,
+      onTap: () => widget.onSelect(id),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? HomeTokens.chipActiveBg : HomeTokens.chipInactiveBg,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
           border: Border.all(color: selected ? HomeTokens.chipActiveBorder : HomeTokens.chipInactiveBorder),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (icon != null) ...[Icon(icon, size: 14, color: selected ? HomeTokens.accentDark : HomeTokens.textDark), const SizedBox(width: 4)],
-            Text(label, style: TextStyle(fontSize: 13, fontWeight: selected ? FontWeight.bold : FontWeight.w500, color: selected ? HomeTokens.accentDark : const Color(0xFF004725))),
+            if (icon != null) ...[Icon(icon, size: 14, color: selected ? HomeTokens.accentDark : HomeTokens.textDark), const SizedBox(width: 6)],
+            Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.visible,
+              // Forces every chip's text line box to the same height (fontSize
+              // * 1.1) regardless of which glyphs it happens to contain -
+              // Hangul, the "·" in "여가·문화", and the emoji baked into the
+              // "👾AI" category name all carry different natural
+              // ascent/descent, which without a strut left the icon looking
+              // like it sat at a different height per chip even though every
+              // chip used the same Row/Icon/Text setup.
+              strutStyle: const StrutStyle(fontSize: 14, height: 1.1, forceStrutHeight: true),
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.1,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? HomeTokens.accentDark : const Color(0xFF004725),
+              ),
+            ),
           ],
         ),
       ),
@@ -323,7 +379,7 @@ class _MonthSection extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: HomeTokens.chipActiveBg,
                   border: Border.all(color: HomeTokens.accent),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text('${group.month.month}월', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: HomeTokens.accent)),
@@ -374,8 +430,8 @@ class _DaySection extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     decoration: BoxDecoration(
                       color: HomeTokens.cardSurface,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, offset: const Offset(0, 1))],
+                      borderRadius: BorderRadius.circular(AppRadii.button),
+                      boxShadow: AppShadows.hairline,
                     ),
                     child: Column(
                       children: [
@@ -428,15 +484,15 @@ class _TransactionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, offset: const Offset(0, 1))],
+          borderRadius: BorderRadius.circular(AppRadii.compactInput),
+          boxShadow: AppShadows.hairline,
         ),
         child: Row(
           children: [
             Container(
               width: 39,
               height: 39,
-              decoration: BoxDecoration(color: HomeTokens.chipActiveBg, borderRadius: BorderRadius.circular(6)),
+              decoration: BoxDecoration(color: HomeTokens.chipActiveBg, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
               child: Icon(categoryIconFor(tx['categoryId']?.toString(), categoryName), size: 18, color: HomeTokens.accentDark),
             ),
             const SizedBox(width: 10),
@@ -459,7 +515,7 @@ class _TransactionRow extends StatelessWidget {
             if (categoryName != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: HomeTokens.chipInactiveBg, borderRadius: BorderRadius.circular(30), border: Border.all(color: HomeTokens.chipInactiveBorder)),
+                decoration: BoxDecoration(color: HomeTokens.chipInactiveBg, borderRadius: BorderRadius.circular(AppRadii.pill), border: Border.all(color: HomeTokens.chipInactiveBorder)),
                 child: Text(categoryName, style: const TextStyle(fontSize: 11, color: HomeTokens.textDark)),
               ),
             const Icon(Icons.chevron_right, size: 22, color: HomeTokens.textMuted),

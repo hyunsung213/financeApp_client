@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_gradients.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
+import '../../../core/widgets/manual_input_fab.dart' show kBottomNavBarHeight;
 import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
+import '../utils/report_date_utils.dart';
 import '../utils/report_insight_utils.dart';
 import '../widgets/month_picker_sheet.dart';
 import 'monthly_report_screen.dart';
@@ -121,7 +127,17 @@ class ReportScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 24),
+                    // Report's own ListView paints *under* the floating
+                    // bottom-nav pill from ScaffoldWithNavBar (a separate
+                    // Stack layer in router.dart, not Scaffold.bottomNavigationBar),
+                    // so scroll content needs to reserve that pill's own
+                    // footprint or the last card ends up hidden behind it.
+                    // The enclosing SafeArea above already reserves the
+                    // device's own bottom inset (system nav/gesture area),
+                    // so only the pill's height + a little breathing room is
+                    // added here - adding MediaQuery's bottom inset again
+                    // here too would double-count it.
+                    const SizedBox(height: kBottomNavBarHeight + 20),
                   ],
                 );
               },
@@ -148,12 +164,8 @@ class _HeroSummaryPanel extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF6DD9AB), Color(0xFF00AF76)],
-        ),
-        borderRadius: BorderRadius.circular(16),
+        gradient: AppGradients.heroHeader,
+        borderRadius: BorderRadius.circular(AppRadii.button),
       ),
       child: Column(
         children: [
@@ -187,7 +199,7 @@ class _HeroSummaryPanel extends ConsumerWidget {
           ],
           const SizedBox(height: 16),
           InkWell(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadii.compactInput),
             onTap: () async {
               final picked = await MonthPickerSheet.show(context, month);
               if (picked != null) ref.read(reportMonthProvider.notifier).setMonth(picked);
@@ -197,7 +209,7 @@ class _HeroSummaryPanel extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
                 color: const Color(0xFF4ACB9A),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(AppRadii.compactInput),
                 border: Border.all(color: Colors.white, width: 1),
               ),
               child: Row(
@@ -227,8 +239,8 @@ class _SectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        boxShadow: AppShadows.elevatedSurface,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,7 +264,7 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-class _DailyFlowCard extends StatelessWidget {
+class _DailyFlowCard extends StatefulWidget {
   final DateTime month;
   final List<DailyPoint> points;
   final int? highlightDay;
@@ -262,111 +274,198 @@ class _DailyFlowCard extends StatelessWidget {
   const _DailyFlowCard({required this.month, required this.points, required this.highlightDay, required this.highlightAmount, required this.onMore});
 
   @override
+  State<_DailyFlowCard> createState() => _DailyFlowCardState();
+}
+
+class _DailyFlowCardState extends State<_DailyFlowCard> {
+  // Single source of truth for the selected point, the tooltip and the
+  // bottom day badge - starts at [highlightDay] (today for the in-progress
+  // month, else that month's peak-spend day, per reportMainDataProvider) and
+  // moves only in response to a tap/scrub, never automatically.
+  int? _selectedDay;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = widget.highlightDay;
+  }
+
+  @override
+  void didUpdateWidget(covariant _DailyFlowCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.month != widget.month) _selectedDay = widget.highlightDay;
+  }
+
+  // `points` is already the same future-cutoff-filtered list the line itself
+  // is drawn from (reportMainDataProvider clamps out days after "today" for
+  // an in-progress month), so its own max day is the correct "don't select a
+  // day with nothing plotted" cutoff without re-deriving "today" here.
+  int get _lastValidDay => widget.points.isEmpty ? 1 : widget.points.map((p) => p.day).reduce((a, b) => a > b ? a : b);
+
+  int? _amountForDay(int day) {
+    for (final p in widget.points) {
+      if (p.day == day) return p.spent;
+    }
+    return null;
+  }
+
+  void _updateSelectedDayFromLocalX(double dx, double width) {
+    if (width <= 0 || widget.points.isEmpty) return;
+    final maxDay = daysInMonth(widget.month).toDouble();
+    final t = (dx / width).clamp(0.0, 1.0);
+    final day = (1 + t * (maxDay - 1)).round().clamp(1, _lastValidDay);
+    if (day != _selectedDay) setState(() => _selectedDay = day);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final month = widget.month;
+    final points = widget.points;
+    final selectedDay = _selectedDay;
+    final selectedAmount = selectedDay == null ? null : _amountForDay(selectedDay);
+
     return _SectionCard(
       title: '이번 달 소비 흐름 (일별)',
-      onMore: onMore,
+      onMore: widget.onMore,
       child: SizedBox(
         height: 190,
         child: points.isEmpty
             ? const Center(child: Text('이번 달 거래 내역이 아직 없어요', style: TextStyle(color: HomeTokens.textMuted)))
-            : Stack(
-                children: [
-                  LineChart(
-                    LineChartData(
-                      gridData: const FlGridData(show: false),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 30,
-                            interval: 1,
-                            getTitlesWidget: (value, meta) {
-                              final day = value.toInt();
-                              const marks = [1, 10, 15, 20, 31];
-                              if (!marks.contains(day) && day != highlightDay) return const SizedBox.shrink();
-                              final isHighlight = day == highlightDay;
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: Container(
-                                  padding: isHighlight ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2) : EdgeInsets.zero,
-                                  decoration: isHighlight ? BoxDecoration(color: HomeTokens.accent, borderRadius: BorderRadius.circular(20)) : null,
-                                  child: Text(
-                                    '$day',
-                                    style: TextStyle(
-                                      color: isHighlight ? Colors.white : HomeTokens.textMuted,
-                                      fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final maxDay = daysInMonth(month).toDouble();
+                  final dayAlignmentX = selectedDay == null
+                      ? 0.0
+                      : (((selectedDay - 1) / (maxDay - 1).clamp(1, 999)) * 2 - 1).clamp(-1.0, 1.0);
+                  return Stack(
+                    children: [
+                      LineChart(
+                        LineChartData(
+                          gridData: const FlGridData(show: false),
+                          titlesData: FlTitlesData(
+                            show: true,
+                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            // No static day numbers anymore - `showTitles: true`
+                            // is kept only so fl_chart still reserves the 30px
+                            // bottom strip (which the plot area's height
+                            // assumes); getTitlesWidget always returns an empty
+                            // box so nothing is actually drawn there. The
+                            // selected day is shown by the floating badge below
+                            // instead, positioned from the same selectedDay/
+                            // width math as the tooltip and the dot highlight
+                            // above so all three always agree.
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 30,
+                                getTitlesWidget: (value, meta) => const SizedBox.shrink(),
+                              ),
+                            ),
                           ),
+                          borderData: FlBorderData(show: false),
+                          minX: 1,
+                          maxX: maxDay,
+                          minY: 0,
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: points.map((p) => FlSpot(p.day.toDouble(), p.spent.toDouble())).toList(),
+                              isCurved: false,
+                              color: HomeTokens.accent,
+                              barWidth: 2,
+                              isStrokeCapRound: true,
+                              dotData: FlDotData(
+                                show: true,
+                                getDotPainter: (spot, percent, barData, index) {
+                                  if (spot.x.toInt() == selectedDay) {
+                                    return FlDotCirclePainter(radius: 4, color: Colors.white, strokeWidth: 2, strokeColor: HomeTokens.accent);
+                                  }
+                                  return FlDotCirclePainter(radius: 0, color: Colors.transparent);
+                                },
+                              ),
+                              belowBarData: BarAreaData(show: false),
+                            ),
+                          ],
                         ),
                       ),
-                      borderData: FlBorderData(show: false),
-                      minX: 1,
-                      maxX: points.map((p) => p.day).reduce((a, b) => a > b ? a : b).toDouble(),
-                      minY: 0,
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: points.map((p) => FlSpot(p.day.toDouble(), p.spent.toDouble())).toList(),
-                          isCurved: false,
-                          color: HomeTokens.accent,
-                          barWidth: 2,
-                          isStrokeCapRound: true,
-                          dotData: FlDotData(
-                            show: true,
-                            getDotPainter: (spot, percent, barData, index) {
-                              if (spot.x.toInt() == highlightDay) {
-                                return FlDotCirclePainter(radius: 4, color: Colors.white, strokeWidth: 2, strokeColor: HomeTokens.accent);
-                              }
-                              return FlDotCirclePainter(radius: 0, color: Colors.transparent);
-                            },
-                          ),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            gradient: LinearGradient(
-                              colors: [HomeTokens.accent.withValues(alpha: 0.35), HomeTokens.accent.withValues(alpha: 0.0)],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
+                      if (selectedDay != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 30,
+                          child: IgnorePointer(
+                            child: Align(
+                              alignment: Alignment(dayAlignmentX, 0),
+                              // No `height`/`alignment`/`Center` here: any of
+                              // those make this expand to fill the bounded
+                              // width the outer Align hands it (Container
+                              // with alignment set, and Align/Center as a
+                              // child, both size themselves to fill bounded
+                              // parent constraints per their own docs) - which
+                              // silently turned this into a full-width bar
+                              // instead of a small pill. Sizing purely from
+                              // padding shrink-wraps to the Text in both
+                              // axes; the outer Align's y:0 already centers
+                              // it vertically within the reserved strip.
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: HomeTokens.accent.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(15),
+                                  border: Border.all(color: HomeTokens.accent.withValues(alpha: 0.35), width: 1),
+                                ),
+                                child: Text(
+                                  '$selectedDay',
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: HomeTokens.accentDark),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  if (highlightDay != null && highlightAmount != null)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: Align(
-                        alignment: Alignment(
-                          (((highlightDay! - 1) / (points.map((p) => p.day).reduce((a, b) => a > b ? a : b) - 1).clamp(1, 999)) * 2 - 1).clamp(-1.0, 1.0),
-                          0,
-                        ),
-                        // Figma's callout stacks "8월 17일" (bold) above the
-                        // amount on its own line, not one run-on sentence.
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(color: HomeTokens.accentDark, borderRadius: BorderRadius.circular(6)),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('${month.month}월 $highlightDay일', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                              Text(formatWon(highlightAmount!), style: const TextStyle(color: Colors.white, fontSize: 11)),
-                            ],
+                      if (selectedDay != null && selectedAmount != null)
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: IgnorePointer(
+                            child: Align(
+                              alignment: Alignment(dayAlignmentX, 0),
+                              // Figma's callout stacks "8월 17일" (bold) above the
+                              // amount on its own line, not one run-on sentence.
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(color: HomeTokens.accentDark, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('${month.month}월 $selectedDay일', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    Text(formatWon(selectedAmount), style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
+                      // Topmost so it always wins the gesture arena over
+                      // fl_chart's own touch handling; onHorizontalDragUpdate
+                      // (not a plain pan) so a vertical swipe that merely
+                      // starts over the chart still scrolls the page, matching
+                      // the interactive Monthly Report chart's approach.
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapDown: (details) => _updateSelectedDayFromLocalX(details.localPosition.dx, width),
+                          onHorizontalDragStart: (details) => _updateSelectedDayFromLocalX(details.localPosition.dx, width),
+                          onHorizontalDragUpdate: (details) => _updateSelectedDayFromLocalX(details.localPosition.dx, width),
+                          child: const SizedBox.expand(),
+                        ),
                       ),
-                    ),
-                ],
+                    ],
+                  );
+                },
               ),
       ),
     );
@@ -488,8 +587,8 @@ class _InsightSummaryCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: insight.positive ? HomeTokens.chipActiveBg : const Color(0xFFFFF1E8),
-                        borderRadius: BorderRadius.circular(12),
+                        color: insight.positive ? HomeTokens.chipActiveBg : AppColorTokens.negativeSoftBg,
+                        borderRadius: BorderRadius.circular(AppRadii.input),
                       ),
                       child: Row(
                         children: [

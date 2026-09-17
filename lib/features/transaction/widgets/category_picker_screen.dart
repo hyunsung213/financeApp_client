@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radii.dart';
 import '../../home/theme/home_tokens.dart';
 
 IconData categoryIconFor(String? name) {
@@ -105,16 +107,26 @@ class CategoryPickerResult {
 
 /// Two-step 대분류 → 소분류 picker as a bottom sheet (mockup:
 /// handwriting_big_category / handwriting_small_category), matching the
-/// drag-handle + title-row + icon-grid + "다음"/"저장" shell already
-/// established by Home's `_DetailSheet` (`showModalBottomSheet` with a
-/// vertical-top radius(24) shape). Both steps are still backed by the real
-/// categories list - no data/logic changes beyond [majorCategoriesFor]
-/// tolerating the EXPENSE root-category restructure above.
+/// drag-handle + title-row + icon-grid shell already established by Home's
+/// `_DetailSheet` (`showModalBottomSheet` with a vertical-top radius(24)
+/// shape). Tapping a 대분류 tile transitions straight into its 소분류 grid in
+/// the same sheet (no intermediate "다음" step) unless it has no children, in
+/// which case it's treated as a leaf and the sheet closes immediately - see
+/// [_onMajorTap]. Both steps are still backed by the real categories list -
+/// no data/logic changes beyond [majorCategoriesFor] tolerating the EXPENSE
+/// root-category restructure above, and [initialCategoryId] to restore a
+/// previously-saved selection when editing.
 class CategoryPickerScreen extends StatefulWidget {
   final List<dynamic> categories;
   final String parentTypeId;
+  final String? initialCategoryId;
 
-  const CategoryPickerScreen({super.key, required this.categories, required this.parentTypeId});
+  const CategoryPickerScreen({
+    super.key,
+    required this.categories,
+    required this.parentTypeId,
+    this.initialCategoryId,
+  });
 
   @override
   State<CategoryPickerScreen> createState() => _CategoryPickerScreenState();
@@ -126,6 +138,32 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
   Map<String, dynamic>? _highlightedSub;
 
   List<Map<String, dynamic>> get _majors => majorCategoriesFor(widget.categories, widget.parentTypeId);
+
+  Map<String, dynamic>? _findCategory(String? id) {
+    if (id == null) return null;
+    for (final c in widget.categories) {
+      if (c is Map && c['id'].toString() == id) return Map<String, dynamic>.from(c);
+    }
+    return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Restore a previously-saved 대분류/소분류 selection (e.g. re-opening the
+    // sheet to edit an existing transaction's category) so the user isn't
+    // dropped back to a blank step 1.
+    final leaf = _findCategory(widget.initialCategoryId);
+    if (leaf == null) return;
+    final parent = _findCategory(leaf['parentCategoryId']?.toString());
+    if (parent != null) {
+      _selectedMajor = parent;
+      _highlightedMajor = parent;
+      _highlightedSub = leaf;
+    } else {
+      _highlightedMajor = leaf;
+    }
+  }
 
   List<Map<String, dynamic>> _childrenOf(String parentId) => widget.categories
       .whereType<Map>()
@@ -140,11 +178,24 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
     );
   }
 
-  void _goToSubStep(Map<String, dynamic> major) {
+  // 대분류 tile 터치 즉시 처리한다: 소분류가 있으면 같은 BottomSheet 안에서
+  // 바로 2차 단계로 전환하고(이전 선택 소분류는 reset), 소분류가 없는 대분류
+  // (예: AI 카드)는 그 자체를 leaf 취급해 바로 확정한다.
+  void _onMajorTap(Map<String, dynamic> major) {
+    final subs = _childrenOf(major['id'].toString());
+    if (subs.isEmpty) {
+      _finishWithMajor(major);
+      return;
+    }
     setState(() {
+      _highlightedMajor = major;
       _selectedMajor = major;
       _highlightedSub = null;
     });
+  }
+
+  void _onSubTap(Map<String, dynamic> sub) {
+    setState(() => _highlightedSub = sub);
   }
 
   void _finishWithSub(Map<String, dynamic> sub) {
@@ -176,150 +227,122 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
               child: Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: AppColorTokens.dividerTrack, borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                if (isSubStep)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: HomeTokens.textDark),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => setState(() {
-                        _selectedMajor = null;
-                        _highlightedMajor = null;
-                      }),
-                    ),
-                  ),
-                const Text('카테고리', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: HomeTokens.textDark)),
-                if (isSubStep) ...[
-                  const SizedBox(width: 6),
-                  Text('- ${_selectedMajor!['name'] ?? ''}', style: const TextStyle(fontSize: 16, color: HomeTokens.textFaint)),
-                ],
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close, color: HomeTokens.textDark),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () => Navigator.pop(context),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(begin: const Offset(0.03, 0), end: Offset.zero).animate(animation),
+                  child: child,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            items.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Center(child: Text('선택할 수 있는 항목이 없습니다.', style: TextStyle(color: HomeTokens.textMuted))),
-                  )
-                : GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 0.85,
-                    ),
-                    itemCount: items.length,
-                    itemBuilder: (context, i) {
-                      final item = items[i];
-                      final name = (item['name'] ?? '').toString();
-                      final isSelected = highlighted != null && highlighted['id'] == item['id'];
-                      return GestureDetector(
-                        onTap: () => setState(() {
-                          if (isSubStep) {
-                            _highlightedSub = item;
-                          } else {
-                            _highlightedMajor = item;
-                          }
-                        }),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected ? HomeTokens.chipActiveBg : Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: isSelected ? HomeTokens.accent : HomeTokens.chipInactiveBorder, width: isSelected ? 1.5 : 1),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(categoryIconFor(name), size: 24, color: isSelected ? HomeTokens.accentDark : HomeTokens.textDark),
-                              const SizedBox(height: 6),
-                              Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected ? HomeTokens.accentDark : HomeTokens.textDark,
-                                ),
-                              ),
-                            ],
+              ),
+              child: Column(
+                key: ValueKey(isSubStep ? 'sub-${_selectedMajor!['id']}' : 'major'),
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (isSubStep)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: HomeTokens.textDark),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => setState(() {
+                              _selectedMajor = null;
+                              _highlightedMajor = null;
+                            }),
                           ),
                         ),
-                      );
-                    },
-                  ),
-            const SizedBox(height: 16),
-            if (!isSubStep)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: HomeTokens.accent,
-                        side: const BorderSide(color: HomeTokens.accent),
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      const Text('카테고리', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: HomeTokens.textDark)),
+                      if (isSubStep) ...[
+                        const SizedBox(width: 6),
+                        Text('- ${_selectedMajor!['name'] ?? ''}', style: const TextStyle(fontSize: 16, color: HomeTokens.textFaint)),
+                      ],
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: HomeTokens.textDark),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      onPressed: _highlightedMajor == null
-                          ? null
-                          : () {
-                              final subs = _childrenOf(_highlightedMajor!['id'].toString());
-                              if (subs.isEmpty) {
-                                _finishWithMajor(_highlightedMajor!);
-                              } else {
-                                _goToSubStep(_highlightedMajor!);
-                              }
-                            },
-                      child: const Text('다음', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: HomeTokens.accent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
+                  const SizedBox(height: 12),
+                  items.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32),
+                          child: Center(child: Text('선택할 수 있는 항목이 없습니다.', style: TextStyle(color: HomeTokens.textMuted))),
+                        )
+                      : GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 0.85,
+                          ),
+                          itemCount: items.length,
+                          itemBuilder: (context, i) {
+                            final item = items[i];
+                            final name = (item['name'] ?? '').toString();
+                            final isSelected = highlighted != null && highlighted['id'] == item['id'];
+                            return GestureDetector(
+                              onTap: () => isSubStep ? _onSubTap(item) : _onMajorTap(item),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isSelected ? HomeTokens.chipActiveBg : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: isSelected ? HomeTokens.accent : HomeTokens.chipInactiveBorder, width: isSelected ? 1.5 : 1),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(categoryIconFor(name), size: 24, color: isSelected ? HomeTokens.accentDark : HomeTokens.textDark),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isSelected ? HomeTokens.accentDark : HomeTokens.textDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                  if (isSubStep) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: HomeTokens.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
+                          elevation: 0,
+                        ),
+                        onPressed: _highlightedSub == null ? null : () => _finishWithSub(_highlightedSub!),
+                        child: const Text('저장', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
-                      onPressed: _highlightedMajor == null ? null : () => _finishWithMajor(_highlightedMajor!),
-                      child: const Text('저장', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
-                  ),
+                  ],
                 ],
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: HomeTokens.accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  onPressed: _highlightedSub == null ? null : () => _finishWithSub(_highlightedSub!),
-                  child: const Text('저장', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
               ),
+            ),
           ],
         ),
       ),

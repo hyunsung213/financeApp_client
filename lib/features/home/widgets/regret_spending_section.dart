@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../theme/home_tokens.dart';
 import 'home_section_header.dart';
 
@@ -30,14 +32,8 @@ class RegretTransactionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 16),
         decoration: BoxDecoration(
           color: HomeTokens.cardSurface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 1,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(AppRadii.input),
+          boxShadow: AppShadows.hairline,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -88,7 +84,7 @@ class RegretTransactionRow extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: HomeTokens.chipInactiveBg,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
                     border: Border.all(color: HomeTokens.chipInactiveBorder),
                   ),
                   child: Text(

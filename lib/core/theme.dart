@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'theme/app_colors.dart';
+
 class AppColors {
-  static const Color primary = Color(0xFF00C875);
+  static const Color primary = AppColorTokens.primary;
   static const Color primaryLight = Color(0xFFE3F9EE);
-  static const Color background = Color(0xFFF7F8FA);
+  static const Color background = AppColorTokens.pageBackgroundCore;
   static const Color surface = Color(0xFFFFFFFF);
   
   static const Color textPrimary = Color(0xFF1A1A1A);
@@ -27,7 +29,6 @@ final ThemeData appTheme = ThemeData(
     primary: AppColors.primary,
     surface: AppColors.surface,
     error: AppColors.danger,
-    background: AppColors.background,
   ),
   scaffoldBackgroundColor: AppColors.background,
   fontFamily: 'Pretendard', // Assuming default sans-serif for MVP
@@ -42,7 +43,7 @@ final ThemeData appTheme = ThemeData(
   cardTheme: CardThemeData(
     color: AppColors.surface,
     elevation: 2,
-    shadowColor: Colors.black.withOpacity(0.05),
+    shadowColor: Colors.black.withValues(alpha: 0.05),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     margin: const EdgeInsets.only(bottom: 16),
   ),

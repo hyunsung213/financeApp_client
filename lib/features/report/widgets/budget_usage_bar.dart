@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radii.dart';
 import '../../home/theme/home_tokens.dart';
 import '../utils/report_insight_utils.dart';
 
@@ -99,9 +101,9 @@ class BudgetUsageBar extends StatelessWidget {
                 margin: showCategoryName ? EdgeInsets.zero : const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1E9),
+                  color: AppColorTokens.negativeSoftBg,
                   border: Border.all(color: HomeTokens.negative),
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
                 ),
                 child: const Text('초과', style: TextStyle(fontSize: 11, color: HomeTokens.negative)),
               ),

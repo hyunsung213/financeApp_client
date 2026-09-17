@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
 
 /// 12-month grid picker (Figma node 397:6017), shown as a bottom sheet from
@@ -9,8 +11,18 @@ class MonthPickerSheet extends StatefulWidget {
   const MonthPickerSheet({super.key, required this.initialMonth});
 
   static Future<DateTime?> show(BuildContext context, DateTime initialMonth) {
+    // Report lives inside a StatefulShellRoute branch Navigator, and the
+    // floating bottom nav bar is painted as a Stack sibling *above* that
+    // branch's Navigator in `ScaffoldWithNavBar` (core/router.dart) - a sheet
+    // pushed on the branch Navigator renders underneath it. Pushing on the
+    // root Navigator instead puts the sheet above the whole shell (nav bar
+    // included) and also flips `isShellOnTop` false, sliding the nav bar away
+    // - the same mechanism already used for AddTransactionModal's full-screen
+    // push.
     return showModalBottomSheet<DateTime>(
       context: context,
+      useRootNavigator: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => MonthPickerSheet(initialMonth: initialMonth),
     );
@@ -65,14 +77,14 @@ class _MonthPickerSheetState extends State<MonthPickerSheet> {
                 final monthNum = index + 1;
                 final isSelected = _selectedYear == widget.initialMonth.year && monthNum == widget.initialMonth.month;
                 return InkWell(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
                   onTap: () => Navigator.of(context).pop(DateTime(_selectedYear, monthNum, 1)),
                   child: Container(
                     decoration: BoxDecoration(
                       color: isSelected ? HomeTokens.chipActiveBg : HomeTokens.chipInactiveBg,
                       border: Border.all(color: isSelected ? HomeTokens.chipActiveBorder : HomeTokens.chipInactiveBorder),
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, offset: const Offset(0, 1))],
+                      borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                      boxShadow: AppShadows.hairline,
                     ),
                     alignment: Alignment.center,
                     child: Text(

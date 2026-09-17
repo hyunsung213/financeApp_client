@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_radii.dart';
 import '../../home/theme/home_tokens.dart';
 
 /// Figma node 248:6033 ("내 캘린더에 추가하시겠습니까?"): confirms adding a
@@ -64,7 +65,7 @@ class PolicyCalendarAddSheet extends StatelessWidget {
     return Dialog(
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
         child: Column(
@@ -100,7 +101,7 @@ class PolicyCalendarAddSheet extends StatelessWidget {
                       foregroundColor: HomeTokens.accentDark,
                       side: const BorderSide(color: Color(0xFFA9E1CF)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('취소', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
@@ -113,7 +114,7 @@ class PolicyCalendarAddSheet extends StatelessWidget {
                       backgroundColor: HomeTokens.accent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
                       elevation: 0,
                     ),
                     onPressed: () => _confirm(context),

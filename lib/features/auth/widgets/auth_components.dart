@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_gradients.dart';
 import '../theme/auth_tokens.dart';
 
 /// Shared scaffold for every auth screen: white page with the Figma green
@@ -68,7 +69,7 @@ class _AuthBackground extends StatelessWidget {
                     Color(0x00FFFFFF),
                   ],
                   stops: [0, 0.3, 0.55, 0.8, 1],
-                  transform: _HorizontalStretch(2.3),
+                  transform: HorizontalStretchTransform(2.3),
                 ),
               ),
             ),
@@ -89,41 +90,12 @@ class _AuthBackground extends StatelessWidget {
                   Color(0x00FFFFFF),
                 ],
                 stops: [0, 0.55, 1],
-                transform: _HorizontalStretch(1.9),
+                transform: HorizontalStretchTransform(1.9),
               ),
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _HorizontalStretch extends GradientTransform {
-  const _HorizontalStretch(this.factor);
-
-  final double factor;
-
-  @override
-  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) {
-    final cx = bounds.center.dx;
-    return Matrix4(
-      factor,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      cx * (1 - factor),
-      0,
-      0,
-      1,
     );
   }
 }

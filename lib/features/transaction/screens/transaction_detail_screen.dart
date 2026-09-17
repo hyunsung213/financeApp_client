@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
 import '../../home/utils/category_icons.dart';
 import '../providers/transaction_provider.dart';
@@ -50,7 +52,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                   end: Alignment.bottomCenter,
                   colors: [Color(0xFF6DD9AB), Color(0x0000AF76)],
                 ),
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(AppRadii.button), bottomRight: Radius.circular(AppRadii.button)),
               ),
             ),
           ),
@@ -172,7 +174,7 @@ class _DetailBody extends ConsumerWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.danger,
               side: const BorderSide(color: Color(0xFFE1D7D5)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
             ),
             child: const Text('거래 삭제', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
           ),
@@ -219,8 +221,8 @@ class _DetailCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))],
+        borderRadius: BorderRadius.circular(AppRadii.compactInput),
+        boxShadow: AppShadows.card,
       ),
       child: child,
     );
@@ -246,7 +248,7 @@ class _EditableRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.compactInput),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
@@ -284,7 +286,7 @@ class _MoodRow extends StatelessWidget {
     final showDebugSample = kDebugMode;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.compactInput),
       onTap: () => ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('소비 평가 기록 기능은 준비 중이에요.')),
       ),

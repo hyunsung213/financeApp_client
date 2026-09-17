@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
 import '../../home/utils/category_icons.dart';
 import '../../policy/providers/policy_provider.dart';
@@ -154,14 +156,8 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       decoration: BoxDecoration(
         color: HomeTokens.cardSurface,
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppRadii.compactInput),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +212,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                     side: const BorderSide(color: HomeTokens.accent),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadii.input),
                     ),
                   ),
                   onPressed: () {
@@ -237,7 +233,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadii.input),
                     ),
                     elevation: 0,
                   ),
@@ -372,14 +368,8 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
           decoration: BoxDecoration(
             color: HomeTokens.cardSurface,
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 2,
-                offset: const Offset(0, 1),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(AppRadii.compactInput),
+            boxShadow: AppShadows.card,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

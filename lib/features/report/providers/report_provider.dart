@@ -96,15 +96,20 @@ final reportMainDataProvider = FutureProvider.autoDispose.family<ReportMainData,
     // simply omitted below (momPercent already returns null for 0).
   }
 
+  final now = DateTime.now();
+  final isCurrentMonth = month.year == now.year && month.month == now.month;
+  // Backend fills every day of the queried range, including future days
+  // (as spent: 0), so without this cutoff the chart would draw a flat
+  // zero-line through dates that haven't happened yet.
+  final lastValidDay = isCurrentMonth ? now.day.clamp(1, daysInMonth(month)) : daysInMonth(month);
+
   final totalExpense = _toInt(currentSummary['expense']);
-  final dailyPoints = _toDailyPoints(dailyRaw);
+  final dailyPoints = _toDailyPoints(dailyRaw).where((p) => p.day <= lastValidDay).toList();
   final categories = _toCategoryAmounts(categoriesRaw);
   final momPct = momPercent(totalExpense, previousExpense);
   final peak = maxDailyRow(dailyRaw.cast<Map<String, dynamic>>());
   final top = topCategory(categories);
 
-  final now = DateTime.now();
-  final isCurrentMonth = month.year == now.year && month.month == now.month;
   final highlightDay = isCurrentMonth ? now.day : peak?.date.day;
   final highlightAmount = highlightDay == null
       ? null

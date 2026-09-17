@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_radii.dart';
 import '../../home/theme/home_tokens.dart';
 import '../utils/policy_category_visual.dart';
 
@@ -27,16 +28,16 @@ class PolicyListCard extends StatelessWidget {
 
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.compactInput),
       child: InkWell(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadii.compactInput),
         onTap: onTap,
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadii.compactInput),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1))],
           ),
           child: Row(
@@ -71,7 +72,7 @@ class PolicyListCard extends StatelessWidget {
                 width: 81,
                 height: 81,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
                   gradient: LinearGradient(colors: visual.gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
                 ),
                 child: Icon(visual.icon, color: Colors.white, size: 32),

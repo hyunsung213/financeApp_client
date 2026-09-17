@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
 import '../../transaction/screens/transaction_list_screen.dart';
 import '../../../data/api/category_api.dart';
@@ -74,8 +76,8 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))],
+                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                  boxShadow: AppShadows.card,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,13 +91,13 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
                             final picked = await MonthPickerSheet.show(context, month);
                             if (picked != null) ref.read(reportMonthProvider.notifier).setMonth(picked);
                           },
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(AppRadii.compactInput),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: HomeTokens.cardSurface,
-                              borderRadius: BorderRadius.circular(6),
-                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+                              borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                              boxShadow: AppShadows.elevatedStrong,
                             ),
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
                               Text('${month.month}월', style: const TextStyle(fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
@@ -211,14 +213,14 @@ class _CategoryRow extends ConsumerWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))],
+        borderRadius: BorderRadius.circular(AppRadii.compactInput),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         children: [
           InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadii.compactInput),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(

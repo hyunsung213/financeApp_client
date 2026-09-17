@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 /// A linear progress bar whose filled portion is a gradient instead of a
 /// flat color. `LinearProgressIndicator.valueColor` only accepts a single
 /// color, so this builds the fill with a plain gradient-decorated box sized
@@ -16,7 +18,7 @@ class GradientProgressBar extends StatelessWidget {
     required this.value,
     required this.colors,
     this.height = 6,
-    this.backgroundColor = const Color(0xFFE5E7EB),
+    this.backgroundColor = AppColorTokens.dividerTrack,
     this.borderRadius,
   });
 

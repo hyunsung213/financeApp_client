@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_gradients.dart';
+import '../../../core/theme/app_radii.dart';
 import '../../../core/widgets/manual_input_fab.dart';
 import '../../../data/api/finance_api.dart';
 import '../../../data/api/report_api.dart';
@@ -131,15 +133,6 @@ final salaryDayProvider = FutureProvider.autoDispose<int>((ref) async {
   }
 });
 
-// Figma node 114:5459 (FINAL_CALENDAR_SCREENS Frame 25) header gradient, a
-// shorter 2-stop variant of the Home hero gradient sized for the calendar
-// top panel.
-const _headerGradient = LinearGradient(
-  begin: Alignment.topCenter,
-  end: Alignment.bottomCenter,
-  colors: [Color(0xFF6DD9AB), Color(0xFF00AF76)],
-);
-
 // Design-QA-only sample spending ratios (Frame 25 shows 60% / 85% / 125%
 // examples). This never touches the DailyReportEntry model or the report
 // provider - it is a local, purely presentational fallback so the ring/badge
@@ -204,6 +197,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     // PolicyBookmarksScreen) so calendar D-5/D-3/D-Day badges need no new
     // backend endpoint.
     final policyAlerts = _policyAlertsByDay(ref);
+    // The cheapest and priciest spending days currently on screen, used to
+    // normalize every ring's color as a relative "how big is this day next
+    // to this cycle's other spending days" heat value instead of an
+    // absolute won threshold - see spendIntensityColor's call site in
+    // _buildCalendarCell.
+    final expenseRange = _expenseRangeInCycle(gridDays, cycle, monthlyReportAsync);
 
     return Scaffold(
       backgroundColor: HomeTokens.pageBackground,
@@ -219,7 +218,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       // Header
                       Container(
                         decoration: const BoxDecoration(
-                          gradient: _headerGradient,
+                          gradient: AppGradients.heroHeader,
                         ),
                         child: SafeArea(
                           bottom: false,
@@ -282,11 +281,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                       0xFF6DD9AB,
                                     ).withValues(alpha: 0.56),
                                     borderRadius: BorderRadius.circular(24),
+                                    // Soft translucent white instead of a
+                                    // near-opaque one, so the box reads as
+                                    // gently floating over the hero green
+                                    // rather than boxed in by a hard white
+                                    // line.
                                     border: Border.all(
                                       color: Colors.white.withValues(
-                                        alpha: 0.85,
+                                        alpha: 0.5,
                                       ),
-                                      width: 1.2,
+                                      width: 1,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
@@ -351,7 +355,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(AppRadii.hero),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.06),
@@ -374,15 +378,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    // Quiet neutral-gray hairline + a soft shadow
-                                    // instead of a colored border - this card has
-                                    // enough visual accents already (header
-                                    // green, ring colors, income/expense text),
-                                    // so its own boundary should recede rather
-                                    // than compete for attention.
+                                    borderRadius: BorderRadius.circular(AppRadii.input),
+                                    // Quiet mint-tinted gray hairline (lighter
+                                    // than the old flat 0xFFDADDE1) + a soft
+                                    // shadow instead of a colored border - this
+                                    // card has enough visual accents already
+                                    // (header green, ring colors, income/expense
+                                    // text), so its own boundary should recede
+                                    // rather than compete for attention.
                                     border: Border.all(
-                                      color: const Color(0xFFDADDE1),
+                                      color: const Color(0xFFE7ECE9),
                                       width: 1,
                                     ),
                                     boxShadow: [
@@ -403,6 +408,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                 cycle,
                                 monthlyReportAsync,
                                 policyAlerts,
+                                expenseRange,
                               ),
                               const SizedBox(height: 8),
                             ],
@@ -472,6 +478,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     SalaryCycle cycle,
     AsyncValue<Map<DateTime, DailyReportEntry>> monthlyReportAsync,
     Map<DateTime, List<PolicyAlert>> policyAlerts,
+    ({int min, int max}) expenseRange,
   ) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -508,6 +515,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             cycle,
                             monthlyReportAsync,
                             policyAlerts,
+                            expenseRange,
                           ),
                         ),
                     ],
@@ -711,11 +719,41 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     return map;
   }
 
+  // The cheapest and priciest spending days (expense > 0 only) within the
+  // cycle currently on screen - the reference points every ring's color is
+  // normalized against (see spendIntensityColor). Anchoring the low end to
+  // the cycle's actual cheapest spend, not 0, is what keeps an ordinary day
+  // from reading as almost-as-warm as a real outlier: without it, every
+  // day's ratio gets compressed into a narrow band near the low end
+  // whenever one day vastly outspends the rest. Deliberately relative to
+  // what's visible rather than fixed won thresholds, since "a big spending
+  // day" means something different cycle to cycle.
+  ({int min, int max}) _expenseRangeInCycle(
+    List<DateTime> gridDays,
+    SalaryCycle cycle,
+    AsyncValue<Map<DateTime, DailyReportEntry>> monthlyReportAsync,
+  ) {
+    final reportMap = monthlyReportAsync.asData?.value;
+    if (reportMap == null) return (min: 0, max: 0);
+    var maxExpense = 0;
+    int? minExpense;
+    for (final day in gridDays) {
+      if (!cycle.contains(day)) continue;
+      final expense =
+          reportMap[DateTime(day.year, day.month, day.day)]?.expense ?? 0;
+      if (expense <= 0) continue;
+      if (expense > maxExpense) maxExpense = expense;
+      if (minExpense == null || expense < minExpense) minExpense = expense;
+    }
+    return (min: minExpense ?? 0, max: maxExpense);
+  }
+
   Widget _buildCalendarCell(
     DateTime day,
     SalaryCycle cycle,
     AsyncValue<Map<DateTime, DailyReportEntry>> monthlyReportAsync,
     Map<DateTime, List<PolicyAlert>> policyAlerts,
+    ({int min, int max}) expenseRange,
   ) {
     final isOutside = !cycle.contains(day);
     final isToday = _isSameDay(DateTime.now(), day);
@@ -782,11 +820,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   // Outer: spending-vs-recommended ring. Independent of
                   // selection state - a selected day with no spending shows
                   // no ring, and an unselected day with heavy spending still
-                  // shows a full ring.
+                  // shows a full ring. Its fill length still tracks
+                  // spendingRatio (vs. the recommended daily amount), but its
+                  // color is a separate signal - a continuous green->orange->
+                  // red heat scale of this day's expense relative to the
+                  // cycle's cheapest/priciest spending days (see
+                  // spendIntensityColor).
                   if (ringRatio != null)
                     SpendingProgressRing(
                       ratio: ringRatio,
-                      color: spendingRingColor(spendingRatio!),
+                      color: spendIntensityColor(
+                        expense.toDouble(),
+                        expenseRange.min.toDouble(),
+                        expenseRange.max.toDouble(),
+                      ),
                       size: 34,
                       strokeWidth: 2.5,
                     ),
