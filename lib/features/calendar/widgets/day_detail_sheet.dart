@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
 import '../../home/utils/category_icons.dart';
 import '../../policy/providers/policy_provider.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
+import '../providers/daily_recommended_provider.dart';
 import '../screens/calendar_screen.dart';
 import '../screens/day_transactions_screen.dart';
+import '../utils/daily_budget_usage.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -177,6 +180,10 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColorTokens.borderNeutral),
+          const SizedBox(height: 12),
+          _BudgetUsageRow(day: widget.day, spent: expense),
           const SizedBox(height: 12),
           if (transactions.isEmpty)
             const Padding(
@@ -541,4 +548,100 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
       ),
     );
   }
+}
+
+/// "하루 권장 소비액 대비 사용 현황" line of the day sheet's summary card:
+/// that day's recommended amount, what was actually spent, and the usage
+/// percentage. The recommended amount comes from
+/// [dailyRecommendedAmountProvider] and the percentage from
+/// [dailyBudgetUsagePercent] - this widget only lays them out.
+class _BudgetUsageRow extends ConsumerWidget {
+  final DateTime day;
+  final int spent;
+
+  const _BudgetUsageRow({required this.day, required this.spent});
+
+  static String _won(int amount) => '${NumberFormat('#,###').format(amount)}원';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recommendedAsync = ref.watch(
+      dailyRecommendedAmountProvider(DateTime(day.year, day.month, day.day)),
+    );
+
+    return recommendedAsync.when(
+      loading: () => _message('권장 소비액을 불러오는 중이에요'),
+      error: (_, _) => _message('권장 소비액 정보를 불러올 수 없어요'),
+      data: (recommended) {
+        if (recommended == null) {
+          return _message('권장 소비액 정보를 불러올 수 없어요');
+        }
+        final percent = dailyBudgetUsagePercent(
+          spent: spent,
+          recommended: recommended,
+        );
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '하루 권장 소비액',
+                    style: TextStyle(fontSize: 12, color: HomeTokens.textMuted),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_won(recommended)} 중 ${_won(spent)} 사용',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: HomeTokens.textDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            _percentPill(percent),
+          ],
+        );
+      },
+    );
+  }
+
+  // A recommended amount of 0 leaves nothing to divide by, so the pill says so
+  // instead of showing 0% or infinity. Up to 100% reads in the app's green;
+  // past it, in the same soft orange the report's over-budget badge uses -
+  // informative, not alarming.
+  Widget _percentPill(double? percent) {
+    final over = percent != null && percent > 100;
+    final fg = percent == null
+        ? HomeTokens.textFaint
+        : (over ? HomeTokens.negative : HomeTokens.accentDark);
+    final bg = percent == null
+        ? AppColorTokens.surfaceOffWhite
+        : (over ? AppColorTokens.negativeSoftBg : AppColorTokens.softGreenTint);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        percent == null ? '계산 불가' : '${percent.round()}%',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: fg,
+        ),
+      ),
+    );
+  }
+
+  Widget _message(String text) => Text(
+    text,
+    style: const TextStyle(fontSize: 12, color: HomeTokens.textMuted),
+  );
 }

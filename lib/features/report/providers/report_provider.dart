@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../data/api/category_api.dart';
 import '../../../data/api/report_api.dart';
 import '../utils/report_date_utils.dart';
 import '../utils/report_insight_utils.dart';
@@ -48,6 +49,8 @@ List<CategoryAmount> _toCategoryAmounts(List<dynamic> raw) {
       amount: _toInt(item['amount']),
       transactionCount: _toInt(item['transactionCount']),
       percentage: (item['percentage'] is num) ? (item['percentage'] as num).toDouble() : double.tryParse('${item['percentage']}') ?? 0,
+      categoryId: item['categoryId']?.toString(),
+      parentCategoryId: item['parentCategoryId']?.toString(),
     );
   }).toList()
     ..sort((a, b) => b.amount.compareTo(a.amount));
@@ -62,7 +65,10 @@ class ReportMainData {
   final int? highlightDay;
   final int? highlightAmount;
   final List<CategoryAmount> categories;
-  final List<ReportInsight> insights;
+
+  /// "이번 달 리포트 요약" rows (top 대분류 category / day / 주차) for the
+  /// selected month; empty when that month has no spending.
+  final List<ReportHighlight> highlights;
 
   const ReportMainData({
     required this.totalExpense,
@@ -71,7 +77,7 @@ class ReportMainData {
     required this.highlightDay,
     required this.highlightAmount,
     required this.categories,
-    required this.insights,
+    required this.highlights,
   });
 }
 
@@ -107,8 +113,16 @@ final reportMainDataProvider = FutureProvider.autoDispose.family<ReportMainData,
   final dailyPoints = _toDailyPoints(dailyRaw).where((p) => p.day <= lastValidDay).toList();
   final categories = _toCategoryAmounts(categoriesRaw);
   final momPct = momPercent(totalExpense, previousExpense);
-  final peak = maxDailyRow(dailyRaw.cast<Map<String, dynamic>>());
-  final top = topCategory(categories);
+  final dailyRows = dailyRaw.cast<Map<String, dynamic>>();
+  final peak = peakSpendingDay(dailyRows);
+
+  // The report endpoint groups by leaf category name; the summary headline is
+  // about 대분류, so roll it up using the category tree. If the category list
+  // can't be loaded, fall back to the leaf names rather than hiding the row.
+  var majorCategories = categories;
+  try {
+    majorCategories = rollUpToMajorCategories(categories, await ref.watch(categoriesProvider.future));
+  } catch (_) {}
 
   final highlightDay = isCurrentMonth ? now.day : peak?.date.day;
   final highlightAmount = highlightDay == null
@@ -122,7 +136,12 @@ final reportMainDataProvider = FutureProvider.autoDispose.family<ReportMainData,
     highlightDay: highlightDay,
     highlightAmount: highlightAmount,
     categories: categories,
-    insights: buildMainInsights(momPct: momPct, top: top, peak: peak),
+    highlights: buildMainHighlights(
+      month: month,
+      topMajorCategory: topCategory(majorCategories),
+      peakDay: peak,
+      weeklyTotals: weeklyTotalsFromDaily(dailyRows),
+    ),
   );
 });
 
@@ -141,6 +160,19 @@ class MonthlyReportData {
   final int? topWeekIndex;
   final List<CategoryAmount> currentCategories;
   final List<CategoryAmount> previousCategories;
+
+  /// [currentCategories] (per-leaf, as the endpoint returns them) rolled up to
+  /// 대분류, sorted by amount. The Category Report donut, its legend, and the
+  /// percentages all read this one list so they can never disagree.
+  final List<CategoryAmount> currentMajorCategories;
+
+  /// [previousCategories] rolled up the same way, for the per-대분류 "지난달"
+  /// comparison on the Category Report cards.
+  final List<CategoryAmount> previousMajorCategories;
+
+  /// Leaf name -> the 대분류 name it rolls up under, so per-leaf cards can
+  /// take the color of their 대분류 slice.
+  final Map<String, String> majorNameByCategoryName;
   final CategoryAmount? topGrowthCategory;
   final List<ReportInsight> insights;
 
@@ -156,6 +188,9 @@ class MonthlyReportData {
     required this.topWeekIndex,
     required this.currentCategories,
     required this.previousCategories,
+    required this.currentMajorCategories,
+    required this.previousMajorCategories,
+    required this.majorNameByCategoryName,
     required this.topGrowthCategory,
     required this.insights,
   });
@@ -190,8 +225,24 @@ final monthlyReportDataProvider = FutureProvider.autoDispose.family<MonthlyRepor
 
   final currentDaily = currentDailyRaw.cast<Map<String, dynamic>>();
   final previousDaily = previousDailyRaw.cast<Map<String, dynamic>>();
-  final currentCategories = _toCategoryAmounts(currentCategoriesRaw);
+  var currentCategories = _toCategoryAmounts(currentCategoriesRaw);
   final previousCategories = _toCategoryAmounts(previousCategoriesRaw);
+
+  // The endpoint groups by leaf category name; the donut/legend are about
+  // 대분류, so roll up with the category tree. If the tree can't be loaded,
+  // fall back to the leaf rows rather than hiding the chart.
+  var currentMajorCategories = currentCategories;
+  var previousMajorCategories = previousCategories;
+  var majorNameByCategoryName = {for (final c in currentCategories) c.name: c.name};
+  try {
+    final tree = await ref.watch(categoriesProvider.future);
+    currentMajorCategories = rollUpToMajorCategories(currentCategories, tree);
+    previousMajorCategories = rollUpToMajorCategories(previousCategories, tree);
+    majorNameByCategoryName = majorNamesByLeaf(currentCategories, tree);
+    // Rows saved directly on a 대분류 are shown as "소분류 미지정" in the 소분류
+    // list; without the tree they simply keep their own name.
+    currentCategories = markUnspecifiedSubcategories(currentCategories, tree);
+  } catch (_) {}
 
   final currentTotal = currentDaily.fold<int>(0, (sum, row) => sum + _toInt(row['spent']));
   final previousTotal = previousDaily.fold<int>(0, (sum, row) => sum + _toInt(row['spent']));
@@ -199,11 +250,7 @@ final monthlyReportDataProvider = FutureProvider.autoDispose.family<MonthlyRepor
 
   final currentWeekly = weeklyTotalsFromDaily(currentDaily);
   final previousWeekly = weeklyTotalsFromDaily(previousDaily);
-  int? topWeekIndex;
-  for (var i = 0; i < currentWeekly.length; i++) {
-    if (topWeekIndex == null || currentWeekly[i] > currentWeekly[topWeekIndex]) topWeekIndex = i;
-  }
-  if (currentWeekly.every((v) => v == 0)) topWeekIndex = null;
+  final topWeekIndex = topWeekIndexOf(currentWeekly);
 
   CategoryAmount? topGrowthCategory;
   double bestGrowth = 0;
@@ -228,6 +275,9 @@ final monthlyReportDataProvider = FutureProvider.autoDispose.family<MonthlyRepor
     topWeekIndex: topWeekIndex,
     currentCategories: currentCategories,
     previousCategories: previousCategories,
+    currentMajorCategories: currentMajorCategories,
+    previousMajorCategories: previousMajorCategories,
+    majorNameByCategoryName: majorNameByCategoryName,
     topGrowthCategory: topGrowthCategory,
     insights: buildMonthlyInsights(momPct: momPct, topWeekIndex: topWeekIndex, topGrowthCategory: topGrowthCategory),
   );

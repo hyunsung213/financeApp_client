@@ -10,17 +10,27 @@ Format follows `docs/development-work-policy.md` §9. Every item below is a real
 
 **현재 상태**: `Category` (`식비`, `카페`, `교통비`, …) and `BudgetAllocation`/`BudgetCycleAllocation` (`FOOD`, `TRANSPORT`, `HOUSING`, … via `allocationType`) are two separate, unrelated tables in `src/models/index.ts` — there is no foreign key or join table between them. `GET /api/reports/categories` (`reportService.categories()`) returns `{ category, amount, transactionCount, percentage }` with no budget/limit field at all.
 
-**필요한 이유**: Figma's Category Report screen (frame 114:5192 / 397:5357) shows a spent/budget progress bar per category — e.g. "식비 400,000원 / 200,000원 (초과)" — and a per-category "예산 사용률" of "87% (300,000원 중)". Without a real budget number per category, this is currently rendered as an honest "예산이 아직 설정되지 않았어요" empty state (`BudgetUsageBar` in `lib/features/report/widgets/budget_usage_bar.dart`) rather than a fabricated percentage.
+**필요한 이유**: Figma's Category Report screen (frame 114:5192 / 397:5357) shows a spent/budget progress bar per category — e.g. "식비 400,000원 / 200,000원 (초과)" — and a per-category "예산 사용률" of "87% (300,000원 중)". Without a real budget number per category, the app currently shows only each 대분류's real spent amount and its share of total spending (`CategoryShareBar` in `lib/features/report/widgets/category_share_bar.dart`); no budget amount, budget usage rate, or 초과 state is shown or computed until a real category budget exists.
 
 **관련 Backend Service/Model**: `src/models/index.ts` (`Category`, `BudgetAllocation`, `BudgetCycleAllocation`), `src/services/reportService.ts#categories()`, `src/services/budgetCycleService.ts`.
 
-**Frontend 연결 위치**: `lib/features/report/widgets/budget_usage_bar.dart` (already built to full Figma fidelity, takes `budgetAmount` as nullable), consumed from `lib/features/report/screens/category_report_screen.dart`.
+**예산 기준 기간**: category budget은 달력월이 아니라 월급일 기준 `BudgetCycle` (예: 월급일 10일 → 2026-09-10 ~ 2026-10-09)의 `flexibleBudget`을 배분한 값이어야 한다 (`BudgetCycle.flexibleBudget` → category allocation). Category Report의 "9월"은 2026-09-01 ~ 09-30 달력월 분석이므로 두 기간을 섞지 않는다. "예산 대비" 표시는 같은 BudgetCycle 기준으로 집계한 지출액과 함께 별도 로직으로 연결한다.
+
+**Frontend 연결 위치**: `lib/features/report/widgets/category_share_bar.dart` (`budgetAmount` nullable 파라미터, 현재 항상 null) 와 `lib/features/report/widgets/over_budget_badge.dart` (`OverBudgetBadge`, 실제 예산이 있고 `spentAmount > budgetAmount`일 때만 연결). Consumed from `lib/features/report/screens/category_report_screen.dart`.
 
 **권장 API contract**: Either (a) add an optional `allocationId` FK on `Category` so a category can declare which `BudgetAllocation` bucket it draws from, then have `GET /api/reports/categories` also return `budgetAmount` (that cycle's `BudgetCycleAllocation.amount` for the mapped allocation, split across mapped categories by usage or by an explicit per-category sub-limit), or (b) introduce a dedicated `CategoryBudget` table (`userId`, `categoryId`, `monthlyAmount`) the user sets directly, independent of the coarser `BudgetAllocation` buckets, and expose it via `/api/reports/categories` or a new `/api/finance/category-budgets` endpoint.
 
 **Priority**: Medium (screen works and looks correct without it — this only unlocks the progress bar/badge from being real).
 
-**Acceptance criteria**: `GET /api/reports/categories` (or a new endpoint) returns a `budgetAmount` (nullable, for categories with no budget set) per category for the requested period; `BudgetUsageBar` starts receiving a real value with zero UI changes.
+**Acceptance criteria**: `GET /api/reports/categories` (or a new endpoint) returns a `budgetAmount` (nullable, for categories with no budget set) per category for the requested period; `CategoryShareBar` starts receiving a real `budgetAmount` (per BudgetCycle) and re-enables `OverBudgetBadge` with no other UI changes.
+
+### 1-b. `GET /api/transactions` 대분류(parent) categoryId 필터
+
+**현재 상태**: `src/controllers/transactionController.ts`는 `categoryId`를 정확 일치(`{ categoryId: q.categoryId }`)로만 필터한다. 대분류(root) id를 넘기면 그 대분류 밑 소분류 거래는 포함되지 않는다 (예: 식비 대분류 8건 98,500원 중 root에 직접 기록된 1건만 반환).
+
+**Frontend 영향**: Category Report 카드는 대분류 단위(도넛과 동일 aggregation)라서, 소분류가 여러 개인 대분류에서는 "거래 내역 보기" 버튼을 숨기고 소분류 행별로 이동시킨다. `TransactionListScreen`의 대분류 필터 chip도 같은 제약을 가진다.
+
+**요청**: `categoryId`가 대분류일 때 그 하위 소분류 거래를 포함하도록 확장 (또는 `includeChildren=true` 옵션). 반영되면 Frontend는 위 버튼을 다시 보여주기만 하면 된다.
 
 ---
 
@@ -109,3 +119,7 @@ All of the following are implemented today as pure, documented, deterministic fu
 **Priority**: Low (no known duplicate-name accounts today, but cheap to fix and removes a real ambiguity).
 
 **Acceptance criteria**: Response includes a stable `categoryId`; frontend can filter/compare by id instead of by name.
+
+**Status (반영됨)**: `GET /api/reports/categories` now returns `categoryId` and `parentCategoryId` (null for a 대분류) next to the unchanged `category`/`amount`/`transactionCount`/`percentage`, and rows are grouped by category id instead of name. The frontend uses them (falling back to the name lookup against `/api/categories` for an older backend) to label a transaction saved directly on a 대분류 that has 소분류 as "소분류 미지정" (`markUnspecifiedSubcategories` in `report_insight_utils.dart`). Still open: the name-based month-over-month growth match in `monthlyReportDataProvider`.
+
+Related backend rule (same change): `POST/PATCH /api/transactions` reject a `categoryId` that has active child categories with `400 CATEGORY_HAS_CHILDREN` ("하위 카테고리가 있는 대분류는 거래 카테고리로 직접 선택할 수 없습니다."). Existing rows already saved on a 대분류 are left as-is and stay readable; a PATCH that resends a transaction's *unchanged* categoryId is not rejected.

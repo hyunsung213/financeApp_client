@@ -96,13 +96,44 @@ MonthComparisonRange monthComparisonRange(DateTime month, {DateTime? today}) {
 /// frontend because no backend endpoint defines "주차" — see
 /// docs/backend/report-backend-requirements.md.
 List<int> weeklyTotalsFromDaily(List<Map<String, dynamic>> dailyRows) {
-  final totals = List<int>.filled(4, 0);
+  final totals = List<int>.filled(kWeeksPerMonth, 0);
   for (final row in dailyRows) {
     final date = DateTime.tryParse((row['date'] ?? '').toString());
     if (date == null) continue;
     final spent = (row['spent'] is num) ? (row['spent'] as num).toInt() : int.tryParse('${row['spent']}') ?? 0;
-    final weekIndex = ((date.day - 1) ~/ 7).clamp(0, 3);
-    totals[weekIndex] += spent;
+    totals[weekIndexForDay(date.day)] += spent;
   }
   return totals;
+}
+
+/// Every month is shown as exactly this many "주차" buckets (see
+/// [weeklyTotalsFromDaily]).
+const int kWeeksPerMonth = 4;
+
+/// 0-based 주차 bucket of a day-of-month: days 1-7 -> 0, 8-14 -> 1, 15-21 ->
+/// 2, and 22 through the end of the month -> 3. This is the single place the
+/// 주차 boundaries are defined - the weekly totals, the "가장 많이 쓴 주"
+/// summary and the weekly detail screen's range labels all go through it, so
+/// they can never disagree about which week a day belongs to.
+int weekIndexForDay(int day) => ((day - 1) ~/ 7).clamp(0, kWeeksPerMonth - 1);
+
+/// Inclusive day-of-month range of a 0-based 주차 bucket in [month], e.g.
+/// (22, 30) for week 3 of a 30-day month.
+(int, int) weekDayRange(int weekIndex, DateTime month) {
+  final start = weekIndex * 7 + 1;
+  final end = weekIndex == kWeeksPerMonth - 1 ? daysInMonth(month) : start + 6;
+  return (start, end);
+}
+
+/// Index of the highest-spending 주차, or null when nothing was spent at all
+/// (so callers show an empty state instead of a fake "0원" winner). On a tie
+/// the later week wins - the same "most recent first" rule used for the top
+/// spending day - so the result never depends on iteration order.
+int? topWeekIndexOf(List<int> weeklyTotals) {
+  int? top;
+  for (var i = 0; i < weeklyTotals.length; i++) {
+    if (weeklyTotals[i] <= 0) continue;
+    if (top == null || weeklyTotals[i] >= weeklyTotals[top]) top = i;
+  }
+  return top;
 }

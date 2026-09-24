@@ -180,7 +180,7 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
 
   // 대분류 tile 터치 즉시 처리한다: 소분류가 있으면 같은 BottomSheet 안에서
   // 바로 2차 단계로 전환하고(이전 선택 소분류는 reset), 소분류가 없는 대분류
-  // (예: AI 카드)는 그 자체를 leaf 취급해 바로 확정한다.
+  // (예: 소분류가 없는 사용자 지정 카테고리)는 그 자체를 leaf 취급해 바로 확정한다.
   void _onMajorTap(Map<String, dynamic> major) {
     final subs = _childrenOf(major['id'].toString());
     if (subs.isEmpty) {

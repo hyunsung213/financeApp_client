@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
 import '../../../core/theme/app_radii.dart';
+import '../../../data/api/api_error.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../../data/api/category_api.dart';
 import '../../home/providers/home_provider.dart';
@@ -325,7 +326,7 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('등록 중 오류 발생: $e')),
+          SnackBar(content: Text(apiErrorMessage(e) ?? '등록 중 오류 발생: $e')),
         );
       }
     } finally {

@@ -73,4 +73,29 @@ void main() {
       expect(days.first.weekday % 7, 0); // grid starts on a Sunday
     });
   });
+
+  group('salaryCycleOffsetBetween', () {
+    test('a date in today\'s own cycle is offset 0', () {
+      // salary day 10, today 2026-09-20 -> cycle 2026-09-10 ~ 2026-10-09
+      expect(salaryCycleOffsetBetween(DateTime(2026, 9, 20), DateTime(2026, 9, 14), 10), 0);
+      expect(salaryCycleOffsetBetween(DateTime(2026, 9, 20), DateTime(2026, 10, 9), 10), 0);
+    });
+
+    test('earlier/later cycles are negative/positive', () {
+      expect(salaryCycleOffsetBetween(DateTime(2026, 9, 20), DateTime(2026, 9, 9), 10), -1);
+      expect(salaryCycleOffsetBetween(DateTime(2026, 9, 20), DateTime(2026, 10, 10), 10), 1);
+    });
+
+    test('crosses a year boundary', () {
+      expect(salaryCycleOffsetBetween(DateTime(2026, 1, 15), DateTime(2025, 12, 20), 25), -1);
+    });
+
+    test('is consistent with shiftSalaryCycle', () {
+      final today = DateTime(2026, 9, 20);
+      final target = DateTime(2026, 6, 3);
+      final offset = salaryCycleOffsetBetween(today, target, 10);
+      final shifted = shiftSalaryCycle(salaryCycleContaining(today, 10), offset, 10);
+      expect(shifted.contains(target), isTrue);
+    });
+  });
 }

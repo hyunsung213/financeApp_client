@@ -138,6 +138,16 @@ Frontend는 이미 두 필드를 **nullable**로 파싱하도록 준비되어 �
 - 기존 `/api/reports/daily`의 `spent`/`recommended`/`difference` 응답 필드와 하위 호환이 깨지지 않는다(기존 필드 제거/이름 변경 없음).
 - `BudgetCycle`/설정이 없는 사용자·날짜에 대해 500 에러 대신 `recommended: null`, `spendingRatio: null`을 반환한다.
 
+## M. 날짜 상세 bottom sheet의 "하루 권장 소비액 대비 사용 현황" (Frontend 연결 현황)
+
+Calendar 날짜를 눌렀을 때 뜨는 상세 sheet 상단 요약 카드에 `하루 권장 소비액 / 실제 사용액 / 사용률(%)`이 추가되었습니다.
+
+- 실제 사용액: sheet의 "총 지출"(그 날짜 거래 목록의 지출 합)
+- 하루 권장 소비액: `GET /api/reports/daily`의 `recommended`를 `DailyReportEntry.recommendedAmount`로 읽음 (`dailyRecommendedAmountProvider`). 날짜가 속한 salary cycle 단위로 조회하므로 H 항목의 cycle 경계 문제는 피하지만, 값 자체는 현재 **cycle 전체 균등 분할**(`plannedFlexibleAmount / cycleDays`, 예: 1,000,000 / 30 = 33,333)이라 Home의 "오늘 권장 소비액"(남은 유연예산 / 남은 일수, 예: 40,417)과 다릅니다.
+- 사용률: `spent / recommended * 100` (clamp 없음, `recommended`가 `null`/`0`이면 "계산 불가" 또는 안내 문구).
+
+C~D 항목의 날짜별(Home과 동일한 규칙) `recommended`가 내려오면 sheet는 같은 필드를 읽으므로 **Frontend 코드 변경 없이** 그 값으로 바뀝니다. 그때 "오늘" sheet의 값과 Home의 `today.recommendedAmount` 일치 여부(L 항목)도 함께 확인해 주세요.
+
 ---
 
 ## 요약 (Backend 담당자 전달용)

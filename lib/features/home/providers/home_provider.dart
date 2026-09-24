@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/providers/current_date_provider.dart';
 import '../../../data/api/home_api.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -72,6 +73,11 @@ final homeDataProvider = FutureProvider<HomeData>((ref) async {
   final user = ref.watch(authProvider).user;
   if (user == null) throw Exception("User not found");
 
+  // Re-fetch when the shared "today" rolls over or the app resumes, so
+  // day-dependent fields (recommendedAmount, daysUntilSalary, ...) don't
+  // stay pinned to a stale day (see core/providers/current_date_provider.dart).
+  ref.watch(currentDateProvider);
+
   final homeApi = ref.watch(homeApiProvider);
   final data = await homeApi.getHomeDashboard();
 
@@ -96,7 +102,8 @@ final homeRecentTransactionsProvider =
     FutureProvider.autoDispose<List<dynamic>>((ref) async {
       final txApi = ref.watch(transactionApiProvider);
       final filter = ref.watch(homeCategoryFilterProvider);
-      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final today = ref.watch(currentDateProvider);
+      final todayStr = DateFormat('yyyy-MM-dd').format(today);
 
       try {
         final res = await txApi.getTransactions(

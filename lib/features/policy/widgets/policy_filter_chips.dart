@@ -7,6 +7,13 @@ import '../../home/theme/home_tokens.dart';
 /// present in the currently loaded list (no dedicated "list categories"
 /// backend endpoint exists - see docs/backend/policy-backend-requirements.md
 /// item 6). Filtering itself is client-side for now, per the approved scope.
+///
+/// "북마크" is a filter of a different kind - it isn't a `Policy.category`
+/// value, it means "the policies I bookmarked" - so it is selected with the
+/// [kPolicyBookmarkFilter] sentinel rather than a category string, which
+/// can't collide with a real category name coming from the backend.
+const String kPolicyBookmarkFilter = '__policy_bookmark_filter__';
+
 class PolicyFilterChips extends StatelessWidget {
   final List<String> categories;
   final String? selected;
@@ -27,6 +34,12 @@ class PolicyFilterChips extends StatelessWidget {
       child: Row(
         children: [
           _chip(label: '전체', isSelected: selected == null, onTap: () => onSelected(null)),
+          const SizedBox(width: 6),
+          _chip(
+            label: '북마크',
+            isSelected: selected == kPolicyBookmarkFilter,
+            onTap: () => onSelected(kPolicyBookmarkFilter),
+          ),
           for (final category in categories) ...[
             const SizedBox(width: 6),
             _chip(label: category, isSelected: selected == category, onTap: () => onSelected(category)),

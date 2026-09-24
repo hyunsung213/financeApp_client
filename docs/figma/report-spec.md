@@ -500,10 +500,11 @@ selectedMonth updated
   - `MonthlyReportScreen`
   - `MonthlyTotalComparisonDetailScreen`
   - `WeeklyComparisonDetailScreen`
-  - `CategoryReportScreen`
-  - 같은 화면(예: `TransactionListScreen`, `TransactionDetailScreen`)이 Home에서 들어왔는지 Report에서 들어왔는지에 따라 Bottom Navigation이 있다 없다 하는 비대칭은 허용하지 않는다.
-- `AddTransactionModal`(거래 추가/수정)은 **집중 작업 화면**으로 예외 처리한다. `Navigator.of(context, rootNavigator: true)`로 push해 Bottom Navigation을 의도적으로 숨긴다. 그 내부의 `CategoryPickerScreen` 등 하위 선택 화면도 동일한 집중 작업 흐름의 일부로 간주해 같은 방식을 유지한다.
-- 요약: 일반 탐색 → Bottom Nav 유지, 거래 추가/수정 → Bottom Nav 숨김.
+  - 같은 화면(예: `TransactionListScreen`, `TransactionDetailScreen`)이 Home에서 들어왔는지 Report에서 들어왔는지에 따라 Bottom Navigation이 있다 없다 하는 비대칭은 허용하지 않는다. 단, 아래 집중 화면 위에 다시 push되는 화면은 예외다.
+- 다음은 **집중 화면**으로 예외 처리한다. `Navigator.of(context, rootNavigator: true)`로 push해 Bottom Navigation을 의도적으로 숨긴다(shell 바깥 route라 이 화면의 layout에 Bottom Navigation이 포함되지 않는다).
+  - `AddTransactionModal`(거래 추가/수정). 그 내부의 `CategoryPickerScreen` 등 하위 선택 화면도 동일한 집중 작업 흐름의 일부로 간주해 같은 방식을 유지한다.
+  - `CategoryReportScreen`(카테고리별 지출). 이 화면은 하단 탭 없는 상세 페이지로 동작한다: 마지막 카드가 Bottom Navigation에 가려지지 않게 하고 화면 전체를 상세 콘텐츠에 쓰기 위함이다. 진입점(Report 카테고리 카드 더보기, 리포트 요약의 최다 카테고리 행, Monthly Report의 카테고리 증가 인사이트)은 모두 `CategoryReportScreen.open()`을 사용한다. 이 화면의 "거래 내역 보기"로 열리는 `TransactionListScreen`은 이 화면 위에 쌓이므로 마찬가지로 Bottom Navigation이 없다.
+- 요약: 일반 탐색 → Bottom Nav 유지, 거래 추가/수정·카테고리별 지출 → Bottom Nav 숨김.
 
 ## C.9 Notification
 
@@ -566,7 +567,7 @@ selectedMonth updated
 | expanded state | `expandedCategoryId?` |
 | 거래 내역 보기 | `selectedMonth`, `categoryId` |
 
-`budgetAmount`가 없으면 사용률이나 초과액을 임의 계산하지 않는다. Backend 지원 전에는 nullable data에 대응하는 정직한 empty/unavailable 표현을 사용한다. 상세 Backend gap은 [report-backend-requirements.md](../backend/report-backend-requirements.md)를 참고한다.
+`budgetAmount`가 없으면 사용률이나 초과액을 임의 계산하지 않는다. Backend 지원 전에는 예산 금액/사용률/`초과` badge를 표시하지 않고, 카드에는 실제 지출액과 전체 지출 중 비중(`percentage`, progress bar도 동일 값)만 보여준다. `OverBudgetBadge` widget은 유지하며, 실제 category budget(월급 주기 `BudgetCycle` 기준)이 생기면 `spentAmount > budgetAmount`일 때 다시 연결한다. 상세 Backend gap은 [report-backend-requirements.md](../backend/report-backend-requirements.md)를 참고한다.
 
 ## D.4 Transaction List
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/providers/current_date_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/surface_style.dart';
@@ -59,6 +60,9 @@ class HomeScreen extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoriesProvider);
     final recentTxAsync = ref.watch(homeRecentTransactionsProvider);
     final recentRegretAsync = ref.watch(recentRegrettableTransactionsProvider);
+    // Single "today" for this whole build - the date pill, D-Day and
+    // budget-cycle range must never disagree about what day it is.
+    final now = ref.watch(currentDateProvider);
 
     return Scaffold(
       backgroundColor: HomeTokens.pageBackground,
@@ -159,7 +163,7 @@ class HomeScreen extends ConsumerWidget {
                                   DateFormat(
                                     'M. d. E',
                                     'ko_KR',
-                                  ).format(DateTime.now()),
+                                  ).format(now),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -316,6 +320,7 @@ class HomeScreen extends ConsumerWidget {
                                     onTap: () => _showSalaryCycleDetailSheet(
                                       context,
                                       data,
+                                      now,
                                     ),
                                     child: Container(
                                       width: double.infinity,
@@ -443,9 +448,10 @@ class HomeScreen extends ConsumerWidget {
                         title: '실시간 거래 내역',
                         actionLabel: '더보기',
                         // Branch-local push (not rootNavigator) so the shared
-                        // Bottom Navigation shell stays visible here, matching
-                        // Report/Category Report's entry into the same screen
-                        // (docs/figma/report-spec.md C.8).
+                        // Bottom Navigation shell stays visible here
+                        // (docs/figma/report-spec.md C.8.1). Category Report's
+                        // "거래 내역 보기" also opens this screen, but on top of
+                        // that nav-less detail page, so it has no nav there.
                         onActionTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const TransactionListScreen(),
@@ -676,8 +682,12 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _showSalaryCycleDetailSheet(BuildContext context, HomeData data) {
-    final cycleEnd = DateTime.now().add(Duration(days: data.daysUntilSalary));
+  void _showSalaryCycleDetailSheet(
+    BuildContext context,
+    HomeData data,
+    DateTime now,
+  ) {
+    final cycleEnd = now.add(Duration(days: data.daysUntilSalary));
     final cycleStart = DateTime(
       cycleEnd.year,
       cycleEnd.month - 1,

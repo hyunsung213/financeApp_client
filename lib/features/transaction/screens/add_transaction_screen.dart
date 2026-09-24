@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
+import '../../../data/api/api_error.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../../data/api/category_api.dart';
 import '../../home/theme/home_tokens.dart';
@@ -747,8 +748,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     final majors = majorCategoriesFor(categories, _selectedParentId);
     if (majors.isEmpty) return;
     // 지출의 기본 대분류는 정렬 순서(sortOrder)와 무관하게 항상 식비여야
-    // 한다 - 사용자 지정 카테고리(예: 커스텀 "AI" 카테고리)가 낮은
-    // sortOrder로 끼어들어도 밀려나지 않게 명시적으로 우선한다.
+    // 한다 - 사용자 지정 카테고리가 낮은 sortOrder로 끼어들어도
+    // 밀려나지 않게 명시적으로 우선한다.
     final major = majors.firstWhere(
       (m) => m['name'] == '식비',
       orElse: () => majors.first,
@@ -938,7 +939,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('저장 중 오류 발생: $e')));
+        ).showSnackBar(SnackBar(content: Text(apiErrorMessage(e) ?? '저장 중 오류 발생: $e')));
       }
     } finally {
       if (mounted) {

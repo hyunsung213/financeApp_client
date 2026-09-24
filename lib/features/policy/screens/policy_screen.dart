@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../home/theme/home_tokens.dart';
 import '../providers/policy_provider.dart';
+import '../utils/policy_bookmark_action.dart';
 import '../widgets/policy_featured_card.dart';
 import '../widgets/policy_filter_chips.dart';
 import '../widgets/policy_list_card.dart';
@@ -141,7 +142,75 @@ class _PolicyList extends ConsumerWidget {
         .where((c) => c.isNotEmpty)
         .toSet()
         .toList();
-    final filtered = selectedCategory == null ? rest : rest.where((p) => p['category'] == selectedCategory).toList();
+    final isBookmarkFilter = selectedCategory == kPolicyBookmarkFilter;
+    final filtered = selectedCategory == null || isBookmarkFilter
+        ? rest
+        : rest.where((p) => p['category'] == selectedCategory).toList();
+
+    Widget policyCard(Map<String, dynamic> policy) {
+      final id = (policy['id'] ?? '').toString();
+      final isBookmarked = bookmarkedIds.contains(id);
+      return PolicyListCard(
+        policy: policy,
+        isBookmarked: isBookmarked,
+        onTap: () => context.push('/policy/$id'),
+        onBookmarkTap: () => toggleBookmarkWithFeedback(context, ref, policyId: id, isBookmarked: isBookmarked),
+      );
+    }
+
+    // The "북마크" filter lists the user's real bookmarks from the backend
+    // rather than filtering `rest`: a bookmarked policy may not be in the
+    // recommended list at all (or may be its featured first item), so `rest`
+    // would silently drop it.
+    final Widget listSliver;
+    if (isBookmarkFilter) {
+      final bookmarksAsync = ref.watch(bookmarkedPoliciesProvider);
+      final overrides = ref.watch(bookmarkOverridesProvider);
+      // An un-bookmark still round-tripping to the backend already counts.
+      final bookmarks = bookmarksAsync.value?.where((p) => overrides[(p['id'] ?? '').toString()] != false).toList();
+      if (bookmarks == null) {
+        listSliver = SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: bookmarksAsync.hasError
+                  ? const Text('북마크를 불러오지 못했습니다.', style: TextStyle(color: HomeTokens.textMuted))
+                  : const CircularProgressIndicator(),
+            ),
+          ),
+        );
+      } else if (bookmarks.isEmpty) {
+        listSliver = SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Column(
+              children: [
+                Icon(Icons.bookmark_border_rounded, size: 56, color: HomeTokens.textMuted.withValues(alpha: 0.6)),
+                const SizedBox(height: 12),
+                const Text('북마크한 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted)),
+              ],
+            ),
+          ),
+        );
+      } else {
+        listSliver = SliverList.builder(
+          itemCount: bookmarks.length,
+          itemBuilder: (context, index) => policyCard(bookmarks[index]),
+        );
+      }
+    } else if (filtered.isEmpty) {
+      listSliver = const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(child: Text('선택한 카테고리의 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted))),
+        ),
+      );
+    } else {
+      listSliver = SliverList.builder(
+        itemCount: filtered.length,
+        itemBuilder: (context, index) => policyCard(filtered[index]),
+      );
+    }
 
     return CustomScrollView(
       slivers: [
@@ -163,25 +232,7 @@ class _PolicyList extends ConsumerWidget {
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
-          sliver: filtered.isEmpty
-              ? const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: Text('선택한 카테고리의 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted))),
-                  ),
-                )
-              : SliverList.builder(
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final policy = filtered[index];
-                    final id = (policy['id'] ?? '').toString();
-                    return PolicyListCard(
-                      policy: policy,
-                      isBookmarked: bookmarkedIds.contains(id),
-                      onTap: () => context.push('/policy/$id'),
-                    );
-                  },
-                ),
+          sliver: listSliver,
         ),
       ],
     );

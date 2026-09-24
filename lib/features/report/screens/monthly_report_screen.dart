@@ -7,6 +7,8 @@ import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
 import '../utils/report_date_utils.dart';
 import '../utils/report_insight_utils.dart';
+import '../utils/smooth_line_spots.dart';
+import '../widgets/chart_selection_guide.dart';
 import '../widgets/month_picker_sheet.dart';
 import 'category_report_screen.dart';
 import 'monthly_insight_detail_screens.dart';
@@ -115,12 +117,11 @@ class MonthlyReportScreen extends ConsumerWidget {
         ));
         break;
       case 'category':
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => CategoryReportScreen(
-            initialMonth: month,
-            initialCategoryName: data.topGrowthCategory!.name,
-          ),
-        ));
+        CategoryReportScreen.open(
+          context,
+          initialMonth: month,
+          initialCategoryName: data.topGrowthCategory!.name,
+        );
         break;
     }
   }
@@ -243,21 +244,23 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
           ),
           const SizedBox(height: 24),
           SizedBox(
-            height: 188,
+            // Tooltip strip above + 150px plot + badge strip below.
+            height: kChartCompareTooltipStrip + 150 + kChartDayBadgeStrip,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth;
+                // One x for the guide, the dots, the tooltip and the badge.
+                final pointX = selectedDay == null ? 0.0 : chartDayX(selectedDay, _maxDay.toInt(), width);
                 return Stack(
                     clipBehavior: Clip.none,
                     children: [
                       if (selectedDay != null)
                         Positioned(
-                          left: ((selectedDay - 1) / (_maxDay - 1)) * width,
-                          top: 0,
-                          bottom: 30,
-                          child: IgnorePointer(
-                            child: Container(width: 1, color: HomeTokens.accent.withValues(alpha: 0.2)),
-                          ),
+                          left: pointX - 1,
+                          top: kChartCompareTooltipStrip - kChartTooltipGap,
+                          bottom: kChartDayBadgeStrip - kChartDayBadgeHeight,
+                          width: 2,
+                          child: const IgnorePointer(child: DottedVerticalGuide()),
                         ),
                       LineChart(
                         LineChartData(
@@ -265,23 +268,31 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
                           titlesData: FlTitlesData(
                             show: true,
                             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            // Empty on purpose: only reserves the strip the
+                            // tooltip is drawn into (see kChartCompareTooltipStrip).
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: kChartCompareTooltipStrip,
+                                getTitlesWidget: (value, meta) => const SizedBox.shrink(),
+                              ),
+                            ),
                             leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                             // No static day numbers along the axis anymore -
                             // `showTitles: true` is kept only so fl_chart still
                             // reserves the 30px bottom strip (which the plot
-                            // area's height and the guide line's `bottom: 30`
+                            // area's height and the guide line's bottom inset
                             // below both assume); `getTitlesWidget` always
                             // returns an empty box so nothing is actually drawn
                             // into that strip. The selected day is instead
-                            // shown by the floating _DayBadge below, positioned
+                            // shown by the floating ChartDayBadge below, positioned
                             // from the exact same selectedDay/width math as the
                             // vertical guide line and the tooltip so all three
                             // always agree.
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                reservedSize: 30,
+                                reservedSize: kChartDayBadgeStrip,
                                 getTitlesWidget: (value, meta) => const SizedBox.shrink(),
                               ),
                             ),
@@ -296,34 +307,40 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
                           // register its own omnidirectional pan recognizer that
                           // would fight the page's vertical scroll.
                           lineBarsData: [
+                            // Both lines are drawn through smoothLineSpots (the
+                            // same data points, connected by a monotone curve:
+                            // no overshoot past a spike, no dip under a 0원
+                            // stretch) rather than fl_chart's own `isCurved`,
+                            // which does both. Because that path is densely
+                            // sampled, the selected-day dot is picked out by
+                            // exact x (checkToShowDot) - not `x.toInt()`, which
+                            // would match every sample inside that day.
                             LineChartBarData(
-                              spots: _spotsFor(data.previousDaily),
+                              spots: smoothLineSpots(_spotsFor(data.previousDaily)),
                               isCurved: false,
                               color: HomeTokens.accent.withValues(alpha: 0.35),
-                              barWidth: 2.0,
+                              barWidth: 1.6,
+                              isStrokeCapRound: true,
+                              isStrokeJoinRound: true,
                               dotData: FlDotData(
                                 show: true,
-                                getDotPainter: (spot, percent, barData, index) {
-                                  if (spot.x.toInt() == selectedDay) {
-                                    return FlDotCirclePainter(radius: 5, color: Colors.white, strokeWidth: 1.5, strokeColor: HomeTokens.accent.withValues(alpha: 0.35));
-                                  }
-                                  return FlDotCirclePainter(radius: 0, color: Colors.transparent);
-                                },
+                                checkToShowDot: (spot, barData) => selectedDay != null && spot.x == selectedDay.toDouble(),
+                                getDotPainter: (spot, percent, barData, index) =>
+                                    FlDotCirclePainter(radius: 5, color: Colors.white, strokeWidth: 1.5, strokeColor: HomeTokens.accent.withValues(alpha: 0.35)),
                               ),
                             ),
                             LineChartBarData(
-                              spots: _spotsFor(data.currentDaily),
+                              spots: smoothLineSpots(_spotsFor(data.currentDaily)),
                               isCurved: false,
                               color: HomeTokens.accent,
-                              barWidth: 2.2,
+                              barWidth: 2.0,
+                              isStrokeCapRound: true,
+                              isStrokeJoinRound: true,
                               dotData: FlDotData(
                                 show: true,
-                                getDotPainter: (spot, percent, barData, index) {
-                                  if (spot.x.toInt() == selectedDay) {
-                                    return FlDotCirclePainter(radius: 5, color: Colors.white, strokeWidth: 1.5, strokeColor: HomeTokens.accent);
-                                  }
-                                  return FlDotCirclePainter(radius: 0, color: Colors.transparent);
-                                },
+                                checkToShowDot: (spot, barData) => selectedDay != null && spot.x == selectedDay.toDouble(),
+                                getDotPainter: (spot, percent, barData, index) =>
+                                    FlDotCirclePainter(radius: 5, color: Colors.white, strokeWidth: 1.5, strokeColor: HomeTokens.accent),
                               ),
                             ),
                           ],
@@ -334,31 +351,25 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          height: 30,
+                          height: kChartDayBadgeStrip,
                           child: IgnorePointer(
-                            child: Align(
-                              // Same day->fraction formula as the vertical
-                              // guide line and the tooltip above, so the badge
-                              // always sits directly under the selected point
-                              // no matter where selectedDay changes from
-                              // (tap/scrub/month default). Align clamps this
-                              // to the box's own edges as the fraction
-                              // approaches +-1, so the badge never overflows
-                              // past the chart's left/right bounds even for
-                              // day 1 or day 31.
-                              alignment: Alignment(((selectedDay - 1) / (_maxDay - 1)) * 2 - 1, 0),
-                              child: _DayBadge(day: selectedDay),
-                            ),
+                            child: AnchoredChartLabel(anchorX: pointX, clampToChart: true, overhang: 8, alignBottom: true, child: ChartDayBadge(day: selectedDay)),
                           ),
                         ),
                       if (selectedDay != null && (currentSelected != null || previousSelected != null))
                         Positioned(
-                          top: 0,
                           left: 0,
                           right: 0,
+                          top: 0,
+                          height: kChartCompareTooltipStrip - kChartTooltipGap,
                           child: IgnorePointer(
-                            child: Align(
-                              alignment: Alignment(((selectedDay - 1) / (_maxDay - 1)) * 2 - 1, 0),
+                            // Centered on the point, pinned just above the plot,
+                            // and clamped so it is never cut off near day 1 /
+                            // the last day.
+                            child: AnchoredChartLabel(
+                              anchorX: pointX,
+                              clampToChart: true,
+                              alignBottom: true,
                               child: _ComparisonTooltip(
                                 currentLabel: '${month.month}월',
                                 currentAmount: currentSelected,
@@ -474,40 +485,6 @@ class _ComparisonTooltip extends StatelessWidget {
         const SizedBox(width: 4),
         Text(formatWon(amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: HomeTokens.textDark)),
       ],
-    );
-  }
-}
-
-/// The single always-visible "which day is selected" marker below the chart,
-/// replacing the old always-on 1/10/15/20/31 axis numbers. Deliberately
-/// lighter than [_ComparisonTooltip] (soft mint fill instead of a white
-/// card + shadow) since the two have different jobs: this just answers "which
-/// day", the tooltip answers "how much".
-class _DayBadge extends StatelessWidget {
-  final int day;
-  const _DayBadge({required this.day});
-
-  @override
-  Widget build(BuildContext context) {
-    // No `height`/`alignment`/`Center` here: any of those make this expand to
-    // fill the bounded width the outer Align hands it (Container with
-    // alignment set, and Align/Center as a child, both size themselves to
-    // fill bounded parent constraints per their own docs) - which silently
-    // turned this into a full-width bar instead of a small pill. Sizing
-    // purely from padding shrink-wraps to the Text in both axes; the outer
-    // Align's y:0 (see where _DayBadge is used above) already centers it
-    // vertically within the reserved strip.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-      decoration: BoxDecoration(
-        color: HomeTokens.accent.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: HomeTokens.accent.withValues(alpha: 0.35), width: 1),
-      ),
-      child: Text(
-        '$day',
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: HomeTokens.accentDark),
-      ),
     );
   }
 }

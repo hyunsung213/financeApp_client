@@ -8,12 +8,18 @@ import '../../transaction/screens/transaction_list_screen.dart';
 import '../../../data/api/category_api.dart';
 import '../providers/report_provider.dart';
 import '../utils/report_insight_utils.dart';
-import '../widgets/budget_usage_bar.dart';
+import '../widgets/category_share_bar.dart';
 import '../widgets/month_picker_sheet.dart';
 
 /// Category Report detail (Figma frames 114:5192 / 397:5357): donut +
-/// per-category rows, each expandable into 금액/비율/지난달 대비/거래
-/// 건수/예산 사용률/거래내역 보기. Reuses [monthlyReportDataProvider]
+/// one card per 대분류 (the same roll-up the donut is drawn from), each showing
+/// its spent amount and share of all spending, expandable into 금액/전체 지출
+/// 중 비율/지난달 대비/거래 건수/소분류 내역/거래내역 보기.
+///
+/// Budget is deliberately absent: the backend has no category budget, and real
+/// budgets will be scoped to the salary-cycle BudgetCycle rather than this
+/// screen's calendar month. See [CategoryShareBar] for where a real
+/// `budgetAmount` (and the 초과 badge) would plug in later. Reuses [monthlyReportDataProvider]
 /// (already fetches this month + last month's `/api/reports/categories`)
 /// instead of a new provider, since the "지난달(1일-N일) 대비" figure it
 /// needs is exactly what that provider already computes for the Monthly
@@ -33,11 +39,25 @@ class CategoryReportScreen extends ConsumerStatefulWidget {
   final String? initialCategoryName;
   const CategoryReportScreen({super.key, required this.initialMonth, this.initialCategoryName});
 
+  /// The one way to open this screen. It goes onto the *root* Navigator, above
+  /// the tab shell, so it is a full-screen detail page: the shell's floating
+  /// Bottom Navigation (`ScaffoldWithNavBar` in `lib/core/router.dart`) sits
+  /// underneath it and is not part of this route's layout at all, instead of
+  /// being drawn over the last cards. Back returns to the screen that opened
+  /// it, with the Bottom Navigation showing again.
+  static Future<void> open(BuildContext context, {required DateTime initialMonth, String? initialCategoryName}) {
+    return Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) => CategoryReportScreen(initialMonth: initialMonth, initialCategoryName: initialCategoryName),
+    ));
+  }
+
   @override
   ConsumerState<CategoryReportScreen> createState() => _CategoryReportScreenState();
 }
 
 class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
+  // A name from a caller's deep link is a leaf name (e.g. the growth insight's
+  // category); build() resolves it to the 대분류 card it belongs to.
   late String? _expandedCategory = widget.initialCategoryName;
 
   static const _colors = [
@@ -47,6 +67,14 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
     Color(0xFFCDDC39),
     Color(0xFF9E9E9E),
     Color(0xFFBA68C8),
+    // Appended so up to 11 대분류 (10 built-in + a user-made one) each keep a
+    // distinct color now that the legend lists all of them; the first six
+    // are unchanged.
+    Color(0xFFFF8A65),
+    Color(0xFF7986CB),
+    Color(0xFFF06292),
+    Color(0xFF8D6E63),
+    Color(0xFF26A69A),
   ];
 
   @override
@@ -66,11 +94,19 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('불러오지 못했어요\n$e', textAlign: TextAlign.center)),
         data: (data) {
-          final categories = data.currentCategories;
-          final total = categories.fold<int>(0, (sum, c) => sum + c.amount);
+          // Donut, legend, and the cards below all read this one 대분류 roll-up,
+          // so a card's amount, percentage and color always match its slice.
+          // The per-leaf rows the endpoint returns only feed each card's
+          // 소분류 breakdown.
+          final majors = data.currentMajorCategories;
+          final expandedMajor = _expandedCategory == null ? null : data.majorNameByCategoryName[_expandedCategory] ?? _expandedCategory;
+          final total = majors.fold<int>(0, (sum, c) => sum + c.amount);
+          final majorColors = {for (var i = 0; i < majors.length; i++) majors[i].name: _colors[i % _colors.length]};
 
           return ListView(
-            padding: const EdgeInsets.all(20),
+            // No Bottom Navigation on this detail page, so the only bottom
+            // inset to respect is the device's own (gesture bar) one.
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.paddingOf(context).bottom),
             children: [
               Container(
                 padding: const EdgeInsets.all(20),
@@ -108,80 +144,110 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    if (categories.isEmpty)
+                    if (majors.isEmpty)
                       const SizedBox(height: 80, child: Center(child: Text('이번 달 지출 카테고리가 아직 없어요', style: TextStyle(color: HomeTokens.textMuted))))
                     else
-                      Builder(builder: (context) {
-                        final shown = categories.take(4).toList();
-                        final restCount = categories.length - shown.length;
-                        return SizedBox(
-                          height: 180,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    PieChart(PieChartData(
-                                      sectionsSpace: 0,
-                                      centerSpaceRadius: 50,
-                                      sections: List.generate(categories.length, (i) => PieChartSectionData(color: _colors[i % _colors.length], value: categories[i].amount.toDouble(), title: '', radius: 25)),
-                                    )),
-                                    Column(mainAxisSize: MainAxisSize.min, children: [
-                                      const Text('합계', style: TextStyle(fontSize: 12, color: HomeTokens.textMuted)),
-                                      Text(formatWon(total), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                    ]),
-                                  ],
-                                ),
+                      SizedBox(
+                        height: 180,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  PieChart(PieChartData(
+                                    sectionsSpace: 0,
+                                    centerSpaceRadius: 50,
+                                    sections: List.generate(majors.length, (i) => PieChartSectionData(color: _colors[i % _colors.length], value: majors[i].amount.toDouble(), title: '', radius: 25)),
+                                  )),
+                                  Column(mainAxisSize: MainAxisSize.min, children: [
+                                    const Text('합계', style: TextStyle(fontSize: 12, color: HomeTokens.textMuted)),
+                                    Text(formatWon(total), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ]),
+                                ],
                               ),
-                              Expanded(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    for (var i = 0; i < shown.length; i++)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 4),
-                                        child: Row(children: [
-                                          Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: _colors[i % _colors.length])),
-                                          const SizedBox(width: 8),
-                                          Expanded(child: Text(shown[i].name, style: const TextStyle(color: HomeTokens.textDark, fontSize: 13))),
-                                          Text('${shown[i].percentage.round()}%', style: TextStyle(color: _colors[i % _colors.length], fontWeight: FontWeight.bold, fontSize: 13)),
-                                        ]),
-                                      ),
-                                    if (restCount > 0)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 4),
-                                        child: Row(children: [
-                                          const SizedBox(width: 16),
-                                          const Icon(Icons.more_horiz, size: 16, color: HomeTokens.textMuted),
-                                          const SizedBox(width: 4),
-                                          Text('외 $restCount건', style: const TextStyle(color: HomeTokens.textMuted, fontSize: 12)),
-                                        ]),
-                                      ),
-                                  ],
-                                ),
+                            ),
+                            Expanded(
+                              // Keyed by month so switching months starts the legend back at the top.
+                              child: _CategoryLegend(
+                                key: ValueKey(month),
+                                categories: majors,
+                                colors: [for (var i = 0; i < majors.length; i++) _colors[i % _colors.length]],
                               ),
-                            ],
-                          ),
-                        );
-                      }),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              for (var i = 0; i < categories.length; i++) ...[
+              for (var i = 0; i < majors.length; i++) ...[
                 _CategoryRow(
                   month: month,
-                  category: categories[i],
-                  color: _colors[i % _colors.length],
-                  previousAmount: data.previousCategories.where((c) => c.name == categories[i].name).map((c) => c.amount).firstOrNull,
+                  category: majors[i],
+                  color: majorColors[majors[i].name] ?? _colors[i % _colors.length],
+                  previousAmount: data.previousMajorCategories.where((c) => c.name == majors[i].name).map((c) => c.amount).firstOrNull,
                   comparisonDayLabel: data.range.isPartial ? '1일-${data.range.comparisonDay}일' : null,
-                  expanded: _expandedCategory == categories[i].name,
-                  onTap: () => setState(() => _expandedCategory = _expandedCategory == categories[i].name ? null : categories[i].name),
+                  subCategories: data.currentCategories.where((c) => data.majorNameByCategoryName[c.name] == majors[i].name).toList()
+                    ..sort((a, b) => b.amount.compareTo(a.amount)),
+                  expanded: expandedMajor == majors[i].name,
+                  onTap: () => setState(() => _expandedCategory = expandedMajor == majors[i].name ? null : majors[i].name),
                 ),
                 const SizedBox(height: 12),
               ],
             ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Donut legend: color dot, 대분류 name, percentage per row. The list hugs its
+/// content (so a short legend stays vertically centered next to the donut) up
+/// to the donut's height, then scrolls on its own - the page itself doesn't.
+class _CategoryLegend extends StatefulWidget {
+  final List<CategoryAmount> categories;
+  final List<Color> colors;
+
+  const _CategoryLegend({super.key, required this.categories, required this.colors});
+
+  @override
+  State<_CategoryLegend> createState() => _CategoryLegendState();
+}
+
+class _CategoryLegendState extends State<_CategoryLegend> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      child: ListView.builder(
+        controller: _controller,
+        shrinkWrap: true,
+        // Room on the right so the scrollbar thumb doesn't sit on the percentage.
+        padding: const EdgeInsets.only(right: 10),
+        itemCount: widget.categories.length,
+        itemBuilder: (context, i) {
+          final color = widget.colors[i];
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(children: [
+              Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(widget.categories[i].name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: HomeTokens.textDark, fontSize: 13))),
+              const SizedBox(width: 8),
+              Text('${widget.categories[i].percentage.round()}%', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+            ]),
           );
         },
       ),
@@ -195,6 +261,10 @@ class _CategoryRow extends ConsumerWidget {
   final Color color;
   final int? previousAmount;
   final String? comparisonDayLabel;
+
+  /// The per-leaf rows (as `/api/reports/categories` returns them) that make up
+  /// this 대분류, largest first.
+  final List<CategoryAmount> subCategories;
   final bool expanded;
   final VoidCallback onTap;
 
@@ -204,6 +274,7 @@ class _CategoryRow extends ConsumerWidget {
     required this.color,
     required this.previousAmount,
     required this.comparisonDayLabel,
+    required this.subCategories,
     required this.expanded,
     required this.onTap,
   });
@@ -227,11 +298,11 @@ class _CategoryRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: BudgetUsageBar(
+                    child: CategoryShareBar(
                       categoryName: category.name,
                       categoryColor: color,
                       spentAmount: category.amount,
-                      budgetAmount: null,
+                      sharePercent: category.percentage,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -254,7 +325,7 @@ class _CategoryRow extends ConsumerWidget {
                   const Divider(height: 1),
                   const SizedBox(height: 12),
                   _kv(Icons.payments_outlined, '금액', formatWon(category.amount)),
-                  _kv(Icons.percent_rounded, '비율', '${category.percentage.round()}%'),
+                  _kv(Icons.percent_rounded, '전체 지출 중', '${category.percentage.round()}%'),
                   if (previousAmount != null)
                     _kv(
                       Icons.cached_rounded,
@@ -262,26 +333,26 @@ class _CategoryRow extends ConsumerWidget {
                       '${formatWon(previousAmount!)} (${_pctLabel(category.amount, previousAmount!)})',
                     ),
                   _kv(Icons.swap_vert_rounded, '거래 건수', '${category.transactionCount}건'),
-                  Builder(builder: (context) {
-                    final previewBudget = BudgetUsageBar.previewBudgetFor(category.amount, null);
-                    final value = previewBudget == null
-                        ? '예산 미설정'
-                        : '${(category.amount / previewBudget * 100).round()}% (${formatWon(previewBudget)} 중)';
-                    return _kv(Icons.event_busy_outlined, '예산 사용률', value);
-                  }),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: () async {
-                      final categories = await ref.read(categoriesProvider.future);
-                      final match = categories.whereType<Map>().where((c) => c['name'] == category.name).firstOrNull;
-                      if (!context.mounted) return;
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => TransactionListScreen(initialMonth: month, initialCategoryId: match?['id']?.toString()),
-                      ));
-                    },
-                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44), side: const BorderSide(color: HomeTokens.chipInactiveBorder)),
-                    child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('거래 내역 보기'), SizedBox(width: 4), Icon(Icons.chevron_right, size: 18)]),
-                  ),
+                  // A lone leaf that just repeats the 대분류 name adds nothing - unless
+                  // it is really "소분류 미지정" (saved on a 대분류 that has 소분류).
+                  if (subCategories.length > 1 ||
+                      (subCategories.isNotEmpty && (subCategories.first.isUnspecifiedSubcategory || subCategories.first.name != category.name))) ...[
+                    const SizedBox(height: 8),
+                    const Text('소분류', style: TextStyle(fontSize: 12, color: HomeTokens.textMuted)),
+                    for (final sub in subCategories) _subRow(context, ref, sub),
+                  ],
+                  // `GET /api/transactions` matches `categoryId` exactly (a 대분류
+                  // id does not include its 소분류's transactions), so a 대분류
+                  // with several 소분류 would list far fewer rows than its card
+                  // shows. Those open per 소분류 from the rows above instead.
+                  if (subCategories.length <= 1) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: () => _openTransactions(context, ref, subCategories.firstOrNull?.name ?? category.name, categoryId: subCategories.firstOrNull?.categoryId),
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44), side: const BorderSide(color: HomeTokens.chipInactiveBorder)),
+                      child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('거래 내역 보기'), SizedBox(width: 4), Icon(Icons.chevron_right, size: 18)]),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -295,6 +366,49 @@ class _CategoryRow extends ConsumerWidget {
     final pct = momPercent(current, previous);
     if (pct == null) return '-';
     return '${pct <= 0 ? '' : '+'}${pct.round()}%';
+  }
+
+  Widget _subRow(BuildContext context, WidgetRef ref, CategoryAmount sub) => InkWell(
+        onTap: () => _openTransactions(context, ref, sub.name, categoryId: sub.categoryId),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(children: [
+            const SizedBox(width: 23),
+            Expanded(
+              child: Text(
+                sub.isUnspecifiedSubcategory ? unspecifiedSubcategoryLabel : sub.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, color: sub.isUnspecifiedSubcategory ? HomeTokens.textMuted : HomeTokens.textDark),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(formatWon(sub.amount), style: const TextStyle(fontSize: 13, color: HomeTokens.textDark)),
+            const Icon(Icons.chevron_right, size: 16, color: HomeTokens.textMuted),
+          ]),
+        ),
+      );
+
+  /// Opens the month's transactions filtered to one expense category: the row's
+  /// own [categoryId] when the report provided it, else the category called
+  /// [name] (older backends have no id). When the name is shared, the one under
+  /// this card's 대분류 wins.
+  Future<void> _openTransactions(BuildContext context, WidgetRef ref, String name, {String? categoryId}) async {
+    if (categoryId != null) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => TransactionListScreen(initialMonth: month, initialCategoryId: categoryId),
+      ));
+      return;
+    }
+    final categories = (await ref.read(categoriesProvider.future)).whereType<Map>().toList();
+    if (!context.mounted) return;
+    final named = categories.where((c) => c['name'] == name && c['type'] == 'EXPENSE').toList();
+    final byId = {for (final c in categories) (c['id'] ?? '').toString(): c};
+    bool underThisMajor(Map c) => (byId[(c['parentCategoryId'] ?? '').toString()] ?? c)['name'] == category.name;
+    final match = named.length <= 1 ? named.firstOrNull : named.where(underThisMajor).firstOrNull ?? named.first;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => TransactionListScreen(initialMonth: month, initialCategoryId: match?['id']?.toString()),
+    ));
   }
 
   Widget _kv(IconData icon, String k, String v) => Padding(

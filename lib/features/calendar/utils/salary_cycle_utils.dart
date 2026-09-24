@@ -59,6 +59,16 @@ SalaryCycle shiftSalaryCycle(SalaryCycle cycle, int offset, int salaryDay) {
   return SalaryCycle(newStart, nextStart.subtract(const Duration(days: 1)));
 }
 
+/// How many salary cycles the cycle containing [target] is from the cycle
+/// containing [today] (negative = earlier), for the same [salaryDay] - i.e.
+/// the `_cycleOffset` the Calendar needs to show [target].
+int salaryCycleOffsetBetween(DateTime today, DateTime target, int salaryDay) {
+  final base = salaryCycleContaining(today, salaryDay);
+  final targetCycle = salaryCycleContaining(target, salaryDay);
+  return (targetCycle.start.year - base.start.year) * 12 +
+      (targetCycle.start.month - base.start.month);
+}
+
 /// Sunday-aligned grid days spanning [cycle], padded with the previous/next
 /// cycle's overflow days so every week row has exactly 7 days (shown muted),
 /// and the total is always a multiple of 7 - never absolute-positioned, just

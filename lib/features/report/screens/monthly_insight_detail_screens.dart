@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
+import '../../../core/widgets/manual_input_fab.dart' show kBottomNavBarHeight;
 import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
+import '../utils/report_date_utils.dart';
 import '../utils/report_insight_utils.dart';
 
 /// Monthly Total Comparison Detail (Figma frame 118, `431:6676`) and Weekly
@@ -50,6 +53,36 @@ class MonthlyTotalComparisonDetailScreen extends StatelessWidget {
   }
 }
 
+/// Entry point from the Report main summary's "가장 많이 쓴 주" row: loads the
+/// selected month's [MonthlyReportData] (the same provider the Monthly Report
+/// uses, so the weekly totals here can't drift from the ones the summary
+/// showed) and shows [WeeklyComparisonDetailScreen] for it.
+class WeeklyExpenseDetailScreen extends ConsumerWidget {
+  final DateTime month;
+  const WeeklyExpenseDetailScreen({super.key, required this.month});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dataAsync = ref.watch(monthlyReportDataProvider(month));
+    return dataAsync.when(
+      data: (data) => WeeklyComparisonDetailScreen(month: month, data: data),
+      loading: () => _placeholder(const CircularProgressIndicator()),
+      error: (e, st) => _placeholder(Text('불러오지 못했어요\n$e', textAlign: TextAlign.center)),
+    );
+  }
+
+  Widget _placeholder(Widget child) => Scaffold(
+        backgroundColor: HomeTokens.pageBackground,
+        appBar: AppBar(
+          backgroundColor: HomeTokens.pageBackground,
+          elevation: 0,
+          foregroundColor: HomeTokens.textDark,
+          title: const Text('주차별 지출 비교', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        ),
+        body: Center(child: child),
+      );
+}
+
 class WeeklyComparisonDetailScreen extends StatelessWidget {
   final DateTime month;
   final MonthlyReportData data;
@@ -66,7 +99,10 @@ class WeeklyComparisonDetailScreen extends StatelessWidget {
         title: const Text('주차별 지출 비교', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        // The floating bottom-nav pill paints over this screen (it's pushed
+        // on the tab's own navigator), so reserve its footprint or the last
+        // table row can't be scrolled out from under it.
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, kBottomNavBarHeight + 20),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -182,6 +218,10 @@ class WeeklyComparisonDetail extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _WeeklyExpenseBars(month: month, weekly: data.currentWeekly),
+        const SizedBox(height: 20),
+        const Divider(height: 1),
+        const SizedBox(height: 20),
         // Kept as "주차별" (not Figma's literal, reused-frame label
         // "월별 총 지출 비교") since this card is genuinely about weekly
         // buckets -- see QA notes on frame 431:7759 for why the copy wasn't
@@ -244,6 +284,86 @@ class WeeklyComparisonDetail extends StatelessWidget {
                 Text(formatWon(data.currentWeekly[i]), textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
               ]),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The selected month's per-주차 totals as compact horizontal bars, largest
+/// week highlighted in the primary green and the rest in soft mint, so the
+/// weeks can be compared at a glance. Uses the same week boundaries
+/// ([weekDayRange]/[weekIndexForDay]) and the same top-week rule
+/// ([topWeekIndexOf]) as the Report main summary's "가장 많이 쓴 주".
+class _WeeklyExpenseBars extends StatelessWidget {
+  final DateTime month;
+  final List<int> weekly;
+  const _WeeklyExpenseBars({required this.month, required this.weekly});
+
+  @override
+  Widget build(BuildContext context) {
+    final top = topWeekIndexOf(weekly);
+    final maxValue = weekly.fold<int>(0, (a, b) => a > b ? a : b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${month.month}월 주차별 지출', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+        const SizedBox(height: 4),
+        Text(
+          top == null ? '이번 달 지출 내역이 없어요' : '가장 많이 쓴 주 · ${top + 1}주차 ${formatWon(weekly[top])}',
+          style: TextStyle(fontSize: 13, color: top == null ? HomeTokens.textMuted : HomeTokens.accentDark, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 14),
+        for (var i = 0; i < weekly.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _bar(i, isTop: i == top, maxValue: maxValue),
+          ),
+      ],
+    );
+  }
+
+  Widget _bar(int index, {required bool isTop, required int maxValue}) {
+    final (startDay, endDay) = weekDayRange(index, month);
+    final fraction = maxValue == 0 ? 0.0 : weekly[index] / maxValue;
+    return Row(
+      children: [
+        SizedBox(
+          width: 60,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${index + 1}주차', style: TextStyle(fontSize: 13, fontWeight: isTop ? FontWeight.bold : FontWeight.w500, color: HomeTokens.textDark)),
+              Text('$startDay~$endDay일', style: const TextStyle(fontSize: 11, color: HomeTokens.textMuted)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) => Stack(
+              children: [
+                Container(height: 14, decoration: BoxDecoration(color: HomeTokens.chipInactiveBg, borderRadius: BorderRadius.circular(7))),
+                Container(
+                  height: 14,
+                  width: constraints.maxWidth * fraction,
+                  decoration: BoxDecoration(
+                    color: isTop ? HomeTokens.accent : HomeTokens.accent.withValues(alpha: 0.28),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 82,
+          child: Text(
+            formatWon(weekly[index]),
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: 13, fontWeight: isTop ? FontWeight.bold : FontWeight.w500, color: isTop ? HomeTokens.accentDark : HomeTokens.textDark),
+          ),
         ),
       ],
     );

@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../../core/widgets/manual_input_fab.dart' show kBottomNavBarHeight;
+import '../../calendar/providers/calendar_focus_provider.dart';
 import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
 import '../utils/report_date_utils.dart';
 import '../utils/report_insight_utils.dart';
+import '../utils/smooth_line_spots.dart';
+import '../widgets/chart_selection_guide.dart';
 import '../widgets/month_picker_sheet.dart';
+import 'monthly_insight_detail_screens.dart';
 import 'monthly_report_screen.dart';
 import 'category_report_screen.dart';
 
@@ -112,21 +117,19 @@ class ReportScreen extends ConsumerWidget {
                       child: _CategoryCard(
                         totalExpense: data.totalExpense,
                         categories: data.categories,
-                        onMore: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => CategoryReportScreen(initialMonth: currentMonth)),
-                        ),
+                        onMore: () => CategoryReportScreen.open(context, initialMonth: currentMonth),
                       ),
                     ),
-                    if (data.insights.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                        child: _InsightSummaryCard(
-                          insights: data.insights,
-                          onMore: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
-                          ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                      child: _InsightSummaryCard(
+                        highlights: data.highlights,
+                        onMore: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
                         ),
+                        onOpen: (highlight) => _openHighlight(context, ref, highlight, currentMonth),
                       ),
+                    ),
                     // Report's own ListView paints *under* the floating
                     // bottom-nav pill from ScaffoldWithNavBar (a separate
                     // Stack layer in router.dart, not Scaffold.bottomNavigationBar),
@@ -146,6 +149,28 @@ class ReportScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Where each "이번 달 리포트 요약" row leads, always for the Report's
+/// currently selected [month]:
+/// - top category -> the existing Category Report
+/// - top day -> the Calendar tab with that date already selected (the date
+///   is handed over via [calendarFocusProvider]; CalendarScreen then jumps to
+///   the salary cycle containing it and opens the same day sheet a cell tap
+///   opens)
+/// - top 주차 -> the weekly expense detail (bar chart per 주차)
+void _openHighlight(BuildContext context, WidgetRef ref, ReportHighlight highlight, DateTime month) {
+  switch (highlight.kind) {
+    case ReportHighlightKind.topCategory:
+      CategoryReportScreen.open(context, initialMonth: month);
+    case ReportHighlightKind.topDay:
+      final date = highlight.date;
+      if (date == null) return;
+      ref.read(calendarFocusProvider.notifier).request(date);
+      context.go('/calendar');
+    case ReportHighlightKind.topWeek:
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => WeeklyExpenseDetailScreen(month: month)));
   }
 }
 
@@ -328,62 +353,84 @@ class _DailyFlowCardState extends State<_DailyFlowCard> {
       title: '이번 달 소비 흐름 (일별)',
       onMore: widget.onMore,
       child: SizedBox(
-        height: 190,
+        // Tooltip strip above + 150px plot + badge strip below.
+        height: kChartTooltipStrip + 150 + kChartDayBadgeStrip,
         child: points.isEmpty
             ? const Center(child: Text('이번 달 거래 내역이 아직 없어요', style: TextStyle(color: HomeTokens.textMuted)))
             : LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
-                  final maxDay = daysInMonth(month).toDouble();
-                  final dayAlignmentX = selectedDay == null
-                      ? 0.0
-                      : (((selectedDay - 1) / (maxDay - 1).clamp(1, 999)) * 2 - 1).clamp(-1.0, 1.0);
+                  final maxDay = daysInMonth(month);
+                  // One x for the point, the guide, the tooltip and the badge.
+                  final pointX = selectedDay == null ? 0.0 : chartDayX(selectedDay, maxDay, width);
                   return Stack(
+                    // At day 1 / the last day the day badge sticks out past the
+                    // chart by a few px, into the card's 20px padding.
+                    clipBehavior: Clip.none,
                     children: [
+                      // Behind the chart so the selected dot's white fill sits
+                      // on top of it; the tooltip and badge cover its two ends.
+                      if (selectedDay != null)
+                        Positioned(
+                          left: pointX - 1,
+                          top: kChartTooltipStrip - kChartTooltipGap,
+                          bottom: kChartDayBadgeStrip - kChartDayBadgeHeight,
+                          width: 2,
+                          child: const IgnorePointer(child: DottedVerticalGuide()),
+                        ),
                       LineChart(
                         LineChartData(
                           gridData: const FlGridData(show: false),
                           titlesData: FlTitlesData(
                             show: true,
                             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            // Empty on purpose: only reserves the strip the
+                            // amount tooltip is drawn into (see
+                            // kChartTooltipStrip).
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: kChartTooltipStrip,
+                                getTitlesWidget: (value, meta) => const SizedBox.shrink(),
+                              ),
+                            ),
                             leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                             // No static day numbers anymore - `showTitles: true`
-                            // is kept only so fl_chart still reserves the 30px
-                            // bottom strip (which the plot area's height
-                            // assumes); getTitlesWidget always returns an empty
-                            // box so nothing is actually drawn there. The
-                            // selected day is shown by the floating badge below
-                            // instead, positioned from the same selectedDay/
-                            // width math as the tooltip and the dot highlight
-                            // above so all three always agree.
+                            // is kept only so fl_chart still reserves the bottom
+                            // strip (which the plot area's height assumes);
+                            // getTitlesWidget always returns an empty box so
+                            // nothing is actually drawn there. The selected day
+                            // is shown by the floating badge below instead,
+                            // positioned from the same pointX as the tooltip,
+                            // the guide and the dot highlight so all four agree.
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                reservedSize: 30,
+                                reservedSize: kChartDayBadgeStrip,
                                 getTitlesWidget: (value, meta) => const SizedBox.shrink(),
                               ),
                             ),
                           ),
                           borderData: FlBorderData(show: false),
                           minX: 1,
-                          maxX: maxDay,
+                          maxX: maxDay.toDouble(),
                           minY: 0,
                           lineBarsData: [
                             LineChartBarData(
-                              spots: points.map((p) => FlSpot(p.day.toDouble(), p.spent.toDouble())).toList(),
+                              // Same data points, connected by a monotone curve
+                              // (see smoothLineSpots) - the selected-day dot is
+                              // therefore matched on exact x, not `x.toInt()`.
+                              spots: smoothLineSpots(points.map((p) => FlSpot(p.day.toDouble(), p.spent.toDouble())).toList()),
                               isCurved: false,
                               color: HomeTokens.accent,
                               barWidth: 2,
                               isStrokeCapRound: true,
+                              isStrokeJoinRound: true,
                               dotData: FlDotData(
                                 show: true,
-                                getDotPainter: (spot, percent, barData, index) {
-                                  if (spot.x.toInt() == selectedDay) {
-                                    return FlDotCirclePainter(radius: 4, color: Colors.white, strokeWidth: 2, strokeColor: HomeTokens.accent);
-                                  }
-                                  return FlDotCirclePainter(radius: 0, color: Colors.transparent);
-                                },
+                                checkToShowDot: (spot, barData) => selectedDay != null && spot.x == selectedDay.toDouble(),
+                                getDotPainter: (spot, percent, barData, index) =>
+                                    FlDotCirclePainter(radius: 4, color: Colors.white, strokeWidth: 2, strokeColor: HomeTokens.accent),
                               ),
                               belowBarData: BarAreaData(show: false),
                             ),
@@ -395,44 +442,25 @@ class _DailyFlowCardState extends State<_DailyFlowCard> {
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          height: 30,
+                          height: kChartDayBadgeStrip,
                           child: IgnorePointer(
-                            child: Align(
-                              alignment: Alignment(dayAlignmentX, 0),
-                              // No `height`/`alignment`/`Center` here: any of
-                              // those make this expand to fill the bounded
-                              // width the outer Align hands it (Container
-                              // with alignment set, and Align/Center as a
-                              // child, both size themselves to fill bounded
-                              // parent constraints per their own docs) - which
-                              // silently turned this into a full-width bar
-                              // instead of a small pill. Sizing purely from
-                              // padding shrink-wraps to the Text in both
-                              // axes; the outer Align's y:0 already centers
-                              // it vertically within the reserved strip.
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: HomeTokens.accent.withValues(alpha: 0.10),
-                                  borderRadius: BorderRadius.circular(15),
-                                  border: Border.all(color: HomeTokens.accent.withValues(alpha: 0.35), width: 1),
-                                ),
-                                child: Text(
-                                  '$selectedDay',
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: HomeTokens.accentDark),
-                                ),
-                              ),
-                            ),
+                            child: AnchoredChartLabel(anchorX: pointX, clampToChart: true, overhang: 8, alignBottom: true, child: ChartDayBadge(day: selectedDay)),
                           ),
                         ),
                       if (selectedDay != null && selectedAmount != null)
                         Positioned(
-                          top: 0,
                           left: 0,
                           right: 0,
+                          top: 0,
+                          height: kChartTooltipStrip - kChartTooltipGap,
                           child: IgnorePointer(
-                            child: Align(
-                              alignment: Alignment(dayAlignmentX, 0),
+                            // Centered on the point, pinned just above the plot,
+                            // and clamped so it is never cut off near the
+                            // first/last day.
+                            child: AnchoredChartLabel(
+                              anchorX: pointX,
+                              clampToChart: true,
+                              alignBottom: true,
                               // Figma's callout stacks "8월 17일" (bold) above the
                               // amount on its own line, not one run-on sentence.
                               child: Container(
@@ -568,41 +596,59 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
+/// The three month highlights (top 대분류 category / day / 주차). Each row
+/// opens its own detail via [onOpen]; the card header's 더보기 still opens the
+/// Monthly Report as before.
 class _InsightSummaryCard extends StatelessWidget {
-  final List<ReportInsight> insights;
+  final List<ReportHighlight> highlights;
   final VoidCallback onMore;
-  const _InsightSummaryCard({required this.insights, required this.onMore});
+  final ValueChanged<ReportHighlight> onOpen;
+  const _InsightSummaryCard({required this.highlights, required this.onMore, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
     return _SectionCard(
       title: '이번 달 리포트 요약',
       onMore: onMore,
-      child: Column(
-        children: insights
-            .map((insight) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: GestureDetector(
-                    onTap: onMore,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: insight.positive ? HomeTokens.chipActiveBg : AppColorTokens.negativeSoftBg,
-                        borderRadius: BorderRadius.circular(AppRadii.input),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(insight.icon, size: 18, color: insight.positive ? HomeTokens.accentDark : AppColors.warning),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text(insight.text, style: const TextStyle(fontSize: 13, color: HomeTokens.textDark, fontWeight: FontWeight.w600))),
-                          const Icon(Icons.chevron_right, size: 18, color: HomeTokens.textMuted),
-                        ],
-                      ),
-                    ),
-                  ),
-                ))
-            .toList(),
-      ),
+      child: highlights.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(child: Text('이번 달 지출 내역이 없어요', style: TextStyle(color: HomeTokens.textMuted))),
+            )
+          : Column(
+              children: highlights
+                  .map((highlight) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: GestureDetector(
+                          onTap: () => onOpen(highlight),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColorTokens.negativeSoftBg,
+                              borderRadius: BorderRadius.circular(AppRadii.input),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(highlight.icon, size: 18, color: AppColors.warning),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(highlight.label, style: const TextStyle(fontSize: 12, color: HomeTokens.textFaint)),
+                                      const SizedBox(height: 2),
+                                      Text(highlight.value, style: const TextStyle(fontSize: 14, color: HomeTokens.textDark, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right, size: 18, color: HomeTokens.textMuted),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
     );
   }
 }

@@ -12,6 +12,7 @@ import '../../../data/api/transaction_api.dart';
 import '../../home/theme/home_tokens.dart';
 import '../../policy/providers/policy_provider.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
+import '../providers/calendar_focus_provider.dart';
 import '../utils/policy_alert_utils.dart';
 import '../utils/salary_cycle_utils.dart';
 import '../widgets/day_detail_sheet.dart';
@@ -28,16 +29,18 @@ bool _isSameDay(DateTime? a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-// One day of `/api/reports/daily`. The backend now returns `recommended`/
+// One day of `/api/reports/daily`. The backend returns `recommended`/
 // `difference` per day (see API_SPEC.md), but per
 // docs/backend/calendar-daily-spending-ratio-requirements.md section H, the
-// current calculation applies one flat `dailyRecommended` to every date in
-// the requested range instead of resolving each date's own BudgetCycle -
-// wrong across a cycle boundary, which most calendar months (and salary
-// cycles) cross. So `recommendedAmount`/`spendingRatio` stay nullable and
-// unpopulated here until that per-date fix ships; the Calendar cell simply
-// omits the ring/percentage until then. income/expense parsing is
-// unaffected either way.
+// current calculation applies one flat `dailyRecommended` (planned flexible
+// budget / cycle days) to every date in the requested range instead of
+// resolving each date's own BudgetCycle. That is only right when the range
+// sits inside one cycle - which is how the Calendar queries it (one salary
+// cycle at a time, see monthlyReportProvider) - so `recommendedAmount` now
+// reads `recommended` for the day-detail sheet's usage line
+// (dailyRecommendedAmountProvider). `spendingRatio` has no backend source
+// yet and stays null, so the Calendar cell still omits its percentage until
+// the per-date fix ships. income/expense parsing is unaffected.
 class DailyReportEntry {
   final int income;
   final int expense;
@@ -52,7 +55,7 @@ class DailyReportEntry {
   });
 
   factory DailyReportEntry.fromJson(Map<String, dynamic> json) {
-    final recommended = json['recommendedAmount'];
+    final recommended = json['recommendedAmount'] ?? json['recommended'];
     final ratio = json['spendingRatio'];
     return DailyReportEntry(
       income: _toInt(json['income']),
@@ -181,8 +184,43 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     });
   }
 
+  bool _applyingFocus = false;
+
+  // A date another screen asked the Calendar to open on (see
+  // calendarFocusProvider): jump to the salary cycle containing it, select
+  // it, and open the same day sheet a cell tap opens - so the user lands on
+  // that day's transactions without hunting for the cell. Only run once this
+  // tab is actually the visible one (go_router keeps inactive shell branches
+  // built but Offstage/ticker-disabled): this screen may already be built
+  // when the request arrives, and the sheet must not pop up over the tab the
+  // user is still leaving.
+  void _maybeApplyFocus(DateTime? focus) {
+    if (focus == null || _applyingFocus) return;
+    _applyingFocus = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        // Not the default 25: the offset depends on the user's real salary day.
+        final salaryDay = await ref.read(salaryDayProvider.future);
+        if (!mounted) return;
+        final offset = salaryCycleOffsetBetween(DateTime.now(), focus, salaryDay);
+        setState(() {
+          _lastCycleShiftDirection = offset.compareTo(_cycleOffset).toDouble();
+          _cycleOffset = offset;
+          _selectedDay = focus;
+        });
+        ref.read(calendarFocusProvider.notifier).consume();
+        DayDetailSheet.show(context, focus);
+      } finally {
+        _applyingFocus = false;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final focusRequest = ref.watch(calendarFocusProvider);
+    if (focusRequest != null && TickerMode.valuesOf(context).enabled) _maybeApplyFocus(focusRequest);
+
     final salaryDayAsync = ref.watch(salaryDayProvider);
     final salaryDay = salaryDayAsync.asData?.value ?? _defaultSalaryDay;
     final baseCycle = salaryCycleContaining(DateTime.now(), salaryDay);

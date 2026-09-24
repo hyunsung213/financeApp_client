@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
+import 'core/providers/current_date_provider.dart';
 import 'core/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -31,11 +32,40 @@ class NoOverscrollBehavior extends ScrollBehavior {
   }
 }
 
-class FinanceApp extends ConsumerWidget {
+class FinanceApp extends ConsumerStatefulWidget {
   const FinanceApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FinanceApp> createState() => _FinanceAppState();
+}
+
+class _FinanceAppState extends ConsumerState<FinanceApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // App date pill / D-Day can otherwise stay stuck at whatever date was
+    // current when the app was backgrounded, since Home has no other
+    // trigger to rebuild once its data has loaded (see
+    // core/providers/current_date_provider.dart).
+    if (state == AppLifecycleState.resumed) {
+      ref.read(currentDateProvider.notifier).refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(

@@ -17,10 +17,43 @@ double? spendingRingRatio({
 
 // The three stops of the ring's color heat-scale - soft, desaturated tones
 // (not the original saturated 0xFF00B67A/0xFFF4C542/0xFFFF5A47) so the scale
-// reads as mint/apricot/coral rather than a hard flourescent outline.
+// reads as mint/apricot/coral rather than a hard flourescent outline. The red
+// is deliberately a full step away from the orange (hue ~5 vs ~30): when the
+// two were only ~20 degrees apart, every day in the upper half of the scale
+// read as "some orange" and a 20k day looked no different from a 27k one.
 const Color ringSafeGreen = Color(0xFF4FC994);
 const Color ringMidOrange = Color(0xFFF3A65E);
-const Color ringDangerRed = Color(0xFFF37E6B);
+const Color ringDangerRed = Color(0xFFE8503F);
+
+// Where on the 0..1 intensity scale the ring reaches pure orange. Below it
+// the ring sweeps green -> orange, above it orange -> red. Sitting left of
+// the midpoint (rather than at 0.5) means an above-average day - roughly the
+// 40% mark and up - already reads as orange instead of the yellow the
+// green->orange hue path passes through, and the whole upper half of the
+// range is left for the orange -> red build-up.
+const double ringOrangeStop = 0.35;
+
+// If the cycle's cheapest and priciest spending days are within this many won
+// of each other there is no meaningful spread to color, so every day gets the
+// same neutral (low) color rather than stretching a few hundred won of
+// difference across the full green -> red scale.
+const double ringMinIntensitySpread = 1000;
+
+/// Normalized spending intensity of `amount` inside the cycle's
+/// `minAmount`..`maxAmount` range: 0 for the cheapest spending day, 1 for the
+/// priciest, linear in between. This is the *only* input to a ring's color -
+/// nothing about the ring's fill length, the spending ratio or the date
+/// takes part - so equal amounts always map to the identical value.
+///
+/// Returns 0 (never NaN/infinity) when there's no spending, or when the range
+/// is degenerate (a single spending day, or every day the same/nearly the
+/// same amount).
+double spendIntensity(double amount, double minAmount, double maxAmount) {
+  if (amount <= 0) return 0;
+  final spread = maxAmount - minAmount;
+  if (spread < ringMinIntensitySpread) return 0;
+  return ((amount - minAmount) / spread).clamp(0.0, 1.0);
+}
 
 /// Colors a Calendar day's ring by how big `amount` is relative to this
 /// cycle's spending days, as one continuous green -> orange -> red gradient
@@ -35,8 +68,8 @@ const Color ringDangerRed = Color(0xFFF37E6B);
 ///    spread across the full 0..1 range instead of bunching every ordinary
 ///    day into the bottom fifth of it, so a day that's only a little pricier
 ///    than the cycle's cheapest one doesn't get pushed further up the scale
-///    than it should.
-/// 2. The two half-segments (`low`->`mid`, `mid`->`high`) are interpolated
+///    than it should. See [spendIntensity].
+/// 2. The two segments (`low`->`mid`, `mid`->`high`) are interpolated
 ///    in HSL space (via [HSLColor.lerp]), not component-wise RGB (the old
 ///    plain `Color.lerp`). RGB-lerping a green and an orange averages their
 ///    channels directly, and because green is G-heavy/B-mid while orange is
@@ -47,15 +80,13 @@ const Color ringDangerRed = Color(0xFFF37E6B);
 ///    green->yellow->orange hue path at consistently high saturation
 ///    instead of cutting across the RGB cube through its dull center.
 Color spendIntensityColor(double amount, double minAmount, double maxAmount) {
-  if (amount <= 0) return ringSafeGreen;
-  if (maxAmount <= minAmount) return ringSafeGreen;
-  final t = ((amount - minAmount) / (maxAmount - minAmount)).clamp(0.0, 1.0);
+  final t = spendIntensity(amount, minAmount, maxAmount);
   final low = HSLColor.fromColor(ringSafeGreen);
   final mid = HSLColor.fromColor(ringMidOrange);
   final high = HSLColor.fromColor(ringDangerRed);
-  final hsl = t <= 0.5
-      ? HSLColor.lerp(low, mid, t / 0.5)!
-      : HSLColor.lerp(mid, high, (t - 0.5) / 0.5)!;
+  final hsl = t <= ringOrangeStop
+      ? HSLColor.lerp(low, mid, t / ringOrangeStop)!
+      : HSLColor.lerp(mid, high, (t - ringOrangeStop) / (1 - ringOrangeStop))!;
   return hsl.toColor();
 }
 
@@ -116,6 +147,14 @@ class _RingPainter extends CustomPainter {
     // ring sweeps between a lighter and a slightly deeper shade of the same
     // color instead - just enough tonal drift to feel gently drawn rather
     // than a stamped-on ring, without changing what the color itself means.
+    //
+    // The gradient is stretched over the *drawn arc* (0..2π*ratio), not the
+    // whole circle. Spread over the full circle, a short arc would only ever
+    // show the light first sliver of it and a full lap the whole light->deep
+    // sweep - so two days with the identical amount but different fill
+    // lengths (e.g. 15th at 30% and 17th at 100%) rendered as visibly
+    // different colors. Scaled to the arc, every ring starts and ends on the
+    // same two shades no matter how far it fills.
     final hsl = HSLColor.fromColor(color);
     final startColor = hsl
         .withLightness((hsl.lightness + 0.12).clamp(0.0, 1.0))
@@ -123,15 +162,17 @@ class _RingPainter extends CustomPainter {
     final endColor = hsl
         .withLightness((hsl.lightness - 0.08).clamp(0.0, 1.0))
         .toColor();
+    final sweep = 2 * math.pi * ratio;
     final paint = Paint()
       ..shader = SweepGradient(
+        endAngle: sweep,
         colors: [startColor, endColor],
         transform: const GradientRotation(-math.pi / 2),
       ).createShader(rect)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * ratio, false, paint);
+    canvas.drawArc(rect, -math.pi / 2, sweep, false, paint);
   }
 
   @override

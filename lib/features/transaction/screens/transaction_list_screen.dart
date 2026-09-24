@@ -332,8 +332,8 @@ class _CategoryFilterRowState extends State<_CategoryFilterRow> {
               overflow: TextOverflow.visible,
               // Forces every chip's text line box to the same height (fontSize
               // * 1.1) regardless of which glyphs it happens to contain -
-              // Hangul, the "·" in "여가·문화", and the emoji baked into the
-              // "👾AI" category name all carry different natural
+              // Hangul, the "·" in "여가·문화", and any emoji baked into a
+              // custom category name all carry different natural
               // ascent/descent, which without a strut left the icon looking
               // like it sat at a different height per chip even though every
               // chip used the same Row/Icon/Text setup.
