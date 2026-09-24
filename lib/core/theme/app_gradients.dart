@@ -47,6 +47,16 @@ class AppGradients {
     colors: [Color(0xFF6DD9AB), Color(0xFF00AF76)],
   );
 
+  /// Shared tab header band (Calendar/Report). Same top-down direction and
+  /// colors as the top of Home's hero gradient (`HomeTokens.heroGradient`),
+  /// so every tab opens on the same deep-green-to-mint band.
+  static const LinearGradient tabHeader = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF00AF76), Color(0xFF00AE76), Color(0xFF6DD9AB)],
+    stops: [0.0, 0.3, 1.0],
+  );
+
   /// The manual-input FAB's radial gradient.
   static const RadialGradient fab = RadialGradient(
     colors: [Color(0xFF00AF76), Color(0xFFBFEBDD)],

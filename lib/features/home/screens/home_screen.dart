@@ -7,8 +7,11 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/providers/current_date_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/surface_style.dart';
 import '../../../core/widgets/manual_input_fab.dart';
+import '../../../core/widgets/tab_header.dart';
 import '../../../data/api/category_api.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
 import '../../transaction/screens/transaction_detail_screen.dart';
@@ -71,7 +74,7 @@ class HomeScreen extends ConsumerWidget {
           SafeArea(
             bottom: false,
             child: RefreshIndicator(
-              color: const Color(0xFF00C875),
+              color: HomeTokens.accent,
               onRefresh: () => _onRefresh(ref),
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -100,46 +103,21 @@ class HomeScreen extends ConsumerWidget {
                         children: [
                           // Top Header
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${user?.name ?? '사용자'}님, 안녕하세요',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'How are you feeling today?',
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.85,
-                                          ),
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // NOTE: The Figma header (335:8091) only shows the bell
-                                // icon; the profile avatar was removed because MyPage
-                                // is now reached via the 5th bottom-nav tab.
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.notifications_none,
-                                    color: Colors.white,
-                                    size: 26,
-                                  ),
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.gutter,
+                              12,
+                              AppSpacing.gutter,
+                              0,
+                            ),
+                            // NOTE: The Figma header (335:8091) only shows the bell
+                            // icon; the profile avatar was removed because MyPage
+                            // is now reached via the 5th bottom-nav tab.
+                            child: TabHeaderTitleRow(
+                              title: '${user?.name ?? '사용자'}님, 안녕하세요',
+                              subtitle: 'How are you feeling today?',
+                              actions: [
+                                TabHeaderIconButton(
+                                  icon: Icons.notifications_none,
                                   onPressed: () {},
                                 ),
                               ],
@@ -155,10 +133,8 @@ class HomeScreen extends ConsumerWidget {
                                   horizontal: 16,
                                   vertical: 6,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.25),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
+                                decoration: AppSurfaces.onHeroPill
+                                    .toBoxDecoration(),
                                 child: Text(
                                   DateFormat(
                                     'M. d. E',
@@ -541,14 +517,12 @@ class HomeScreen extends ConsumerWidget {
                           if (transactions.isEmpty) {
                             return Container(
                               padding: const EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(AppRadii.button),
-                              ),
+                              decoration: AppSurfaces.contentCard
+                                  .toBoxDecoration(),
                               child: const Center(
                                 child: Text(
                                   '오늘 등록된 거래 내역이 없습니다.',
-                                  style: TextStyle(color: Color(0xFF9CA3AF)),
+                                  style: AppTextStyles.caption,
                                 ),
                               ),
                             );

@@ -70,6 +70,32 @@ class AppSurfaces {
     radius: AppRadii.pill,
   );
 
+  /// Top-level white card on the tab screens (Home/Calendar/Report): white,
+  /// no border, one soft shadow. Content padding is
+  /// `AppSpacing.cardPadding` for section cards, `AppSpacing.itemPadding`
+  /// for list/grid item cards.
+  static const SurfaceStyle contentCard = SurfaceStyle(
+    color: Colors.white,
+    radius: AppRadii.button,
+    shadows: AppShadows.content,
+  );
+
+  /// A tile nested inside a [contentCard] - tinted with the page background
+  /// instead of a second border/shadow, so cards never stack shadows.
+  static const SurfaceStyle insetTile = SurfaceStyle(
+    color: AppColorTokens.pageBackgroundHome,
+    radius: AppRadii.input,
+  );
+
+  /// Translucent pill that sits on a green header (Home's date pill,
+  /// Calendar's cycle selector, Report's month selector).
+  static final SurfaceStyle onHeroPill = SurfaceStyle(
+    color: Colors.white,
+    colorOpacity: 0.22,
+    borderColor: Colors.white.withValues(alpha: 0.45),
+    radius: AppRadii.pill,
+  );
+
   /// Home's D-Day hero card. Mirrors `HomeTokens.heroCardSurface` /
   /// `heroCardSurfaceOpacity` / `heroCardBorder` as literals (not an import)
   /// so `core/theme` doesn't depend on a feature folder. Must render

@@ -59,6 +59,12 @@ class AppShadows {
     ),
   ];
 
+  /// Standalone content card on the tab screens (Home/Calendar/Report) -
+  /// one soft shadow for every top-level white card.
+  static const List<BoxShadow> content = [
+    BoxShadow(color: Color(0x0A000000), blurRadius: 12, offset: Offset(0, 4)),
+  ];
+
   static final List<BoxShadow> elevatedStrong = [
     BoxShadow(
       color: Colors.black.withValues(alpha: 0.1),

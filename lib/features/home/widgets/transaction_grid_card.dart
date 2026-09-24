@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/surface_style.dart';
 import '../theme/home_tokens.dart';
 import '../utils/category_icons.dart';
 
@@ -36,12 +38,8 @@ class TransactionGridCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppRadii.button),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
-        ),
+        padding: const EdgeInsets.all(AppSpacing.itemPadding),
+        decoration: AppSurfaces.contentCard.toBoxDecoration(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -73,7 +71,7 @@ class TransactionGridCard extends StatelessWidget {
                 Container(
                   width: 32,
                   height: 32,
-                  decoration: BoxDecoration(color: const Color(0xFFE8FAF0), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: HomeTokens.chipActiveBg, borderRadius: BorderRadius.circular(8)),
                   child: Icon(categoryIconFor(categoryId, categoryName), size: 17, color: HomeTokens.accent),
                 ),
               ],

@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/app_gradients.dart';
-import '../../../core/theme/app_radii.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/surface_style.dart';
 import '../../../core/widgets/manual_input_fab.dart';
+import '../../../core/widgets/tab_header.dart';
 import '../../../data/api/finance_api.dart';
 import '../../../data/api/report_api.dart';
 import '../../../data/api/transaction_api.dart';
@@ -253,126 +254,60 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   padding: const EdgeInsets.only(bottom: 100),
                   child: Column(
                     children: [
-                      // Header
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: AppGradients.heroHeader,
-                        ),
-                        child: SafeArea(
-                          bottom: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.account_balance_wallet_rounded,
-                                      color: Colors.white,
-                                      size: 22,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      '캘린더',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.search,
-                                        color: Colors.white,
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 24,
-                                        minHeight: 24,
-                                      ),
-                                      onPressed: () {},
-                                    ),
-                                    const SizedBox(width: 20),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.notifications_none,
-                                        color: Colors.white,
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 24,
-                                        minHeight: 24,
-                                      ),
-                                      onPressed: () {},
-                                    ),
-                                  ],
+                      // Header - shared tab header band (same green, title
+                      // row and on-header pill style as Home/Report).
+                      TabHeaderBand(
+                        child: Column(
+                          children: [
+                            TabHeaderTitleRow(
+                              title: '캘린더',
+                              actions: [
+                                TabHeaderIconButton(
+                                  icon: Icons.search,
+                                  onPressed: () {},
                                 ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFF6DD9AB,
-                                    ).withValues(alpha: 0.56),
-                                    borderRadius: BorderRadius.circular(24),
-                                    // Soft translucent white instead of a
-                                    // near-opaque one, so the box reads as
-                                    // gently floating over the hero green
-                                    // rather than boxed in by a hard white
-                                    // line.
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                      width: 1,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.12,
-                                        ),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.chevron_left,
-                                          color: Colors.white,
-                                        ),
-                                        onPressed: _goToPreviousCycle,
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          '${DateFormat('yyyy. M. d.').format(cycle.start)} ~ ${DateFormat('yyyy. M. d.').format(cycle.end)}',
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.chevron_right,
-                                          color: Colors.white,
-                                        ),
-                                        onPressed: _goToNextCycle,
-                                      ),
-                                    ],
-                                  ),
+                                TabHeaderIconButton(
+                                  icon: Icons.notifications_none,
+                                  onPressed: () {},
                                 ),
                               ],
                             ),
-                          ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: AppSurfaces.onHeroPill
+                                  .toBoxDecoration(),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.chevron_left,
+                                      color: Colors.white,
+                                    ),
+                                    onPressed: _goToPreviousCycle,
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      '${DateFormat('yyyy. M. d.').format(cycle.start)} ~ ${DateFormat('yyyy. M. d.').format(cycle.end)}',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.white,
+                                    ),
+                                    onPressed: _goToNextCycle,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
 
@@ -382,7 +317,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       // page background between them - no negative offset, no
                       // translateY, no absolute positioning pulling this card up
                       // under the green header.
-                      const SizedBox(height: 20),
+                      const SizedBox(height: AppSpacing.sectionGap),
 
                       // One unified white card (Figma `calendar-reference`):
                       // summary box (its own blue-bordered sub-card) + weekday
@@ -391,17 +326,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(AppRadii.hero),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
+                          decoration: AppSurfaces.contentCard.toBoxDecoration(),
                           child: Column(
                             children: [
                               Padding(
@@ -411,33 +336,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   16,
                                   8,
                                 ),
+                                // Nested inside the calendar card, so it's a
+                                // tinted inset tile rather than a second
+                                // bordered/shadowed card.
                                 child: Container(
                                   width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(AppRadii.input),
-                                    // Quiet mint-tinted gray hairline (lighter
-                                    // than the old flat 0xFFDADDE1) + a soft
-                                    // shadow instead of a colored border - this
-                                    // card has enough visual accents already
-                                    // (header green, ring colors, income/expense
-                                    // text), so its own boundary should recede
-                                    // rather than compete for attention.
-                                    border: Border.all(
-                                      color: const Color(0xFFE7ECE9),
-                                      width: 1,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.05,
-                                        ),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
+                                  padding: const EdgeInsets.all(
+                                    AppSpacing.itemPadding,
                                   ),
+                                  decoration: AppSurfaces.insetTile
+                                      .toBoxDecoration(),
                                   child: _buildSummaryRow(monthlyReportAsync),
                                 ),
                               ),
@@ -644,7 +552,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       children: [
         RichText(
           text: TextSpan(
-            style: const TextStyle(fontSize: 20, color: HomeTokens.textDark),
+            style: const TextStyle(fontSize: 18, color: HomeTokens.textDark),
             children: [
               const TextSpan(text: '이번 달 '),
               const TextSpan(

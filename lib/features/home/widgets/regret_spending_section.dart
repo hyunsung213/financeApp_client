@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../../core/theme/app_shadows.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/surface_style.dart';
 import '../theme/home_tokens.dart';
 import 'home_section_header.dart';
 
@@ -29,12 +31,8 @@ class RegretTransactionRow extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 16),
-        decoration: BoxDecoration(
-          color: HomeTokens.cardSurface,
-          borderRadius: BorderRadius.circular(AppRadii.input),
-          boxShadow: AppShadows.hairline,
-        ),
+        padding: const EdgeInsets.all(AppSpacing.itemPadding),
+        decoration: AppSurfaces.contentCard.toBoxDecoration(),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -130,28 +128,21 @@ class RegretSpendingSection extends StatelessWidget {
     if (data == null || data.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.gutter, 28, AppSpacing.gutter, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '최근 소비 돌아보기',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: HomeTokens.accent,
-            ),
-          ),
-          const SizedBox(height: 6),
+          const Text('최근 소비 돌아보기', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 4),
           const Text(
             "'아쉬운 소비'로 평가한 최근 거래를 보여드립니다.",
-            style: TextStyle(fontSize: 16, color: HomeTokens.textDark),
+            style: AppTextStyles.secondary,
           ),
           const SizedBox(height: 20),
           HomeSectionHeader(
             title: '아쉬운 소비',
             actionLabel: '총 ${data.length}건',
-            titleColor: HomeTokens.textDark,
+            titleStyle: AppTextStyles.cardTitle,
           ),
           const SizedBox(height: 12),
           ...data.map(
@@ -166,7 +157,7 @@ class RegretSpendingSection extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             '항목을 터치하면 공통 거래 상세 화면으로 이동합니다.',
-            style: TextStyle(fontSize: 13, color: HomeTokens.textMuted),
+            style: AppTextStyles.caption,
           ),
         ],
       ),

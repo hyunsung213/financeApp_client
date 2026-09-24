@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../../core/theme/app_shadows.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/surface_style.dart';
 import '../../../core/widgets/manual_input_fab.dart' show kBottomNavBarHeight;
+import '../../../core/widgets/tab_header.dart';
 import '../../calendar/providers/calendar_focus_provider.dart';
 import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
@@ -45,108 +45,80 @@ class ReportScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: HomeTokens.pageBackground,
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 220,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [HomeTokens.heroGradient.last, HomeTokens.pageBackground],
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: dataAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => Center(child: Text('리포트를 불러오지 못했어요\n$e', textAlign: TextAlign.center)),
-              data: (data) {
-                return ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              style: const TextStyle(fontSize: 20, height: 1.3, color: HomeTokens.textDark),
-                              children: const [
-                                TextSpan(text: '이번 달 소비,\n', style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(text: '잘 관리하고 있어요.', style: TextStyle(fontWeight: FontWeight.normal)),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.notifications_none, size: 24, color: HomeTokens.textDark),
-                            onPressed: () {},
-                          ),
-                        ],
+      body: dataAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator(color: HomeTokens.accent)),
+        error: (e, st) => SafeArea(child: Center(child: Text('리포트를 불러오지 못했어요\n$e', textAlign: TextAlign.center))),
+        data: (data) {
+          // Top inset is handled by the header band itself (it paints under
+          // the status bar), so only the bottom inset is reserved here.
+          return SafeArea(
+            top: false,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                TabHeaderBand(
+                  child: Column(
+                    children: [
+                      TabHeaderTitleRow(
+                        title: '이번 달 소비,',
+                        subtitle: '잘 관리하고 있어요.',
+                        actions: [TabHeaderIconButton(icon: Icons.notifications_none, onPressed: () {})],
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                      child: _HeroSummaryPanel(
+                      const SizedBox(height: 20),
+                      _HeroSummaryPanel(
                         totalExpense: data.totalExpense,
                         momPct: data.momPct,
                         month: currentMonth,
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sectionGap),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: _DailyFlowCard(
+                    month: currentMonth,
+                    points: data.dailyPoints,
+                    highlightDay: data.highlightDay,
+                    highlightAmount: data.highlightAmount,
+                    onMore: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                      child: _DailyFlowCard(
-                        month: currentMonth,
-                        points: data.dailyPoints,
-                        highlightDay: data.highlightDay,
-                        highlightAmount: data.highlightAmount,
-                        onMore: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
-                        ),
-                      ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: _CategoryCard(
+                    totalExpense: data.totalExpense,
+                    categories: data.categories,
+                    onMore: () => CategoryReportScreen.open(context, initialMonth: currentMonth),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: _InsightSummaryCard(
+                    highlights: data.highlights,
+                    onMore: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                      child: _CategoryCard(
-                        totalExpense: data.totalExpense,
-                        categories: data.categories,
-                        onMore: () => CategoryReportScreen.open(context, initialMonth: currentMonth),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                      child: _InsightSummaryCard(
-                        highlights: data.highlights,
-                        onMore: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
-                        ),
-                        onOpen: (highlight) => _openHighlight(context, ref, highlight, currentMonth),
-                      ),
-                    ),
-                    // Report's own ListView paints *under* the floating
-                    // bottom-nav pill from ScaffoldWithNavBar (a separate
-                    // Stack layer in router.dart, not Scaffold.bottomNavigationBar),
-                    // so scroll content needs to reserve that pill's own
-                    // footprint or the last card ends up hidden behind it.
-                    // The enclosing SafeArea above already reserves the
-                    // device's own bottom inset (system nav/gesture area),
-                    // so only the pill's height + a little breathing room is
-                    // added here - adding MediaQuery's bottom inset again
-                    // here too would double-count it.
-                    const SizedBox(height: kBottomNavBarHeight + 20),
-                  ],
-                );
-              },
+                    onOpen: (highlight) => _openHighlight(context, ref, highlight, currentMonth),
+                  ),
+                ),
+                // Report's own ListView paints *under* the floating
+                // bottom-nav pill from ScaffoldWithNavBar (a separate
+                // Stack layer in router.dart, not Scaffold.bottomNavigationBar),
+                // so scroll content needs to reserve that pill's own
+                // footprint or the last card ends up hidden behind it.
+                // The enclosing SafeArea above already reserves the
+                // device's own bottom inset (system nav/gesture area),
+                // so only the pill's height + a little breathing room is
+                // added here - adding MediaQuery's bottom inset again
+                // here too would double-count it.
+                const SizedBox(height: kBottomNavBarHeight + 20),
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -174,8 +146,8 @@ void _openHighlight(BuildContext context, WidgetRef ref, ReportHighlight highlig
   }
 }
 
-/// The dark-green rounded-bottom panel holding the total/MoM sentence
-/// (white text) and the month-select pill (Figma nodes 378:5082/378:5086 +
+/// The total/MoM figures (white text) and the month-select pill, laid
+/// directly on the shared TabHeaderBand (Figma nodes 378:5082/378:5086 +
 /// 470:9473) — not a white card, matching the real Figma export rather than
 /// the screenshot's first impression.
 class _HeroSummaryPanel extends ConsumerWidget {
@@ -186,68 +158,55 @@ class _HeroSummaryPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-      decoration: BoxDecoration(
-        gradient: AppGradients.heroHeader,
-        borderRadius: BorderRadius.circular(AppRadii.button),
-      ),
-      child: Column(
-        children: [
+    // Sits directly on the shared TabHeaderBand: the same label -> key
+    // figure -> on-header pill hierarchy as Home's hero and Calendar's
+    // cycle selector.
+    return Column(
+      children: [
+        const Text('이번 달 지출', style: AppTextStyles.headerLabel),
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(formatWon(totalExpense), style: AppTextStyles.headerFigure),
+        ),
+        if (momPct != null) ...[
+          const SizedBox(height: 4),
           Text.rich(
             TextSpan(
-              style: const TextStyle(fontSize: 16, color: Colors.white),
+              style: AppTextStyles.headerLabel,
               children: [
-                const TextSpan(text: '이번 달 지출은 '),
-                TextSpan(text: formatWon(totalExpense), style: const TextStyle(fontWeight: FontWeight.bold)),
-                const TextSpan(text: ' 이에요.'),
+                const TextSpan(text: '지난 달 보다 '),
+                TextSpan(
+                  text: '${momPct!.abs().round()}% ${momPct! <= 0 ? '적게' : '많이'}',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+                const TextSpan(text: ' 사용하셨네요!'),
               ],
             ),
             textAlign: TextAlign.center,
           ),
-          if (momPct != null) ...[
-            const SizedBox(height: 4),
-            Text.rich(
-              TextSpan(
-                style: const TextStyle(fontSize: 16, color: Colors.white),
-                children: [
-                  const TextSpan(text: '지난 달 보다 '),
-                  TextSpan(
-                    text: '${momPct!.abs().round()}% ${momPct! <= 0 ? '적게' : '많이'}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const TextSpan(text: ' 사용하셨네요!'),
-                ],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-          const SizedBox(height: 16),
-          InkWell(
-            borderRadius: BorderRadius.circular(AppRadii.compactInput),
-            onTap: () async {
-              final picked = await MonthPickerSheet.show(context, month);
-              if (picked != null) ref.read(reportMonthProvider.notifier).setMonth(picked);
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4ACB9A),
-                borderRadius: BorderRadius.circular(AppRadii.compactInput),
-                border: Border.all(color: Colors.white, width: 1),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('${month.month}월', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white)),
-                  const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.white),
-                ],
-              ),
+        ],
+        const SizedBox(height: 16),
+        InkWell(
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          onTap: () async {
+            final picked = await MonthPickerSheet.show(context, month);
+            if (picked != null) ref.read(reportMonthProvider.notifier).setMonth(picked);
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: AppSurfaces.onHeroPill.toBoxDecoration(),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('${month.month}월', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+                const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.white),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -261,23 +220,19 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.button),
-        boxShadow: AppShadows.elevatedSurface,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.cardPadding),
+      decoration: AppSurfaces.contentCard.toBoxDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+              Text(title, style: AppTextStyles.cardTitle),
               if (onMore != null)
                 GestureDetector(
                   onTap: onMore,
-                  child: const Text('더보기', style: TextStyle(color: HomeTokens.textMuted, fontSize: 13)),
+                  child: const Text('더보기', style: AppTextStyles.sectionAction),
                 ),
             ],
           ),
@@ -623,13 +578,13 @@ class _InsightSummaryCard extends StatelessWidget {
                           onTap: () => onOpen(highlight),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: AppColorTokens.negativeSoftBg,
-                              borderRadius: BorderRadius.circular(AppRadii.input),
-                            ),
+                            // Nested inside the card -> inset tile; brand
+                            // green for the neutral fact icon (orange stays
+                            // reserved for over-budget warnings).
+                            decoration: AppSurfaces.insetTile.toBoxDecoration(),
                             child: Row(
                               children: [
-                                Icon(highlight.icon, size: 18, color: AppColors.warning),
+                                Icon(highlight.icon, size: 18, color: HomeTokens.accent),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
