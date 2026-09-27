@@ -337,9 +337,11 @@ class HomeScreen extends ConsumerWidget {
                                               children: [
                                                 Row(
                                                   children: [
-                                                    const Text(
-                                                      '다음 월급일까지 앞으로 ',
-                                                      style: TextStyle(
+                                                    Text(
+                                                      data.awaitingSalary
+                                                          ? '예정 월급일이 지났어요 · '
+                                                          : '다음 월급일까지 앞으로 ',
+                                                      style: const TextStyle(
                                                         fontSize: 14,
                                                         fontWeight:
                                                             FontWeight.w600,
@@ -349,7 +351,7 @@ class HomeScreen extends ConsumerWidget {
                                                       ),
                                                     ),
                                                     Text(
-                                                      'D-${data.daysUntilSalary}',
+                                                      data.salaryCountdownLabel,
                                                       style: const TextStyle(
                                                         fontSize: 15,
                                                         fontWeight:
@@ -643,7 +645,7 @@ class HomeScreen extends ConsumerWidget {
           _DetailRow(
             Icons.event_outlined,
             '다음 월급일까지',
-            'D-${data.daysUntilSalary}',
+            data.salaryCountdownLabel,
           ),
           _DetailRow(
             Icons.account_balance_wallet_outlined,
@@ -678,9 +680,10 @@ class HomeScreen extends ConsumerWidget {
       ),
       builder: (context) => _DetailSheet(
         title: '이번 월급 주기',
-        subtitle:
-            '${dateFormat.format(cycleStart)} ~ ${dateFormat.format(cycleEnd)}',
-        headline: 'D-${data.daysUntilSalary}',
+        subtitle: data.awaitingSalary
+            ? '예정 월급일이 지났어요'
+            : '${dateFormat.format(cycleStart)} ~ ${dateFormat.format(cycleEnd)}',
+        headline: data.salaryCountdownLabel,
         headlineColor: HomeTokens.accent,
         rows: [
           _DetailRow(
@@ -701,7 +704,7 @@ class HomeScreen extends ConsumerWidget {
           _DetailRow(
             Icons.hourglass_bottom,
             '남은 기간',
-            '${data.daysUntilSalary}일',
+            data.awaitingSalary ? '월급 입력 전' : '${data.daysUntilSalary}일',
           ),
           _DetailRow(
             Icons.stars_outlined,

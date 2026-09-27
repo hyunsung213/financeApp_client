@@ -358,15 +358,13 @@ class _SalaryCycleSettingsScreenState
         ),
       ),
       data: (home) {
-        final cycleEnd = DateTime.now().add(
-          Duration(days: home.daysUntilSalary),
-        );
-        final cycleStart = DateTime(
-          cycleEnd.year,
-          cycleEnd.month - 1,
-          cycleEnd.day,
-        );
+        // The ACTIVE cycle's real dates from the API, shown as-is.
         final dateFormat = DateFormat('M.d', 'ko_KR');
+        final cycleStart = home.cycleStartDate;
+        final cycleEnd = home.cycleProjectedEndDate;
+        final cycleRange = cycleStart != null && cycleEnd != null
+            ? '${dateFormat.format(cycleStart)} - ${dateFormat.format(cycleEnd)}'
+            : '';
         final usagePercent = (home.flexibleUsageRatio * 100).round();
 
         return _previewShell(
@@ -374,15 +372,19 @@ class _SalaryCycleSettingsScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '다음 월급일까지 앞으로 D-${home.daysUntilSalary}',
+                home.awaitingSalary
+                    ? home.salaryCountdownLabel
+                    : '다음 월급일까지 앞으로 ${home.salaryCountdownLabel}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: MyTokens.accent,
                 ),
               ),
               const SizedBox(height: 4),
+              // Once the expected payday has passed the projected end is
+              // behind us - show the state instead of a range (as Home does).
               Text(
-                '${dateFormat.format(cycleStart)} - ${dateFormat.format(cycleEnd)}',
+                home.awaitingSalary ? '예정 월급일이 지났어요' : cycleRange,
                 style: const TextStyle(
                   color: MyTokens.textPrimary,
                   fontSize: 12,

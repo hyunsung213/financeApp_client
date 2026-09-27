@@ -27,6 +27,18 @@ class HomeData {
   final String paceStatus;
   final int paceDifference;
   final double flexibleUsageRatio;
+  // The ACTIVE cycle's real dates as the backend stores them (`cycle.startDate`
+  // / `cycle.projectedEndDate`); null when an older backend omits them.
+  final DateTime? cycleStartDate;
+  final DateTime? cycleProjectedEndDate;
+
+  // The backend sends 0 only once the expected payday has arrived without a
+  // salary entered (the ACTIVE cycle keeps running); otherwise it is >= 1.
+  bool get awaitingSalary => daysUntilSalary <= 0;
+
+  // Shown in place of a D-0 that would never advance while awaiting salary.
+  String get salaryCountdownLabel =>
+      awaitingSalary ? '월급 입력 대기' : 'D-$daysUntilSalary';
 
   HomeData({
     required this.recommendedAmount,
@@ -40,6 +52,8 @@ class HomeData {
     required this.paceStatus,
     required this.paceDifference,
     required this.flexibleUsageRatio,
+    this.cycleStartDate,
+    this.cycleProjectedEndDate,
   });
 
   factory HomeData.fromJson(Map<String, dynamic> json) {
@@ -74,6 +88,10 @@ class HomeData {
       paceStatus: json['pace']?['status']?.toString() ?? 'UNKNOWN',
       paceDifference: _toInt(json['pace']?['difference']),
       flexibleUsageRatio: ratio,
+      cycleStartDate: DateTime.tryParse('${json['cycle']?['startDate']}'),
+      cycleProjectedEndDate: DateTime.tryParse(
+        '${json['cycle']?['projectedEndDate']}',
+      ),
     );
   }
 }
