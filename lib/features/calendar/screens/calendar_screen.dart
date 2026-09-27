@@ -439,15 +439,25 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             duration: const Duration(milliseconds: 220),
             switchInCurve: Curves.easeOut,
             switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) => ClipRect(
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: Offset(_lastCycleShiftDirection * 0.15, 0),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: FadeTransition(opacity: animation, child: child),
-              ),
-            ),
+            // The grid moves the same way the finger does: going to the next
+            // cycle (left-to-right drag / ">") slides everything rightward -
+            // the new cycle enters from the left while the old one exits to
+            // the right - and the previous cycle mirrors that. The outgoing
+            // child runs this same tween in reverse, so it gets the opposite
+            // start offset to exit in the same direction.
+            transitionBuilder: (child, animation) {
+              final shift = _lastCycleShiftDirection * 0.15;
+              final isIncoming = child.key == ValueKey(_cycleOffset);
+              return ClipRect(
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: Offset(isIncoming ? -shift : shift, 0),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+              );
+            },
             child: Column(
               key: ValueKey(_cycleOffset),
               children: [
@@ -481,15 +491,22 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   // _goToNextCycle docs above).
   void _handleGridSwipeEnd(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
-    final swipedLeft =
-        _horizontalDragDistance < -_swipeDistanceThreshold ||
-        velocity < -_swipeVelocityThreshold;
-    final swipedRight =
-        _horizontalDragDistance > _swipeDistanceThreshold ||
-        velocity > _swipeVelocityThreshold;
-    if (swipedLeft) {
+    // The finger's net travel decides the direction whenever it is long
+    // enough; release velocity only decides short flicks. Checking
+    // "distance OR velocity" per side (left first) turned a left-to-right
+    // drag that paused and drifted back on lift - positive distance but
+    // negative release velocity - into a "previous cycle" swipe.
+    final int direction;
+    if (_horizontalDragDistance.abs() >= _swipeDistanceThreshold) {
+      direction = _horizontalDragDistance.sign.toInt();
+    } else if (velocity.abs() >= _swipeVelocityThreshold) {
+      direction = velocity.sign.toInt();
+    } else {
+      direction = 0;
+    }
+    if (direction < 0) {
       _goToPreviousCycle();
-    } else if (swipedRight) {
+    } else if (direction > 0) {
       _goToNextCycle();
     }
   }
