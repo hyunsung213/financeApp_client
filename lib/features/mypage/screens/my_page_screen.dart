@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../theme/my_tokens.dart';
 import 'app_info_screen.dart';
+import 'budget_plan_settings_screen.dart';
 import 'coming_soon_screen.dart';
 import 'notification_settings_screen.dart';
 import 'salary_cycle_settings_screen.dart';
@@ -112,10 +113,18 @@ class MyPageScreen extends ConsumerWidget {
                     _menuRow(
                       context,
                       icon: Icons.calendar_month_outlined,
-                      title: '월급 주기 설정',
-                      subtitle: '월급일, 주기 설정',
+                      title: '월급 설정',
+                      subtitle: '월급일, 월급 금액, 주기 설정',
                       onTap: () =>
                           _push(context, const SalaryCycleSettingsScreen()),
+                    ),
+                    _menuRow(
+                      context,
+                      icon: Icons.pie_chart_outline,
+                      title: '예산 배분 설정',
+                      subtitle: '저축·투자·지출 예산 비율 설정',
+                      onTap: () =>
+                          _push(context, const BudgetPlanSettingsScreen()),
                     ),
                     _menuRow(
                       context,

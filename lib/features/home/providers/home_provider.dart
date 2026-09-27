@@ -43,8 +43,17 @@ class HomeData {
   });
 
   factory HomeData.fromJson(Map<String, dynamic> json) {
-    final flexibleBudget = _toInt(json['budget']?['flexibleBudget']);
-    final flexibleSpent = _toInt(json['budget']?['flexibleSpent']);
+    // Category-percentage budget model: the "freely spendable" pool is the
+    // 9 daily-spendable 대분류 (저축/투자/고정지출 excluded), reported as
+    // usableBudgetAmount / variableExpenseAmount / remainingUsableAmount.
+    // The old flexible* keys are kept as a fallback for older backends.
+    final budget = json['budget'];
+    final flexibleBudget = _toInt(
+      budget?['usableBudgetAmount'] ?? budget?['flexibleBudget'],
+    );
+    final flexibleSpent = _toInt(
+      budget?['variableExpenseAmount'] ?? budget?['flexibleSpent'],
+    );
     final ratio = flexibleBudget > 0
         ? (flexibleSpent / flexibleBudget).clamp(0.0, 1.0)
         : 0.0;
@@ -55,7 +64,7 @@ class HomeData {
       remainingToday: _toInt(json['today']?['remainingToday']),
       daysUntilSalary: _toInt(json['daysUntilSalary']),
       remainingFlexibleAmount: _toInt(
-        json['budget']?['remainingFlexibleAmount'],
+        budget?['remainingUsableAmount'] ?? budget?['remainingFlexibleAmount'],
       ),
       totalFlexibleAmount: flexibleBudget,
       usedFlexibleAmount: flexibleSpent,

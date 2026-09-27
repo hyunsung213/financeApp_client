@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../../notification/providers/notification_provider.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../mypage/utils/budget_plan_items.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
@@ -44,15 +46,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   final _salaryController = TextEditingController();
   final _salaryDayController = TextEditingController();
 
-  final _savingsController = TextEditingController(text: '50');
-  final _investController = TextEditingController(text: '10');
-  final _fixedController = TextEditingController(text: '10');
-  final _spendingController = TextEditingController(text: '30');
+  // 12-item budget plan, keyed by budget-plan categoryId. Pre-filled from
+  // the backend's plan when step 3 opens (see _loadBudgetPlan).
+  final Map<String, TextEditingController> _budgetControllers = {
+    for (final (categoryId, _) in budgetPlanItems)
+      categoryId: TextEditingController(),
+  };
+  bool _loadingPlan = false;
+  bool _planLoadFailed = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    for (final controller in _budgetControllers.values) {
+      controller.addListener(() => setState(() {}));
+    }
   }
 
   @override
@@ -60,10 +69,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     WidgetsBinding.instance.removeObserver(this);
     _salaryController.dispose();
     _salaryDayController.dispose();
-    _savingsController.dispose();
-    _investController.dispose();
-    _fixedController.dispose();
-    _spendingController.dispose();
+    for (final controller in _budgetControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -74,30 +82,54 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     }
   }
 
+  int get _salary =>
+      int.tryParse(_salaryController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 3000000;
+  int get _salaryDay => int.tryParse(_salaryDayController.text) ?? 25;
+
+  int get _budgetTotal => _budgetControllers.values
+      .fold(0, (sum, c) => sum + (int.tryParse(c.text) ?? 0));
+
+  Future<void> _loadBudgetPlan() async {
+    setState(() {
+      _loadingPlan = true;
+      _planLoadFailed = false;
+    });
+    try {
+      final plan = await ref
+          .read(authProvider.notifier)
+          .loadOnboardingBudgetPlan(salary: _salary, salaryDay: _salaryDay);
+      for (final item in plan.whereType<Map>()) {
+        final controller = _budgetControllers[item['categoryId']];
+        final percentage = item['percentage'];
+        if (controller != null && percentage is num) {
+          controller.text = percentage.toInt().toString();
+        }
+      }
+    } catch (e) {
+      debugPrint('Onboarding budget plan load failed: $e');
+      if (mounted) setState(() => _planLoadFailed = true);
+    } finally {
+      if (mounted) setState(() => _loadingPlan = false);
+    }
+  }
+
   void next() {
     if (step < 4) {
+      if (step == 3 && _budgetTotal != 100) return;
       setState(() => step++);
+      if (step == 3) _loadBudgetPlan();
     } else {
-      // Complete onboarding
-      final salaryText = _salaryController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      final salary = int.tryParse(salaryText) ?? 3000000;
-      
-      final salaryDay = int.tryParse(_salaryDayController.text) ?? 25;
-      
-      final savings = int.tryParse(_savingsController.text) ?? 50;
-      final invest = int.tryParse(_investController.text) ?? 10;
-      final fixed = int.tryParse(_fixedController.text) ?? 10;
-      final spending = int.tryParse(_spendingController.text) ?? 30;
-
+      // Complete onboarding - the full 12-item plan in one request.
       ref.read(authProvider.notifier).completeOnboarding(
-        salary: salary,
-        salaryDay: salaryDay,
-        budget: {
-          'savings': savings,
-          'invest': invest,
-          'fixed': fixed,
-          'spending': spending,
-        },
+        salary: _salary,
+        salaryDay: _salaryDay,
+        allocations: [
+          for (final entry in _budgetControllers.entries)
+            {
+              'categoryId': entry.key,
+              'percentage': int.tryParse(entry.value.text) ?? 0,
+            },
+        ],
       );
     }
   }
@@ -141,7 +173,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 ),
               ),
               ElevatedButton(
-                onPressed: next,
+                // The budget step can only be left once the plan totals 100%.
+                onPressed: step == 3 && (_loadingPlan || _budgetTotal != 100)
+                    ? null
+                    : next,
                 child: Text(step == 4 ? '완료하기' : '다음'),
               ),
             ],
@@ -191,21 +226,54 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Widget _buildStep3() {
+    final total = _budgetTotal;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('예산을 어떻게 나눌까요?', style: Theme.of(context).textTheme.displayMedium),
         const SizedBox(height: 8),
-        Text('총합이 100%가 되어야 합니다.', style: Theme.of(context).textTheme.bodyMedium),
+        Row(
+          children: [
+            Expanded(
+              child: Text('총합이 100%가 되어야 합니다.', style: Theme.of(context).textTheme.bodyMedium),
+            ),
+            Text(
+              '합계: $total%${total == 100 ? ' ✓' : ''}',
+              style: TextStyle(
+                color: total == 100 ? AppColors.primary : AppColors.danger,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+        if (_planLoadFailed) ...[
+          const SizedBox(height: 8),
+          const Text(
+            '기본 비율을 불러오지 못했어요. 직접 입력해주세요.',
+            style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
+          ),
+        ],
         const SizedBox(height: 24),
-        _buildRow('저축', _savingsController),
-        const SizedBox(height: 8),
-        _buildRow('투자', _investController),
-        const SizedBox(height: 8),
-        _buildRow('고정생활', _fixedController),
-        const SizedBox(height: 8),
-        _buildRow('소비', _spendingController),
+        if (_loadingPlan)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else ...[
+          for (final (categoryId, name) in budgetPlanSavingItems) ...[
+            _buildRow(name, _budgetControllers[categoryId]!),
+            const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 8),
+          Text('지출 예산', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 8),
+          for (final (categoryId, name) in budgetPlanExpenseItems) ...[
+            _buildRow(name, _budgetControllers[categoryId]!),
+            const SizedBox(height: 8),
+          ],
+        ],
       ],
     );
   }
@@ -327,8 +395,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         Expanded(child: Text(label)),
         Expanded(
           child: TextField(
-            controller: controller, 
-            keyboardType: TextInputType.number, 
+            controller: controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              PercentInputFormatter(),
+            ],
             decoration: const InputDecoration(suffixText: '%'),
           ),
         ),

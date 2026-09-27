@@ -37,12 +37,6 @@ class AuthNotifier extends Notifier<AuthState> {
     );
     seedUser.salary = 2500000;
     seedUser.salaryDay = 10;
-    seedUser.budgetAllocation = {
-      'savings': 40,
-      'invest': 20,
-      'fixed': 10,
-      'spending': 30,
-    };
 
     return AuthState(
       isAuthenticated: true,
@@ -67,7 +61,26 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AuthState();
   }
 
-  Future<void> completeOnboarding({required int salary, required int salaryDay, required Map<String, int> budget}) async {
+  /// Saves the salary/payday entered so far and returns the budget plan to
+  /// pre-fill onboarding's budget step. `GET /api/finance/budget-plan`
+  /// requires a finance setting to exist, and for a user with no saved plan
+  /// it returns the backend's default plan (`isConfigured: false`) - so the
+  /// initial ratios come from the backend, not from the app.
+  Future<List<dynamic>> loadOnboardingBudgetPlan({required int salary, required int salaryDay}) async {
+    final financeApi = ref.read(financeApiProvider);
+    await financeApi.updateSetting(
+      salaryAmount: salary,
+      salaryDay: salaryDay,
+      reportingStartDay: 1, // Default
+    );
+    final plan = await financeApi.getBudgetPlan();
+    return (plan['allocations'] as List<dynamic>?) ?? [];
+  }
+
+  /// [allocations] is the complete 12-item plan (`{categoryId, percentage}`,
+  /// see budget_plan_items.dart), saved in one request - the same shape the
+  /// salary-cycle settings screen saves.
+  Future<void> completeOnboarding({required int salary, required int salaryDay, required List<Map<String, dynamic>> allocations}) async {
     try {
       final financeApi = ref.read(financeApiProvider);
 
@@ -78,12 +91,8 @@ class AuthNotifier extends Notifier<AuthState> {
         reportingStartDay: 1, // Default
       );
 
-      // 2. 예산 배분 API 호출
-      // 백엔드 검증 로직에 따라 합계가 100%가 되도록 순차 전송
-      await financeApi.createAllocation(name: '저축', allocationType: 'SAVING', percentage: budget['savings']!.toDouble(), spendability: 'LOCKED', active: true);
-      await financeApi.createAllocation(name: '투자', allocationType: 'INVESTMENT', percentage: budget['invest']!.toDouble(), spendability: 'LOCKED', active: true);
-      await financeApi.createAllocation(name: '고정생활', allocationType: 'FIXED_LIVING', percentage: budget['fixed']!.toDouble(), spendability: 'RESERVED', active: true);
-      await financeApi.createAllocation(name: '소비', allocationType: 'FLEXIBLE', percentage: budget['spending']!.toDouble(), spendability: 'FLEXIBLE', active: true);
+      // 2. 예산 배분 12개 항목을 한 번에 저장
+      await financeApi.updateBudgetPlan(allocations);
 
       state = state.copyWith(hasCompletedOnboarding: true);
     } catch (e) {

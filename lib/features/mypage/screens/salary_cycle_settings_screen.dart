@@ -7,6 +7,8 @@ import '../../../core/widgets/gradient_progress_bar.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../providers/my_page_provider.dart';
 import '../theme/my_tokens.dart';
+import '../widgets/settings_form.dart';
+import 'budget_plan_settings_screen.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
@@ -46,8 +48,6 @@ class _SalaryCycleSettingsScreenState
   int _salaryDay = 25;
   int _reportingStartDay = 1;
 
-  final Map<String, TextEditingController> _allocationControllers = {};
-  List<Map<String, dynamic>> _allocationsData = [];
   bool _isInitialized = false;
   bool _isSaving = false;
 
@@ -75,9 +75,6 @@ class _SalaryCycleSettingsScreenState
   void dispose() {
     _salaryController.dispose();
     _ageController.dispose();
-    for (final controller in _allocationControllers.values) {
-      controller.dispose();
-    }
     super.dispose();
   }
 
@@ -105,36 +102,6 @@ class _SalaryCycleSettingsScreenState
 
     final region = data.profile['region'] as String?;
     if (region != null && _regions.contains(region)) _selectedRegion = region;
-
-    _allocationsData = List<Map<String, dynamic>>.from(data.allocations);
-    if (_allocationsData.isEmpty) {
-      // No id yet — these don't exist on the backend, so saving must create
-      // them (see _allocationTypeFor in my_page_provider.dart), not PATCH a
-      // made-up id.
-      _allocationsData = [
-        {'id': null, 'name': '저축', 'percentage': 40.0, 'active': true},
-        {'id': null, 'name': '투자', 'percentage': 20.0, 'active': true},
-        {'id': null, 'name': '고정생활', 'percentage': 10.0, 'active': true},
-        {'id': null, 'name': '소비', 'percentage': 30.0, 'active': true},
-      ];
-    }
-
-    for (final alloc in _allocationsData) {
-      final name = alloc['name'] as String? ?? '항목';
-      final percentage = _parseToInt(alloc['percentage']) ?? 0;
-      _allocationControllers[name] = TextEditingController(
-        text: percentage.toString(),
-      );
-      _allocationControllers[name]!.addListener(() => setState(() {}));
-    }
-  }
-
-  int _calculateTotalPercentage() {
-    int total = 0;
-    for (final controller in _allocationControllers.values) {
-      total += int.tryParse(controller.text) ?? 0;
-    }
-    return total;
   }
 
   Future<void> _save() async {
@@ -143,7 +110,6 @@ class _SalaryCycleSettingsScreenState
       '',
     );
     final salary = int.tryParse(cleanSalary);
-    final totalPercentage = _calculateTotalPercentage();
 
     if (salary == null || salary <= 0) {
       ScaffoldMessenger.of(
@@ -151,31 +117,8 @@ class _SalaryCycleSettingsScreenState
       ).showSnackBar(const SnackBar(content: Text('올바른 월급 금액을 입력해주세요.')));
       return;
     }
-    if (totalPercentage != 100) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('예산 배분율의 합계는 100%여야 합니다. (현재: $totalPercentage%)'),
-        ),
-      );
-      return;
-    }
-
     setState(() => _isSaving = true);
     try {
-      final updatedAllocations = _allocationsData.map((alloc) {
-        final name = alloc['name'] as String? ?? '';
-        final controller = _allocationControllers[name];
-        final percentage =
-            (controller != null ? double.tryParse(controller.text) : null) ??
-            0.0;
-        return {
-          'id': alloc['id'],
-          'name': name,
-          'percentage': percentage,
-          'active': alloc['active'] ?? true,
-        };
-      }).toList();
-
       final age = int.tryParse(_ageController.text);
 
       await ref
@@ -184,7 +127,6 @@ class _SalaryCycleSettingsScreenState
             salaryAmount: salary,
             salaryDay: _salaryDay,
             reportingStartDay: _reportingStartDay,
-            allocations: updatedAllocations,
             age: age,
             region: _selectedRegion,
           );
@@ -214,32 +156,17 @@ class _SalaryCycleSettingsScreenState
 
     return Scaffold(
       backgroundColor: MyTokens.pageBackground,
-      appBar: AppBar(
-        title: const Text(
-          '월급 주기 설정',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: MyTokens.textPrimary,
-          ),
-        ),
-        backgroundColor: MyTokens.pageBackground,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: MyTokens.textPrimary,
-        elevation: 0,
-      ),
+      appBar: settingsAppBar('월급 설정'),
       body: myPageAsync.when(
         loading: () => const FormSkeleton(),
         error: (error, stack) => Center(child: Text('데이터를 불러오지 못했습니다: $error')),
         data: (data) {
           _initializeData(data);
-          final totalPercentage = _calculateTotalPercentage();
-          final isTotalValid = totalPercentage == 100;
 
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              _sectionCard(
+              SettingsSectionCard(
                 title: '월급일',
                 child: Column(
                   children: [
@@ -293,13 +220,13 @@ class _SalaryCycleSettingsScreenState
               _buildPreviewCard(context, ref),
               const SizedBox(height: 24),
 
-              _sectionCard(
+              SettingsSectionCard(
                 title: '월급 금액',
                 child: TextField(
                   controller: _salaryController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [CurrencyInputFormatter()],
-                  decoration: _inputDecoration(
+                  decoration: settingsInputDecoration(
                     labelText: '월급 금액',
                     suffixText: '원',
                     prefixIcon: const Icon(Icons.monetization_on_outlined),
@@ -308,88 +235,17 @@ class _SalaryCycleSettingsScreenState
               ),
               const SizedBox(height: 24),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '예산 배분율 설정',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: MyTokens.textPrimary,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    child: Text(
-                      '합계: $totalPercentage% ${isTotalValid ? '✓' : '(100% 필요)'}',
-                      style: TextStyle(
-                        color: isTotalValid
-                            ? MyTokens.accent
-                            : MyTokens.negative,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _sectionCard(
-                child: Column(
-                  children: _allocationsData.map((alloc) {
-                    final name = alloc['name'] as String? ?? '항목';
-                    final controller = _allocationControllers[name];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                                color: MyTokens.textPrimary,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: TextField(
-                              controller: controller,
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.end,
-                              decoration: _inputDecoration(
-                                suffixText: '%',
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
+              _buildBudgetPlanLink(context),
               const SizedBox(height: 24),
 
-              _sectionCard(
+              SettingsSectionCard(
                 title: '맞춤 청년정책 프로필',
                 child: Column(
                   children: [
                     TextField(
                       controller: _ageController,
                       keyboardType: TextInputType.number,
-                      decoration: _inputDecoration(
+                      decoration: settingsInputDecoration(
                         labelText: '만 나이',
                         suffixText: '세',
                         prefixIcon: const Icon(Icons.cake_outlined),
@@ -398,7 +254,7 @@ class _SalaryCycleSettingsScreenState
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedRegion,
-                      decoration: _inputDecoration(
+                      decoration: settingsInputDecoration(
                         labelText: '거주 지역',
                         prefixIcon: const Icon(Icons.location_on_outlined),
                       ),
@@ -414,40 +270,43 @@ class _SalaryCycleSettingsScreenState
               ),
               const SizedBox(height: 32),
 
-              ElevatedButton(
-                onPressed: _isSaving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: MyTokens.accent,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: MyTokens.placeholder,
-                  disabledForegroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(MyTokens.buttonRadius),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        '저장',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
+              SettingsSaveButton(isSaving: _isSaving, onPressed: _save),
               const SizedBox(height: 24),
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Small pointer to the separate 예산 배분 설정 screen.
+  Widget _buildBudgetPlanLink(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const BudgetPlanSettingsScreen()),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                '월급 금액을 기준으로 예산을 나눠 설정할 수 있어요.',
+                style: TextStyle(fontSize: 13, color: MyTokens.placeholder),
+              ),
+            ),
+            const Text(
+              '예산 배분 설정',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: MyTokens.accent,
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: MyTokens.accent),
+          ],
+        ),
       ),
     );
   }
@@ -585,66 +444,6 @@ class _SalaryCycleSettingsScreenState
       borderRadius: BorderRadius.circular(height / 2),
       baseColor: Colors.white.withValues(alpha: 0.55),
       highlightColor: Colors.white,
-    );
-  }
-
-  Widget _sectionCard({String? title, required Widget child}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null) ...[
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-              color: MyTokens.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: MyTokens.cardSurface,
-            borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-            boxShadow: MyTokens.cardShadow,
-          ),
-          child: child,
-        ),
-      ],
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    String? labelText,
-    String? suffixText,
-    Widget? prefixIcon,
-    bool? isDense,
-    EdgeInsetsGeometry? contentPadding,
-  }) {
-    OutlineInputBorder outline(Color color, [double width = 1]) =>
-        OutlineInputBorder(
-          borderRadius: BorderRadius.circular(MyTokens.inputRadius),
-          borderSide: BorderSide(color: color, width: width),
-        );
-    return InputDecoration(
-      labelText: labelText,
-      suffixText: suffixText,
-      prefixIcon: prefixIcon,
-      isDense: isDense,
-      contentPadding: contentPadding,
-      filled: true,
-      fillColor: Colors.white,
-      labelStyle: const TextStyle(color: MyTokens.placeholder),
-      floatingLabelStyle: const TextStyle(color: MyTokens.accent),
-      hintStyle: const TextStyle(color: MyTokens.placeholder),
-      suffixStyle: const TextStyle(color: MyTokens.textPrimary),
-      prefixIconColor: MyTokens.placeholder,
-      border: outline(MyTokens.borderNeutral),
-      enabledBorder: outline(MyTokens.borderNeutral),
-      focusedBorder: outline(MyTokens.accent, 1.5),
     );
   }
 

@@ -1,28 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/api/finance_api.dart';
 import '../../../data/api/policy_api.dart';
+import '../../calendar/screens/calendar_screen.dart';
 import '../../home/providers/home_provider.dart';
 import '../../policy/providers/policy_provider.dart';
-
-/// Maps a budget allocation's display name to the backend enums it needs.
-/// Matches the color/name convention already used across the mypage UI.
-(String, String) _allocationTypeFor(String name) {
-  switch (name) {
-    case '저축':
-      return ('SAVING', 'LOCKED');
-    case '투자':
-      return ('INVESTMENT', 'LOCKED');
-    case '고정생활':
-      return ('FIXED_LIVING', 'RESERVED');
-    case '소비':
-      return ('FLEXIBLE', 'FLEXIBLE');
-    default:
-      return ('OTHER', 'FLEXIBLE');
-  }
-}
+import '../../report/providers/report_provider.dart';
 
 class MyPageData {
   final Map<String, dynamic> setting;
+
+  /// Budget plan items `{categoryId, name, percentage}` from
+  /// `GET /api/finance/budget-plan` (저축/투자 + 10 지출 대분류).
   final List<dynamic> allocations;
   final Map<String, dynamic> profile;
 
@@ -50,7 +38,8 @@ final myPageDataProvider = FutureProvider.autoDispose<MyPageData>((ref) async {
 
   List<dynamic> allocations = [];
   try {
-    allocations = await financeApi.getAllocations();
+    final plan = await financeApi.getBudgetPlan();
+    allocations = (plan['allocations'] as List<dynamic>?) ?? [];
   } catch (e) {
     allocations = [];
   }
@@ -77,7 +66,6 @@ class MyPageActionsNotifier extends Notifier<void> {
     required int salaryAmount,
     required int salaryDay,
     required int reportingStartDay,
-    required List<Map<String, dynamic>> allocations,
     int? age,
     String? region,
   }) async {
@@ -91,36 +79,7 @@ class MyPageActionsNotifier extends Notifier<void> {
       reportingStartDay: reportingStartDay,
     );
 
-    // 2. Update existing allocations by id, or create ones that don't exist on
-    // the backend yet (e.g. the default 저축/투자/고정생활/소비 split shown to a
-    // brand-new user has no real id — PATCHing a made-up id would 404 silently).
-    for (final alloc in allocations) {
-      final id = alloc['id']?.toString();
-      final name = alloc['name'] as String? ?? '항목';
-      final rawPercentage = alloc['percentage'];
-      double percentage = 0.0;
-      if (rawPercentage is num) {
-        percentage = rawPercentage.toDouble();
-      } else if (rawPercentage is String) {
-        percentage = double.tryParse(rawPercentage) ?? 0.0;
-      }
-      final active = alloc['active'] as bool? ?? true;
-
-      if (id != null && id.isNotEmpty) {
-        await financeApi.updateAllocation(id, percentage: percentage, active: active);
-      } else {
-        final (allocationType, spendability) = _allocationTypeFor(name);
-        await financeApi.createAllocation(
-          name: name,
-          allocationType: allocationType,
-          percentage: percentage,
-          spendability: spendability,
-          active: active,
-        );
-      }
-    }
-
-    // 3. Update Policy Profile
+    // 2. Update Policy Profile
     if (age != null || region != null) {
       try {
         await policyApi.updateProfile(age: age, region: region);
@@ -132,6 +91,24 @@ class MyPageActionsNotifier extends Notifier<void> {
     ref.invalidate(homeDataProvider);
     ref.invalidate(profileProvider);
     ref.invalidate(recommendedPoliciesProvider);
+  }
+
+  /// Replaces the whole budget plan in one request - the backend only
+  /// accepts a complete 12-item plan totalling 100%, so items can't be
+  /// saved one at a time. [allocations] items are `{categoryId, percentage}`.
+  Future<void> saveBudgetPlan(List<Map<String, dynamic>> allocations) async {
+    final financeApi = ref.read(financeApiProvider);
+    await financeApi.updateBudgetPlan([
+      for (final alloc in allocations)
+        {'categoryId': alloc['categoryId'], 'percentage': alloc['percentage']},
+    ]);
+    // The plan applies to the current cycle right away, so every screen that
+    // shows its category limits or daily allowance refetches.
+    ref.invalidate(myPageDataProvider);
+    ref.invalidate(homeDataProvider);
+    ref.invalidate(reportMainDataProvider);
+    ref.invalidate(monthlyReportDataProvider);
+    ref.invalidate(monthlyReportProvider);
   }
 }
 

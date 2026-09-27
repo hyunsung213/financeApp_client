@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'api_client.dart';
 
@@ -16,7 +17,9 @@ class FinanceApi {
     if (response.data['success'] == true) {
       return response.data['data'];
     } else {
-      throw Exception(response.data['error']['message'] ?? 'Failed to get finance setting');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to get finance setting',
+      );
     }
   }
 
@@ -25,57 +28,78 @@ class FinanceApi {
     required int salaryDay,
     required int reportingStartDay,
   }) async {
-    final response = await _dio.put('/api/finance/setting', data: {
-      'salaryAmount': salaryAmount,
-      'salaryDay': salaryDay,
-      'reportingStartDay': reportingStartDay,
-    });
+    final response = await _dio.put(
+      '/api/finance/setting',
+      data: {
+        'salaryAmount': salaryAmount,
+        'salaryDay': salaryDay,
+        'reportingStartDay': reportingStartDay,
+      },
+    );
     if (response.data['success'] != true) {
-      throw Exception(response.data['error']['message'] ?? 'Failed to update finance setting');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to update finance setting',
+      );
     }
   }
 
-  Future<List<dynamic>> getAllocations() async {
-    final response = await _dio.get('/api/finance/allocations');
+  /// The user's 12-item budget plan (저축/투자 + 10 지출 대분류), each item
+  /// `{categoryId, name, percentage}`. `isConfigured` is false while the
+  /// backend is still serving its default plan.
+  Future<Map<String, dynamic>> getBudgetPlan() async {
+    final response = await _dio.get('/api/finance/budget-plan');
     if (response.data['success'] == true) {
-      return response.data['data'];
+      return Map<String, dynamic>.from(response.data['data']);
     } else {
-      throw Exception(response.data['error']['message'] ?? 'Failed to get allocations');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to get budget plan',
+      );
     }
   }
 
-  Future<Map<String, dynamic>> createAllocation({
-    required String name,
-    required String allocationType,
-    required double percentage,
-    required String spendability,
-    required bool active,
-  }) async {
-    final response = await _dio.post('/api/finance/allocations', data: {
-      'name': name,
-      'allocationType': allocationType,
-      'percentage': percentage,
-      'spendability': spendability,
-      'active': active,
-    });
+  /// Replaces the whole plan in one request (the backend validates 12 items
+  /// totalling 100%). Returns `effectiveFrom` (`CURRENT_CYCLE`: the
+  /// active salary cycle is re-budgeted immediately).
+  Future<Map<String, dynamic>> updateBudgetPlan(
+    List<Map<String, dynamic>> allocations,
+  ) async {
+    if (kDebugMode) {
+      final total = allocations.fold<num>(
+        0,
+        (sum, a) => sum + ((a['percentage'] as num?) ?? 0),
+      );
+      debugPrint(
+        '[budget-plan] PUT sending ${allocations.length} items, total $total%',
+      );
+    }
+    final Response response;
+    try {
+      response = await _dio.put(
+        '/api/finance/budget-plan',
+        data: {'allocations': allocations},
+      );
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '[budget-plan] PUT failed status=${e.response?.statusCode} body=${e.response?.data}',
+        );
+      }
+      rethrow;
+    }
+    if (kDebugMode) {
+      final saved = (response.data['data']?['allocations'] as List?)
+          ?.map((a) => '${a['name']}:${a['percentage']}')
+          .join(', ');
+      debugPrint(
+        '[budget-plan] PUT status=${response.statusCode} saved=[$saved]',
+      );
+    }
     if (response.data['success'] == true) {
-      return response.data['data'];
+      return Map<String, dynamic>.from(response.data['data']);
     } else {
-      throw Exception(response.data['error']['message'] ?? 'Failed to create allocation');
-    }
-  }
-
-  Future<void> updateAllocation(String id, {
-    double? percentage,
-    bool? active,
-  }) async {
-    final data = <String, dynamic>{};
-    if (percentage != null) data['percentage'] = percentage;
-    if (active != null) data['active'] = active;
-
-    final response = await _dio.patch('/api/finance/allocations/$id', data: data);
-    if (response.data['success'] != true) {
-      throw Exception(response.data['error']['message'] ?? 'Failed to update allocation');
+      throw Exception(
+        response.data['error']['message'] ?? 'Failed to update budget plan',
+      );
     }
   }
 }

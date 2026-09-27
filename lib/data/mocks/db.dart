@@ -4,7 +4,6 @@ class MockUser {
   String name;
   int? salary;
   int? salaryDay;
-  Map<String, int>? budgetAllocation;
 
   MockUser({
     required this.id,
@@ -12,7 +11,6 @@ class MockUser {
     required this.name,
     this.salary,
     this.salaryDay,
-    this.budgetAllocation,
   });
 }
 
