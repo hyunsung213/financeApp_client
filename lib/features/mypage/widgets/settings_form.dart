@@ -5,9 +5,11 @@ import '../theme/my_tokens.dart';
 /// Form building blocks shared by the 월급 설정 and 예산 배분 설정 screens, so
 /// both keep the exact same card/input/button look.
 
-/// App bar used by the settings detail screens.
-AppBar settingsAppBar(String title) {
+/// App bar used by the settings detail screens. [leading] replaces the
+/// default back button (e.g. onboarding steps that aren't separate routes).
+AppBar settingsAppBar(String title, {Widget? leading}) {
   return AppBar(
+    leading: leading,
     title: Text(
       title,
       style: const TextStyle(
@@ -96,11 +98,13 @@ InputDecoration settingsInputDecoration({
 class SettingsSaveButton extends StatelessWidget {
   final bool isSaving;
   final VoidCallback? onPressed;
+  final String label;
 
   const SettingsSaveButton({
     super.key,
     required this.isSaving,
     required this.onPressed,
+    this.label = '저장',
   });
 
   @override
@@ -127,9 +131,9 @@ class SettingsSaveButton extends StatelessWidget {
                 color: Colors.white,
               ),
             )
-          : const Text(
-              '저장',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          : Text(
+              label,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
     );
   }

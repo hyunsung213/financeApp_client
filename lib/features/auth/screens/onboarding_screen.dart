@@ -2,37 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../providers/auth_provider.dart';
-import '../../notification/providers/notification_provider.dart';
-import '../../../core/services/notification_service.dart';
-import '../../../core/theme.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../mypage/utils/budget_plan_items.dart';
 
-class CurrencyInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    if (newValue.text.isEmpty) {
-      return newValue.copyWith(text: '');
-    }
-    
-    final cleanText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanText.isEmpty) {
-      return newValue.copyWith(text: '');
-    }
+import '../../../core/widgets/skeleton.dart';
+import '../../mypage/screens/budget_plan_settings_screen.dart';
+import '../../mypage/theme/my_tokens.dart';
+import '../../mypage/utils/currency_input_formatter.dart';
+import '../../mypage/utils/profile_regions.dart';
+import '../../mypage/widgets/settings_form.dart';
+import '../providers/onboarding_provider.dart';
 
-    final int value = int.parse(cleanText);
-    final formatter = NumberFormat('#,###');
-    final String newText = formatter.format(value);
-
-    return TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newText.length),
-    );
-  }
-}
-
+/// Initial setup after sign-in: 사용자 정보 → 예산 배분 → Home.
+///
+/// The step comes from [onboardingStepProvider] (backend data), so a setup
+/// interrupted by closing the app resumes where it stopped. The only local
+/// state is "went back from 예산 배분 to edit 사용자 정보".
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -40,368 +23,258 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
-    with WidgetsBindingObserver {
-  int step = 1;
-  final _salaryController = TextEditingController();
-  final _salaryDayController = TextEditingController();
-
-  // 12-item budget plan, keyed by budget-plan categoryId. Pre-filled from
-  // the backend's plan when step 3 opens (see _loadBudgetPlan).
-  final Map<String, TextEditingController> _budgetControllers = {
-    for (final (categoryId, _) in budgetPlanItems)
-      categoryId: TextEditingController(),
-  };
-  bool _loadingPlan = false;
-  bool _planLoadFailed = false;
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  bool _editingProfile = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    for (final controller in _budgetControllers.values) {
-      controller.addListener(() => setState(() {}));
+  Widget build(BuildContext context) {
+    final step = ref.watch(onboardingStepProvider).value;
+
+    if (_editingProfile || step == OnboardingStep.profile) {
+      return _ProfileStep(
+        onSaved: () => setState(() => _editingProfile = false),
+      );
     }
+    return BudgetPlanSettingsScreen.onboarding(
+      onBack: () => setState(() => _editingProfile = true),
+      onComplete: () =>
+          ref.read(onboardingActionsProvider.notifier).refreshStep(),
+    );
   }
+}
+
+/// 사용자 정보: the salary setting the budget is calculated from (required)
+/// plus the policy-profile fields already used by 월급 설정/계정 관리
+/// (optional).
+class _ProfileStep extends ConsumerStatefulWidget {
+  final VoidCallback onSaved;
+
+  const _ProfileStep({required this.onSaved});
+
+  @override
+  ConsumerState<_ProfileStep> createState() => _ProfileStepState();
+}
+
+class _ProfileStepState extends ConsumerState<_ProfileStep> {
+  final _salaryController = TextEditingController();
+  final _ageController = TextEditingController();
+  int? _salaryDay;
+  String? _region;
+  int _reportingStartDay = 1;
+  bool _initialized = false;
+  bool _saving = false;
+  String? _error;
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _salaryController.dispose();
-    _salaryDayController.dispose();
-    for (final controller in _budgetControllers.values) {
-      controller.dispose();
-    }
+    _ageController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && step == 4) {
-      ref.read(notificationAccessProvider.notifier).checkStatus();
+  void _initialize(OnboardingProfileDraft draft) {
+    if (_initialized) return;
+    _initialized = true;
+    final salary = draft.salaryAmount;
+    if (salary != null && salary > 0) {
+      _salaryController.text = NumberFormat('#,###').format(salary);
     }
+    _salaryDay = draft.salaryDay;
+    _reportingStartDay = draft.reportingStartDay ?? 1;
+    if (draft.age != null) _ageController.text = '${draft.age}';
+    if (profileRegions.contains(draft.region)) _region = draft.region;
   }
 
-  int get _salary =>
-      int.tryParse(_salaryController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 3000000;
-  int get _salaryDay => int.tryParse(_salaryDayController.text) ?? 25;
+  Future<void> _next() async {
+    final salary = int.tryParse(
+      _salaryController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+    );
+    final ageText = _ageController.text.trim();
+    final age = int.tryParse(ageText);
+    final String? error;
+    if (salary == null || salary <= 0) {
+      error = '월급 금액을 입력해주세요.';
+    } else if (_salaryDay == null) {
+      error = '월급일을 선택해주세요.';
+    } else if (ageText.isNotEmpty && (age == null || age > 120)) {
+      error = '만 나이를 0~120 사이로 입력해주세요.';
+    } else {
+      error = null;
+    }
+    if (error != null) {
+      setState(() => _error = error);
+      return;
+    }
 
-  int get _budgetTotal => _budgetControllers.values
-      .fold(0, (sum, c) => sum + (int.tryParse(c.text) ?? 0));
-
-  Future<void> _loadBudgetPlan() async {
+    FocusScope.of(context).unfocus();
     setState(() {
-      _loadingPlan = true;
-      _planLoadFailed = false;
+      _saving = true;
+      _error = null;
     });
     try {
-      final plan = await ref
-          .read(authProvider.notifier)
-          .loadOnboardingBudgetPlan(salary: _salary, salaryDay: _salaryDay);
-      for (final item in plan.whereType<Map>()) {
-        final controller = _budgetControllers[item['categoryId']];
-        final percentage = item['percentage'];
-        if (controller != null && percentage is num) {
-          controller.text = percentage.toInt().toString();
-        }
-      }
-    } catch (e) {
-      debugPrint('Onboarding budget plan load failed: $e');
-      if (mounted) setState(() => _planLoadFailed = true);
-    } finally {
-      if (mounted) setState(() => _loadingPlan = false);
-    }
-  }
-
-  void next() {
-    if (step < 4) {
-      if (step == 3 && _budgetTotal != 100) return;
-      setState(() => step++);
-      if (step == 3) _loadBudgetPlan();
-    } else {
-      // Complete onboarding - the full 12-item plan in one request.
-      ref.read(authProvider.notifier).completeOnboarding(
-        salary: _salary,
-        salaryDay: _salaryDay,
-        allocations: [
-          for (final entry in _budgetControllers.entries)
-            {
-              'categoryId': entry.key,
-              'percentage': int.tryParse(entry.value.text) ?? 0,
-            },
-        ],
-      );
-    }
-  }
-
-  void previous() {
-    if (step > 1) {
-      setState(() => step--);
+      await ref
+          .read(onboardingActionsProvider.notifier)
+          .saveProfileStep(
+            salaryAmount: salary!,
+            salaryDay: _salaryDay!,
+            reportingStartDay: _reportingStartDay,
+            age: age,
+            region: _region,
+          );
+      if (mounted) widget.onSaved();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = '저장하지 못했어요. 잠시 후 다시 시도해주세요.';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final draftAsync = ref.watch(onboardingProfileDraftProvider);
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: step > 1
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: previous,
-              )
-            : null,
+      backgroundColor: MyTokens.pageBackground,
+      appBar: settingsAppBar('사용자 정보', leading: const SizedBox.shrink()),
+      body: draftAsync.when(
+        loading: () => const FormSkeleton(),
+        // Nothing to pre-fill is not a reason to block setup.
+        error: (_, _) => _form(const OnboardingProfileDraft()),
+        data: _form,
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    );
+  }
+
+  Widget _form(OnboardingProfileDraft draft) {
+    _initialize(draft);
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
             children: [
-              Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: step == 1
-                        ? _buildStep1()
-                        : step == 2
-                            ? _buildStep2()
-                            : step == 3
-                                ? _buildStep3()
-                                : _buildStep4(),
-                  ),
+              const Text(
+                '기본 정보를 알려주세요',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: MyTokens.textPrimary,
                 ),
               ),
-              ElevatedButton(
-                // The budget step can only be left once the plan totals 100%.
-                onPressed: step == 3 && (_loadingPlan || _budgetTotal != 100)
-                    ? null
-                    : next,
-                child: Text(step == 4 ? '완료하기' : '다음'),
+              const SizedBox(height: 6),
+              const Text(
+                '월급과 월급일로 매일 쓸 수 있는 예산을 계산해요.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: MyTokens.placeholder,
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStep1() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('월급은 얼마인가요?', style: Theme.of(context).textTheme.displayMedium),
-        const SizedBox(height: 24),
-        TextField(
-          controller: _salaryController, 
-          keyboardType: TextInputType.number, 
-          inputFormatters: [CurrencyInputFormatter()],
-          decoration: const InputDecoration(
-            hintText: '예: 3,000,000',
-            suffixText: '원',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep2() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('월급은 언제 들어오나요?', style: Theme.of(context).textTheme.displayMedium),
-        const SizedBox(height: 24),
-        TextField(
-          controller: _salaryDayController, 
-          keyboardType: TextInputType.number, 
-          decoration: const InputDecoration(
-            hintText: '매월 며칠 (예: 25)',
-            suffixText: '일',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep3() {
-    final total = _budgetTotal;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('예산을 어떻게 나눌까요?', style: Theme.of(context).textTheme.displayMedium),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Text('총합이 100%가 되어야 합니다.', style: Theme.of(context).textTheme.bodyMedium),
-            ),
-            Text(
-              '합계: $total%${total == 100 ? ' ✓' : ''}',
-              style: TextStyle(
-                color: total == 100 ? AppColors.primary : AppColors.danger,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-        if (_planLoadFailed) ...[
-          const SizedBox(height: 8),
-          const Text(
-            '기본 비율을 불러오지 못했어요. 직접 입력해주세요.',
-            style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
-          ),
-        ],
-        const SizedBox(height: 24),
-        if (_loadingPlan)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else ...[
-          for (final (categoryId, name) in budgetPlanSavingItems) ...[
-            _buildRow(name, _budgetControllers[categoryId]!),
-            const SizedBox(height: 8),
-          ],
-          const SizedBox(height: 8),
-          Text('지출 예산', style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 8),
-          for (final (categoryId, name) in budgetPlanExpenseItems) ...[
-            _buildRow(name, _budgetControllers[categoryId]!),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-
-  Widget _buildStep4() {
-    final accessAsync = ref.watch(notificationAccessProvider);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Icon(Icons.notifications_active_outlined, size: 56, color: Color(0xFF0066FF)),
-        const SizedBox(height: 16),
-        Text('금융 알림 자동 수집',
-            style: Theme.of(context).textTheme.displayMedium, textAlign: TextAlign.center),
-        const SizedBox(height: 12),
-        const Text(
-          '은행 및 카드사의 결제·입출금 알림을 자동으로 수집하여 가계부에 기록합니다.\n앱이 꺼져 있어도 안전하게 수집됩니다.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey, height: 1.5, fontSize: 14),
-        ),
-        const SizedBox(height: 28),
-
-        // Status Card
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColorTokens.dividerTrack),
-          ),
-          child: accessAsync.when(
-            loading: () => const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-            error: (e, st) => Text('상태 확인 오류: $e'),
-            data: (status) {
-              final statusText = switch (status) {
-                NotificationAccessStatus.granted => '허용됨',
-                NotificationAccessStatus.denied => '허용되지 않음',
-                NotificationAccessStatus.unsupported => 'iOS에서 지원되지 않음',
-              };
-
-              final statusColor = switch (status) {
-                NotificationAccessStatus.granted => const Color(0xFF10B981),
-                NotificationAccessStatus.denied => const Color(0xFFF59E0B),
-                NotificationAccessStatus.unsupported => const Color(0xFF9CA3AF),
-              };
-
-              final statusIcon = switch (status) {
-                NotificationAccessStatus.granted => Icons.check_circle,
-                NotificationAccessStatus.denied => Icons.warning_amber_rounded,
-                NotificationAccessStatus.unsupported => Icons.info_outline,
-              };
-
-              return Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('알림 접근 권한 상태',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(statusIcon, color: statusColor, size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              statusText,
-                              style: TextStyle(
-                                color: statusColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
+              const SizedBox(height: 24),
+              SettingsSectionCard(
+                title: '월급',
+                child: Column(
+                  children: [
+                    TextField(
+                      key: const ValueKey('onboarding-salary'),
+                      controller: _salaryController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [CurrencyInputFormatter()],
+                      decoration: settingsInputDecoration(
+                        labelText: '월급 금액',
+                        suffixText: '원',
+                        prefixIcon: const Icon(Icons.monetization_on_outlined),
                       ),
-                    ],
-                  ),
-                  if (status == NotificationAccessStatus.denied) ...[
+                    ),
                     const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0066FF),
-                        side: const BorderSide(color: Color(0xFF0066FF)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    DropdownButtonFormField<int>(
+                      key: const ValueKey('onboarding-salary-day'),
+                      initialValue: _salaryDay,
+                      decoration: settingsInputDecoration(
+                        labelText: '월급일',
+                        prefixIcon: const Icon(Icons.calendar_month_outlined),
                       ),
-                      onPressed: () {
-                        ref.read(notificationAccessProvider.notifier).openSettings();
-                      },
-                      icon: const Icon(Icons.settings, size: 18),
-                      label: const Text('설정에서 알림 접근 허용하기'),
+                      items: [
+                        for (var day = 1; day <= 31; day++)
+                          DropdownMenuItem(value: day, child: Text('매월 $day일')),
+                      ],
+                      onChanged: (value) => setState(() => _salaryDay = value),
                     ),
                   ],
-                ],
-              );
-            },
+                ),
+              ),
+              const SizedBox(height: 24),
+              SettingsSectionCard(
+                title: '맞춤 청년정책 프로필 (선택)',
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _ageController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(3),
+                      ],
+                      decoration: settingsInputDecoration(
+                        labelText: '만 나이',
+                        suffixText: '세',
+                        prefixIcon: const Icon(Icons.cake_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: _region,
+                      decoration: settingsInputDecoration(
+                        labelText: '거주 지역',
+                        prefixIcon: const Icon(Icons.location_on_outlined),
+                      ),
+                      items: profileRegions
+                          .map(
+                            (r) => DropdownMenuItem(value: r, child: Text(r)),
+                          )
+                          .toList(),
+                      onChanged: (value) => setState(() => _region = value),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildRow(String label, TextEditingController controller) {
-    return Row(
-      children: [
-        Expanded(child: Text(label)),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              PercentInputFormatter(),
-            ],
-            decoration: const InputDecoration(suffixText: '%'),
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            color: MyTokens.pageBackground,
+            border: Border(top: BorderSide(color: MyTokens.borderNeutral)),
+          ),
+          child: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_error != null) ...[
+                    Text(
+                      _error!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: MyTokens.negative,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  SettingsSaveButton(
+                    isSaving: _saving,
+                    onPressed: _next,
+                    label: '다음',
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],

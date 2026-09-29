@@ -6,6 +6,7 @@ import '../core/theme.dart';
 import '../core/theme/surface_style.dart';
 import '../features/home/theme/home_tokens.dart';
 import '../features/auth/providers/auth_provider.dart';
+import '../features/auth/providers/onboarding_provider.dart';
 
 // Screens placeholders
 import '../features/auth/screens/login_screen.dart';
@@ -14,6 +15,7 @@ import '../features/auth/screens/signup_screen.dart';
 import '../features/auth/screens/find_password_screen.dart';
 import '../features/auth/screens/verify_email_screen.dart';
 import '../features/auth/screens/reset_password_screen.dart';
+import '../features/auth/screens/startup_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/calendar/screens/calendar_screen.dart';
 import '../features/report/screens/report_screen.dart';
@@ -31,28 +33,62 @@ const Set<String> _authFlowPaths = {
   '/reset-password',
 };
 
+/// Start-up gate shown while the setup progress is being read.
+const String startupPath = '/startup';
+
+/// Where a user at [path] belongs:
+///
+/// - signed out → LOGIN (or the other auth screens)
+/// - signed in, setup progress not known yet (or failed to load) → [startupPath]
+/// - 사용자 정보 or 예산 배분 still missing → `/onboarding`
+/// - setup done → the requested screen, or Home instead of LOGIN/onboarding
+///
+/// Returns null to stay on [path].
+String? resolveAppRedirect({
+  required String path,
+  required bool isAuthenticated,
+  required AsyncValue<OnboardingStep?> onboardingStep,
+}) {
+  final isAuthFlow = _authFlowPaths.contains(path);
+  if (!isAuthenticated) return isAuthFlow ? null : '/login';
+
+  // A reload after sign-in still carries the signed-out null, so null means
+  // "not known yet" here.
+  final step = onboardingStep.hasError ? null : onboardingStep.value;
+  if (step == null) return path == startupPath ? null : startupPath;
+
+  if (step != OnboardingStep.done) {
+    return path == '/onboarding' ? null : '/onboarding';
+  }
+  if (isAuthFlow || path == '/onboarding' || path == startupPath) {
+    return '/home';
+  }
+  return null;
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  // One router for the app's lifetime; auth and setup-progress changes only
+  // re-run the redirect. Moving to LOGIN on logout replaces the whole page
+  // stack, so back can't return to Home.
+  final refresh = ValueNotifier<int>(0);
+  void bump(_, _) => refresh.value++;
+  ref.listen(authProvider, bump);
+  ref.listen(onboardingStepProvider, bump);
+  ref.onDispose(refresh.dispose);
 
   return GoRouter(
-    initialLocation: '/login',
-    redirect: (context, state) {
-      final isLoggingIn = state.uri.toString() == '/login';
-      final isAuthFlow = _authFlowPaths.contains(state.uri.path);
-      final isAuth = authState.isAuthenticated;
-      final hasOnboarded = authState.hasCompletedOnboarding;
-
-      if (!isAuth && !isAuthFlow) return '/login';
-      if (isAuth && !hasOnboarded && state.uri.toString() != '/onboarding')
-        return '/onboarding';
-      if (isAuth &&
-          hasOnboarded &&
-          (isLoggingIn || state.uri.toString() == '/onboarding'))
-        return '/home';
-
-      return null;
-    },
+    initialLocation: startupPath,
+    refreshListenable: refresh,
+    redirect: (context, state) => resolveAppRedirect(
+      path: state.uri.path,
+      isAuthenticated: ref.read(authProvider).isAuthenticated,
+      onboardingStep: ref.read(onboardingStepProvider),
+    ),
     routes: [
+      GoRoute(
+        path: startupPath,
+        builder: (context, state) => const StartupScreen(),
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/onboarding',

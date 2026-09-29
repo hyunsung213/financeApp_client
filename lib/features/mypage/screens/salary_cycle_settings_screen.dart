@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../home/providers/home_provider.dart';
@@ -7,30 +6,10 @@ import '../../../core/widgets/gradient_progress_bar.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../providers/my_page_provider.dart';
 import '../theme/my_tokens.dart';
+import '../utils/currency_input_formatter.dart';
+import '../utils/profile_regions.dart';
 import '../widgets/settings_form.dart';
 import 'budget_plan_settings_screen.dart';
-
-class CurrencyInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) return newValue.copyWith(text: '');
-
-    final cleanText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanText.isEmpty) return newValue.copyWith(text: '');
-
-    final int value = int.parse(cleanText);
-    final formatter = NumberFormat('#,###');
-    final String newText = formatter.format(value);
-
-    return TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newText.length),
-    );
-  }
-}
 
 class SalaryCycleSettingsScreen extends ConsumerStatefulWidget {
   const SalaryCycleSettingsScreen({super.key});
@@ -51,25 +30,7 @@ class _SalaryCycleSettingsScreenState
   bool _isInitialized = false;
   bool _isSaving = false;
 
-  final List<String> _regions = [
-    '서울',
-    '부산',
-    '대구',
-    '인천',
-    '광주',
-    '대전',
-    '울산',
-    '세종',
-    '경기',
-    '강원',
-    '충북',
-    '충남',
-    '전북',
-    '전남',
-    '경북',
-    '경남',
-    '제주',
-  ];
+  final List<String> _regions = profileRegions;
 
   @override
   void dispose() {

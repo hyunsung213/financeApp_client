@@ -13,9 +13,17 @@ class FinanceApi {
   FinanceApi(this._dio);
 
   Future<Map<String, dynamic>> getSetting() async {
+    final setting = await getSettingOrNull();
+    if (setting == null) throw Exception('Finance setting not found');
+    return setting;
+  }
+
+  /// `data` is null until the user saves a salary/payday for the first time.
+  Future<Map<String, dynamic>?> getSettingOrNull() async {
     final response = await _dio.get('/api/finance/setting');
     if (response.data['success'] == true) {
-      return response.data['data'];
+      final data = response.data['data'];
+      return data == null ? null : Map<String, dynamic>.from(data);
     } else {
       throw Exception(
         response.data['error']['message'] ?? 'Failed to get finance setting',

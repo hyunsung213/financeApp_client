@@ -38,8 +38,10 @@ abstract class AuthActions {
 
 /// Pre-Supabase implementation.
 ///
-/// - [signIn] keeps the existing mock login (`AuthNotifier.login`) so the
-///   current app flow is unchanged.
+/// - [signIn] keeps the existing mock login (`AuthNotifier.login`): any
+///   email/password is accepted, the password is discarded, and no token is
+///   created. With [keepSignedIn] only the email is remembered (a dev-only
+///   stand-in for a Supabase session) so it survives an app relaunch.
 /// - Every other action has no backend yet and throws, so nothing pretends to
 ///   succeed. Passing `--dart-define=AUTH_UI_PREVIEW=true` to a debug build
 ///   lets them resolve for visual QA of the success states; release builds
@@ -62,7 +64,7 @@ class MockAuthActions implements AuthActions {
     required String password,
     required bool keepSignedIn,
   }) async {
-    _ref.read(authProvider.notifier).login(email);
+    _ref.read(authProvider.notifier).login(email, keepSignedIn: keepSignedIn);
   }
 
   @override

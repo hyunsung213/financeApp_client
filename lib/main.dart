@@ -7,6 +7,8 @@ import 'core/router.dart';
 import 'core/providers/current_date_provider.dart';
 import 'core/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'features/auth/providers/auth_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +21,16 @@ Future<void> main() async {
     );
   }
 
-  runApp(const ProviderScope(child: FinanceApp()));
+  // Loaded before the first frame so the saved sign-in (자동 로그인) is known
+  // when the router picks the start screen.
+  final prefs = await SharedPreferences.getInstance();
+
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const FinanceApp(),
+    ),
+  );
 }
 
 class NoOverscrollBehavior extends ScrollBehavior {

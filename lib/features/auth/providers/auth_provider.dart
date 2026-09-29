@@ -1,105 +1,76 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../data/api/finance_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/mocks/db.dart'; // Keeping for User model
+
+/// App-wide [SharedPreferences], overridden in `main()` once loaded. Null in
+/// tests and anywhere it isn't provided, which simply disables persistence.
+final sharedPreferencesProvider = Provider<SharedPreferences?>((ref) => null);
 
 class AuthState {
   final bool isAuthenticated;
   final MockUser? user;
-  final bool hasCompletedOnboarding;
 
-  AuthState({
-    this.isAuthenticated = false,
-    this.user,
-    this.hasCompletedOnboarding = false,
-  });
-
-  AuthState copyWith({
-    bool? isAuthenticated,
-    MockUser? user,
-    bool? hasCompletedOnboarding,
-  }) {
-    return AuthState(
-      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-      user: user ?? this.user,
-      hasCompletedOnboarding: hasCompletedOnboarding ?? this.hasCompletedOnboarding,
-    );
-  }
+  AuthState({this.isAuthenticated = false, this.user});
 }
 
+/// DEV-ONLY stand-in for the Supabase session: remembers which email was
+/// used to "sign in" so 자동 로그인 survives a relaunch.
+///
+/// This is not authentication and must not grow into it. It stores the email
+/// only - never a password, and no token is created (the backend runs with
+/// `DEV_AUTH_BYPASS` and ignores credentials). When Supabase Auth is wired
+/// up, delete this class and restore the session from Supabase instead.
+class _MockSessionStore {
+  const _MockSessionStore(this._prefs);
+
+  static const _emailKey = 'auth.mockSessionEmail';
+
+  final SharedPreferences? _prefs;
+
+  String? read() => _prefs?.getString(_emailKey);
+
+  void save(String email) => _prefs?.setString(_emailKey, email);
+
+  void clear() => _prefs?.remove(_emailKey);
+}
+
+/// Pre-Supabase sign-in state.
+///
+/// There is no real auth yet: "signing in" only records the entered email
+/// (see [MockAuthActions.signIn]). Screens and the router depend only on
+/// [AuthState], so replacing this notifier's internals with a Supabase
+/// session doesn't touch them.
 class AuthNotifier extends Notifier<AuthState> {
+  _MockSessionStore get _mockSession =>
+      _MockSessionStore(ref.read(sharedPreferencesProvider));
+
   @override
   AuthState build() {
-    // 자동 로그인 및 온보딩 패스 (개발용)
-    final seedUser = MockUser(
-      id: 'auth-user-uuid', 
-      email: 'seed@example.local', 
-      name: 'seed'
-    );
-    seedUser.salary = 2500000;
-    seedUser.salaryDay = 10;
-
-    return AuthState(
-      isAuthenticated: true,
-      user: seedUser,
-      hasCompletedOnboarding: true,
-    );
+    final email = _mockSession.read();
+    return email == null ? AuthState() : _signedIn(email);
   }
 
-  void login(String email) {
-    // For MVP without real Supabase UI, we mock the user state 
-    // but the API calls in completeOnboarding will actually hit the backend.
-    final user = MockUser(id: 'auth-user-uuid', email: email, name: email.split('@')[0]);
-    
-    state = state.copyWith(
-      isAuthenticated: true,
-      user: user,
-      hasCompletedOnboarding: false,
-    );
+  AuthState _signedIn(String email) => AuthState(
+    isAuthenticated: true,
+    user: MockUser(
+      id: 'auth-user-uuid',
+      email: email,
+      name: email.split('@')[0],
+    ),
+  );
+
+  void login(String email, {bool keepSignedIn = false}) {
+    if (keepSignedIn) {
+      _mockSession.save(email);
+    } else {
+      _mockSession.clear();
+    }
+    state = _signedIn(email);
   }
 
   void logout() {
+    _mockSession.clear();
     state = AuthState();
-  }
-
-  /// Saves the salary/payday entered so far and returns the budget plan to
-  /// pre-fill onboarding's budget step. `GET /api/finance/budget-plan`
-  /// requires a finance setting to exist, and for a user with no saved plan
-  /// it returns the backend's default plan (`isConfigured: false`) - so the
-  /// initial ratios come from the backend, not from the app.
-  Future<List<dynamic>> loadOnboardingBudgetPlan({required int salary, required int salaryDay}) async {
-    final financeApi = ref.read(financeApiProvider);
-    await financeApi.updateSetting(
-      salaryAmount: salary,
-      salaryDay: salaryDay,
-      reportingStartDay: 1, // Default
-    );
-    final plan = await financeApi.getBudgetPlan();
-    return (plan['allocations'] as List<dynamic>?) ?? [];
-  }
-
-  /// [allocations] is the complete 12-item plan (`{categoryId, percentage}`,
-  /// see budget_plan_items.dart), saved in one request - the same shape the
-  /// salary-cycle settings screen saves.
-  Future<void> completeOnboarding({required int salary, required int salaryDay, required List<Map<String, dynamic>> allocations}) async {
-    try {
-      final financeApi = ref.read(financeApiProvider);
-
-      // 1. 설정 API 호출 (월급, 월급일)
-      await financeApi.updateSetting(
-        salaryAmount: salary,
-        salaryDay: salaryDay,
-        reportingStartDay: 1, // Default
-      );
-
-      // 2. 예산 배분 12개 항목을 한 번에 저장
-      await financeApi.updateBudgetPlan(allocations);
-
-      state = state.copyWith(hasCompletedOnboarding: true);
-    } catch (e) {
-      print('Onboarding Error: $e');
-      // If error occurs, we could show a dialog, but for now we'll just print and still proceed to unblock MVP.
-      state = state.copyWith(hasCompletedOnboarding: true);
-    }
   }
 }
 

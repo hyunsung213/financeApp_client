@@ -12,8 +12,28 @@ import '../widgets/settings_form.dart';
 /// 예산 배분 설정: the 12-item budget plan (저축/투자 + 10 지출 대분류), saved
 /// as a whole through `PUT /api/finance/budget-plan`. Saving also re-budgets
 /// the current salary cycle right away (existing transactions are untouched).
+///
+/// [BudgetPlanSettingsScreen.onboarding] is the same screen as the last
+/// initial-setup step: only the copy, the back action and what happens after
+/// a successful save differ.
 class BudgetPlanSettingsScreen extends ConsumerStatefulWidget {
-  const BudgetPlanSettingsScreen({super.key});
+  const BudgetPlanSettingsScreen({super.key})
+    : onOnboardingBack = null,
+      onOnboardingComplete = null;
+
+  const BudgetPlanSettingsScreen.onboarding({
+    super.key,
+    required VoidCallback onBack,
+    required Future<void> Function() onComplete,
+  }) : onOnboardingBack = onBack,
+       onOnboardingComplete = onComplete;
+
+  final VoidCallback? onOnboardingBack;
+
+  /// Called after the plan is saved; takes the user on to Home.
+  final Future<void> Function()? onOnboardingComplete;
+
+  bool get isOnboarding => onOnboardingComplete != null;
 
   @override
   ConsumerState<BudgetPlanSettingsScreen> createState() =>
@@ -93,7 +113,10 @@ class _BudgetPlanSettingsScreenState
           },
       ]);
 
-      if (mounted) {
+      final onComplete = widget.onOnboardingComplete;
+      if (onComplete != null) {
+        await onComplete();
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('저장했어요. 현재 예산에 바로 반영됐어요.'),
@@ -118,7 +141,15 @@ class _BudgetPlanSettingsScreenState
 
     return Scaffold(
       backgroundColor: MyTokens.pageBackground,
-      appBar: settingsAppBar('예산 배분 설정'),
+      appBar: widget.isOnboarding
+          ? settingsAppBar(
+              '예산 배분',
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onOnboardingBack,
+              ),
+            )
+          : settingsAppBar('예산 배분 설정'),
       body: myPageAsync.when(
         loading: () => const FormSkeleton(),
         error: (error, stack) => Center(child: Text('데이터를 불러오지 못했습니다: $error')),
@@ -137,14 +168,33 @@ class _BudgetPlanSettingsScreenState
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   children: [
-                    const Text(
-                      '월급을 저축·투자·지출로 나눠 배분해요. 저장하면 현재 예산에 바로 반영돼요.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.5,
-                        color: MyTokens.placeholder,
+                    if (widget.isOnboarding) ...[
+                      const Text(
+                        '월급을 어떻게 나눠 쓸까요?',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: MyTokens.textPrimary,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        '저축·투자·지출 비율을 정해보세요.\n총 100%가 되도록 나눠주세요.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          color: MyTokens.placeholder,
+                        ),
+                      ),
+                    ] else
+                      const Text(
+                        '월급을 저축·투자·지출로 나눠 배분해요. 저장하면 현재 예산에 바로 반영돼요.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          color: MyTokens.placeholder,
+                        ),
+                      ),
                     const SizedBox(height: 20),
                     const Text(
                       '예산 배분율 설정',
@@ -221,6 +271,7 @@ class _BudgetPlanSettingsScreenState
               SettingsSaveButton(
                 isSaving: _isSaving,
                 onPressed: isTotalValid ? _save : null,
+                label: widget.isOnboarding ? '완료' : '저장',
               ),
             ],
           ),
