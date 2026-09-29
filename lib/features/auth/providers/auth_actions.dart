@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/config/app_config.dart';
 import 'auth_provider.dart';
 
 /// A user-facing auth failure. [message] is shown on screen as-is.
@@ -89,8 +90,45 @@ class MockAuthActions implements AuthActions {
   }
 }
 
+/// Web demo (`DEMO_MODE=true`): there is no account to sign in to, so every
+/// credential action explains that the demo is entered from LOGIN's
+/// "데모로 둘러보기" instead ([AuthNotifier.startDemoSession]).
+class DemoAuthActions implements AuthActions {
+  const DemoAuthActions();
+
+  static const AuthActionException _demoOnly = AuthActionException(
+    '데모에서는 아래 \'데모로 둘러보기\'로 이용할 수 있어요.',
+  );
+
+  @override
+  Future<void> signIn({
+    required String email,
+    required String password,
+    required bool keepSignedIn,
+  }) async => throw _demoOnly;
+
+  @override
+  Future<void> signUp({
+    required String name,
+    required String email,
+    required String password,
+  }) async => throw _demoOnly;
+
+  @override
+  Future<void> requestPasswordReset({required String email}) async =>
+      throw _demoOnly;
+
+  @override
+  Future<void> resendVerificationEmail({required String email}) async =>
+      throw _demoOnly;
+
+  @override
+  Future<void> updatePassword({required String newPassword}) async =>
+      throw _demoOnly;
+}
+
 final authActionsProvider = Provider<AuthActions>(
-  (ref) => MockAuthActions(ref),
+  (ref) => AppConfig.demoMode ? const DemoAuthActions() : MockAuthActions(ref),
 );
 
 /// Figma LOGIN shows social login and a guest entry, but neither is supported

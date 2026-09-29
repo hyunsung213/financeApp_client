@@ -1,6 +1,7 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/config/app_config.dart';
+import '../demo/demo_backend_adapter.dart';
 
 final apiClientProvider = Provider<Dio>((ref) {
   return ApiClient.create();
@@ -8,26 +9,20 @@ final apiClientProvider = Provider<Dio>((ref) {
 
 class ApiClient {
   static Dio create() {
-    // 10.0.2.2 for Android Emulator, localhost for iOS/Web/Desktop
-    String baseUrl = 'http://localhost:4000';
-    try {
-      if (Platform.isAndroid) {
-        baseUrl = 'http://10.0.2.2:4000';
-      }
-    } catch (_) {
-      // Platform.isAndroid throws in Web environment
-    }
-
     final dio = Dio(
       BaseOptions(
-        baseUrl: baseUrl,
+        baseUrl: AppConfig.apiBaseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
       ),
     );
+
+    // DEMO_MODE answers every request in the browser from sample data, so
+    // the public demo never reaches (or needs) a backend.
+    if (AppConfig.demoMode) {
+      dio.httpClientAdapter = DemoBackendAdapter();
+    }
 
     dio.interceptors.add(
       InterceptorsWrapper(

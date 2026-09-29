@@ -1,11 +1,11 @@
 {
-    "name": "finance_client",
-    "short_name": "finance_client",
+    "name": "월릿",
+    "short_name": "월릿",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "월릿 - 월급 주기에 맞춘 예산 관리 데모",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

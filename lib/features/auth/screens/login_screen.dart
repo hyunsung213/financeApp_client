@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/config/app_config.dart';
 import '../providers/auth_actions.dart';
+import '../providers/auth_provider.dart';
 import '../theme/auth_tokens.dart';
 import '../utils/auth_validators.dart';
 import '../widgets/auth_components.dart';
@@ -158,15 +160,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         AuthSecondaryButton(label: '회원가입', onPressed: () => _open('/signup')),
         const SizedBox(height: 13),
         Visibility(
-          visible: AuthFeatureFlags.guestEntry,
+          visible: AppConfig.demoMode || AuthFeatureFlags.guestEntry,
           maintainSize: true,
           maintainAnimation: true,
           maintainState: true,
           child: Center(
-            child: AuthTextLink(
-              label: '비회원으로 이용하기',
-              onTap: () => showAuthMessage(context, '비회원 이용은 준비 중이에요.'),
-            ),
+            child: AppConfig.demoMode
+                ? AuthTextLink(
+                    label: '데모로 둘러보기',
+                    onTap: () =>
+                        ref.read(authProvider.notifier).startDemoSession(),
+                  )
+                : AuthTextLink(
+                    label: '비회원으로 이용하기',
+                    onTap: () =>
+                        showAuthMessage(context, '비회원 이용은 준비 중이에요.'),
+                  ),
           ),
         ),
       ],

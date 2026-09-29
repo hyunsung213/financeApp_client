@@ -88,6 +88,30 @@ class NotificationSettingsScreen extends ConsumerWidget {
           style: const TextStyle(color: MyTokens.negative),
         ),
         data: (status) {
+          // Card-notification capture is an Android notification listener;
+          // web (and iOS) builds only explain where it is available.
+          if (status == NotificationAccessStatus.unsupported) {
+            return const Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: MyTokens.placeholder,
+                  size: 18,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '카드 자동 입력은 Android 앱에서 사용할 수 있어요.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: MyTokens.textPrimary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
           final statusText = switch (status) {
             NotificationAccessStatus.granted => '허용됨',
             NotificationAccessStatus.denied => '허용되지 않음',

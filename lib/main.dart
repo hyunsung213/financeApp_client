@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/config/app_config.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
 import 'core/providers/current_date_provider.dart';
@@ -17,7 +18,7 @@ Future<void> main() async {
   // Sync initial notification backend config to native Android
   if (!kIsWeb && Platform.isAndroid) {
     await NotificationService.updateConfig(
-      baseUrl: 'http://10.0.2.2:4000',
+      baseUrl: AppConfig.apiBaseUrl,
     );
   }
 
@@ -80,7 +81,8 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'Finance Client',
+      // Browser tab title on the web; Android keeps its existing label.
+      title: kIsWeb ? '월릿' : 'Finance Client',
       theme: appTheme,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
@@ -97,7 +99,24 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
                   BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20),
                 ],
               ),
-              child: child,
+              // Report the phone column's size as the screen size, so layouts
+              // that read MediaQuery (e.g. the draggable manual-input button)
+              // stay inside it on a wide desktop browser. On a phone the
+              // column is the whole screen and nothing changes.
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final media = MediaQuery.of(context);
+                  return MediaQuery(
+                    data: media.copyWith(
+                      size: Size(
+                        constraints.maxWidth,
+                        constraints.maxHeight,
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              ),
             ),
           ),
         );
