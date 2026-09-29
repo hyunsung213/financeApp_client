@@ -112,8 +112,9 @@ class PolicyApi {
     }
   }
 
-  Future<void> updateProfile({int? age, String? region}) async {
+  Future<void> updateProfile({String? nickname, int? age, String? region}) async {
     final data = <String, dynamic>{};
+    if (nickname != null) data['nickname'] = nickname;
     if (age != null) data['age'] = age;
     if (region != null) data['region'] = region;
 

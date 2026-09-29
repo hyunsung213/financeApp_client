@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../theme/my_tokens.dart';
+import '../widgets/logout_dialog.dart';
+import 'account_settings_screen.dart';
 import 'app_info_screen.dart';
 import 'budget_plan_settings_screen.dart';
 import 'coming_soon_screen.dart';
@@ -15,45 +15,6 @@ const double _floatingNavClearance = 96;
 
 class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
-
-  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          '로그아웃',
-          style: TextStyle(color: MyTokens.textPrimary),
-        ),
-        content: const Text(
-          '정말 로그아웃 하시겠습니까?',
-          style: TextStyle(color: MyTokens.textPrimary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              '취소',
-              style: TextStyle(color: MyTokens.textPrimary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(authProvider.notifier).logout();
-              context.go('/login');
-            },
-            child: const Text(
-              '로그아웃',
-              style: TextStyle(
-                color: MyTokens.negative,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _push(BuildContext context, Widget screen) {
     Navigator.of(
@@ -105,10 +66,8 @@ class MyPageScreen extends ConsumerWidget {
                       icon: Icons.person_outline,
                       title: '계정 관리',
                       subtitle: '이메일, 비밀번호, 프로필 관리',
-                      onTap: () => _push(
-                        context,
-                        const ComingSoonScreen(title: '계정 관리'),
-                      ),
+                      onTap: () =>
+                          _push(context, const AccountSettingsScreen()),
                     ),
                     _menuRow(
                       context,
@@ -183,7 +142,7 @@ class MyPageScreen extends ConsumerWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => _showLogoutDialog(context, ref),
+                        onPressed: () => showLogoutDialog(context, ref),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: MyTokens.accent,
                           foregroundColor: Colors.white,

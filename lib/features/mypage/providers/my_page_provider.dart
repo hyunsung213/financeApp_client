@@ -93,6 +93,21 @@ class MyPageActionsNotifier extends Notifier<void> {
     ref.invalidate(recommendedPoliciesProvider);
   }
 
+  /// Saves the 계정 관리 profile fields through `PUT /api/profile`, which
+  /// accepts `nickname`, `age` and `region` and only writes the ones sent.
+  Future<void> updateProfile({
+    String? nickname,
+    int? age,
+    String? region,
+  }) async {
+    await ref
+        .read(policyApiProvider)
+        .updateProfile(nickname: nickname, age: age, region: region);
+    ref.invalidate(myPageDataProvider);
+    ref.invalidate(profileProvider);
+    ref.invalidate(recommendedPoliciesProvider);
+  }
+
   /// Replaces the whole budget plan in one request - the backend only
   /// accepts a complete 12-item plan totalling 100%, so items can't be
   /// saved one at a time. [allocations] items are `{categoryId, percentage}`.
