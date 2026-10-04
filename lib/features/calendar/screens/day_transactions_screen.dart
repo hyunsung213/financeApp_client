@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/category/category_appearance.dart';
 import '../../../core/theme.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
 import 'calendar_screen.dart';
@@ -111,7 +112,11 @@ class DayTransactionsScreen extends ConsumerWidget {
                         separatorBuilder: (context, i) =>
                             const Divider(height: 1, color: Color(0xFFF1F5F9)),
                         itemBuilder: (context, i) =>
-                            _transactionTile(context, transactions[i]),
+                            _transactionTile(
+                              context,
+                              transactions[i],
+                              ref.watch(categoryDirectoryProvider),
+                            ),
                       ),
               ),
             ],
@@ -143,16 +148,18 @@ class DayTransactionsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _transactionTile(BuildContext context, dynamic tx) {
+  Widget _transactionTile(
+    BuildContext context,
+    dynamic tx,
+    CategoryDirectory categories,
+  ) {
     if (tx is! Map) return const SizedBox.shrink();
     final amount = _toInt(tx['amount']);
+    final categoryName = categories.nameForTransaction(tx) ?? '';
     final name =
         (tx['merchantOrTitle'] ??
-                (tx['category'] is Map ? tx['category']['name'] : null) ??
+                (categoryName.isEmpty ? null : categoryName) ??
                 '내역')
-            .toString();
-    final categoryName =
-        ((tx['category'] is Map ? tx['category']['name'] : null) ?? '')
             .toString();
     final occurredAt = (tx['occurredAt'] ?? '').toString();
     final time = occurredAt.length >= 16 ? occurredAt.substring(11, 16) : '';

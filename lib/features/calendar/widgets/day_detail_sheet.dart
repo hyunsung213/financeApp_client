@@ -6,7 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
-import '../../home/utils/category_icons.dart';
+import '../../../core/category/category_appearance.dart';
 import '../../policy/providers/policy_provider.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
 import '../providers/daily_recommended_provider.dart';
@@ -292,13 +292,9 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
   Widget _transactionRow(BuildContext context, dynamic tx) {
     if (tx is! Map) return const SizedBox.shrink();
     final amount = _toInt(tx['amount']);
-    final name =
-        (tx['merchantOrTitle'] ??
-                (tx['category'] is Map ? tx['category']['name'] : null) ??
-                '내역')
-            .toString();
-    final categoryName = (tx['category'] is Map ? tx['category']['name'] : null)
-        ?.toString();
+    final categories = ref.watch(categoryDirectoryProvider);
+    final categoryName = categories.nameForTransaction(tx);
+    final name = (tx['merchantOrTitle'] ?? categoryName ?? '내역').toString();
     final occurredAt = (tx['occurredAt'] ?? '').toString();
     final time = occurredAt.length >= 16 ? occurredAt.substring(11, 16) : '';
     final isIncome = tx['type'] == 'INCOME';
@@ -317,7 +313,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
         child: Row(
           children: [
             Icon(
-              categoryIconFor(tx['categoryId']?.toString(), categoryName),
+              categories.iconForTransaction(tx),
               size: 20,
               color: HomeTokens.accent,
             ),

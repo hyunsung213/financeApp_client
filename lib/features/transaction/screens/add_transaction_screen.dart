@@ -749,9 +749,10 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     if (majors.isEmpty) return;
     // 지출의 기본 대분류는 정렬 순서(sortOrder)와 무관하게 항상 식비여야
     // 한다 - 사용자 지정 카테고리가 낮은 sortOrder로 끼어들어도
-    // 밀려나지 않게 명시적으로 우선한다.
+    // 밀려나지 않게 명시적으로 우선한다. 사용자가 이름을 바꿔도 찾도록
+    // 표시 이름이 아닌 id로 고른다.
     final major = majors.firstWhere(
-      (m) => m['name'] == '식비',
+      (m) => m['id'] == 'core.expense.food',
       orElse: () => majors.first,
     );
     final subs = categories

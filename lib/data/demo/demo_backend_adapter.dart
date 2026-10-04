@@ -80,7 +80,10 @@ class DemoBackendAdapter implements HttpClientAdapter {
       case 'GET /home':
         return _ok(_home());
       case 'GET /categories':
-        return _ok(_categories());
+        return _ok([
+          for (final c in _categories())
+            if (c['isActive'] == true) _serializeCategory(c),
+        ]);
       case 'POST /categories':
         return _created(_createCategory(body));
       case 'GET /finance/setting':
@@ -146,6 +149,25 @@ class DemoBackendAdapter implements HttpClientAdapter {
           _store.transactions.removeWhere((t) => t['id'] == id);
           return _ok({'deleted': true}, mutated: true);
       }
+    }
+    if (rest.length == 2 && rest[0] == 'categories') {
+      switch (method) {
+        case 'PATCH':
+          return _ok(_updateCategory(rest[1], body), mutated: true);
+        case 'DELETE':
+          return _ok(
+            _updateCategory(rest[1], {'isActive': false}),
+            mutated: true,
+          );
+      }
+    }
+    if (rest.length == 3 &&
+        rest[0] == 'categories' &&
+        rest[2] == 'preference' &&
+        method == 'DELETE') {
+      final category = _findCategory(rest[1]);
+      _store.categoryPreferences.remove(rest[1]);
+      return _ok(_serializeCategory(category), mutated: true);
     }
     if (rest.length >= 2 && rest[0] == 'policies') {
       final id = rest[1];
@@ -266,7 +288,92 @@ class DemoBackendAdapter implements HttpClientAdapter {
       'systemCategoryId': null,
     };
     _store.customCategories.add(category);
-    return category;
+    _savePreference(category['id'] as String, {
+      'icon': body['icon'],
+      'color': body['color'],
+    });
+    return _serializeCategory(category);
+  }
+
+  Map<String, dynamic> _findCategory(String id) =>
+      _categoryById[id] ??
+      (throw _DemoError(404, 'CATEGORY_NOT_FOUND', '카테고리를 찾을 수 없어요.'));
+
+  /// A category as `GET /api/categories` returns it: `name` is the user's
+  /// display name, `canonicalName` the row's own (see the backend's
+  /// CategoryService.serialize).
+  Map<String, dynamic> _serializeCategory(Map<String, dynamic> category) {
+    final preference =
+        _store.categoryPreferences[category['id']] ?? const <String, dynamic>{};
+    return {
+      ...category,
+      'name': preference['displayName'] ?? category['name'],
+      'canonicalName': category['name'],
+      'icon': preference['icon'],
+      'color': preference['color'],
+      'isCustomized': preference.values.any((v) => v != null),
+    };
+  }
+
+  /// Merges [changes] (keys present = set, null = clear) into the category's
+  /// override and drops it once nothing is overridden.
+  void _savePreference(String id, Map<String, dynamic> changes) {
+    final next = {...?_store.categoryPreferences[id], ...changes};
+    if (next.values.every((v) => v == null)) {
+      _store.categoryPreferences.remove(id);
+    } else {
+      _store.categoryPreferences[id] = next;
+    }
+  }
+
+  static final _iconKey = RegExp(r'^[a-z0-9_]{1,40}$');
+  static final _colorHex = RegExp(r'^#[0-9A-Fa-f]{6}$');
+
+  /// Mirrors `PATCH /api/categories/:id`: a system category only takes a
+  /// display name, icon and color, kept as the user's override (its row, id,
+  /// parent and order never change, and it can't be deleted). The demo user's
+  /// own categories rename in place; deleting deactivates, so transactions on
+  /// the category keep resolving it.
+  Map<String, dynamic> _updateCategory(String id, Map<String, dynamic> body) {
+    final category = _findCategory(id);
+    final isSystem = category['isSystem'] == true;
+    if (isSystem &&
+        (body.containsKey('parentCategoryId') ||
+            body.containsKey('sortOrder') ||
+            body.containsKey('isActive'))) {
+      throw _DemoError(
+        403,
+        'SYSTEM_CATEGORY_IMMUTABLE',
+        '기본 카테고리는 이름·아이콘·색상만 바꿀 수 있고 삭제할 수 없습니다.',
+      );
+    }
+    final name = body['name']?.toString().trim();
+    if (name != null && (name.isEmpty || name.length > 50)) {
+      throw _DemoError.validation('카테고리 이름을 확인해주세요.');
+    }
+    final icon = body['icon'];
+    if (icon != null && !_iconKey.hasMatch('$icon')) {
+      throw _DemoError.validation('아이콘을 확인해주세요.');
+    }
+    final color = body['color'];
+    if (color != null && !_colorHex.hasMatch('$color')) {
+      throw _DemoError.validation('색상을 확인해주세요.');
+    }
+
+    final changes = <String, dynamic>{
+      if (body.containsKey('icon')) 'icon': icon,
+      if (body.containsKey('color')) 'color': color?.toString().toUpperCase(),
+    };
+    if (isSystem) {
+      if (name != null) {
+        changes['displayName'] = name == category['name'] ? null : name;
+      }
+    } else {
+      if (name != null) category['name'] = name;
+      if (body['isActive'] is bool) category['isActive'] = body['isActive'];
+    }
+    _savePreference(id, changes);
+    return _serializeCategory(category);
   }
 
   // ---------------------------------------------------------------------------

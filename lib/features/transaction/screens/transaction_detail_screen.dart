@@ -6,7 +6,7 @@ import '../../../core/theme.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../home/theme/home_tokens.dart';
-import '../../home/utils/category_icons.dart';
+import '../../../core/category/category_appearance.dart';
 import '../providers/transaction_provider.dart';
 import 'add_transaction_screen.dart';
 
@@ -98,7 +98,8 @@ class _DetailBody extends ConsumerWidget {
     final amount = _toInt(tx['amount']);
     final type = (tx['type'] ?? 'EXPENSE').toString();
     final isIncome = type == 'INCOME';
-    final categoryName = (tx['category'] is Map ? tx['category']['name'] : null)?.toString();
+    final categories = ref.watch(categoryDirectoryProvider);
+    final categoryName = categories.nameForTransaction(tx);
     final title = (tx['merchantOrTitle'] ?? categoryName ?? '내역').toString();
     final memo = (tx['memo'] ?? '').toString();
     final occurredAt = (tx['occurredAt'] ?? '').toString();
@@ -115,7 +116,7 @@ class _DetailBody extends ConsumerWidget {
                 width: 72,
                 height: 72,
                 decoration: const BoxDecoration(color: HomeTokens.chipActiveBg, shape: BoxShape.circle),
-                child: Icon(categoryIconFor(tx['categoryId']?.toString(), categoryName), size: 32, color: HomeTokens.accentDark),
+                child: Icon(categories.iconForTransaction(tx), size: 32, color: HomeTokens.accentDark),
               ),
               const SizedBox(height: 12),
               Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: HomeTokens.textDark)),

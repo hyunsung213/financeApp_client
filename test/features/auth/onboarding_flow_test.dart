@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:finance_client/data/api/category_api.dart';
 import 'package:finance_client/data/api/finance_api.dart';
 import 'package:finance_client/data/api/policy_api.dart';
 import 'package:finance_client/features/auth/providers/auth_provider.dart';
@@ -87,6 +88,8 @@ void main() {
         sharedPreferencesProvider.overrideWithValue(prefs),
         financeApiProvider.overrideWithValue(finance),
         policyApiProvider.overrideWithValue(policy),
+        // The budget step shows the user's 대분류 names from this list.
+        categoriesProvider.overrideWith((ref) async => const []),
       ],
     );
     addTearDown(container.dispose);

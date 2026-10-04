@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/category/category_appearance.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../providers/my_page_provider.dart';
 import '../theme/my_tokens.dart';
@@ -356,7 +357,11 @@ class _BudgetPlanSettingsScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: nameStyle),
+                // The user's name for the 대분류; the plan stays keyed by id.
+                Text(
+                  ref.watch(categoryDirectoryProvider).nameOf(categoryId, name)!,
+                  style: nameStyle,
+                ),
                 if (salary != null && salary > 0)
                   Text(
                     '${NumberFormat('#,###').format(salary * percentage ~/ 100)}원',

@@ -6,7 +6,7 @@ import '../../../core/theme/app_shadows.dart';
 import '../../../data/api/category_api.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../home/theme/home_tokens.dart';
-import '../../home/utils/category_icons.dart';
+import '../../../core/category/category_appearance.dart';
 import '../../report/providers/report_provider.dart';
 import '../../report/utils/report_date_utils.dart';
 import '../../report/utils/report_insight_utils.dart';
@@ -299,7 +299,7 @@ class _CategoryFilterRowState extends State<_CategoryFilterRow> {
           _chip(context, null, '전체', null),
           const SizedBox(width: 8),
           for (final c in widget.categories) ...[
-            _chip(context, c['id']?.toString(), (c['name'] ?? '').toString(), categoryIconFor(c['id']?.toString(), c['name']?.toString())),
+            _chip(context, c['id']?.toString(), (c['name'] ?? '').toString(), CategoryAppearance.fromJson(c).icon),
             const SizedBox(width: 8),
           ],
         ],
@@ -457,16 +457,17 @@ class _DaySection extends StatelessWidget {
   }
 }
 
-class _TransactionRow extends StatelessWidget {
+class _TransactionRow extends ConsumerWidget {
   final Map<String, dynamic> tx;
   final Future<void> Function() onDetailReturn;
   const _TransactionRow({required this.tx, required this.onDetailReturn});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final amount = _toInt(tx['amount']);
     final isIncome = tx['type'] == 'INCOME';
-    final categoryName = (tx['category'] is Map ? tx['category']['name'] : null)?.toString();
+    final categories = ref.watch(categoryDirectoryProvider);
+    final categoryName = categories.nameForTransaction(tx);
     final title = (tx['merchantOrTitle'] ?? categoryName ?? '내역').toString();
     final date = DateTime.tryParse((tx['occurredAt'] ?? '').toString());
 
@@ -493,7 +494,7 @@ class _TransactionRow extends StatelessWidget {
               width: 39,
               height: 39,
               decoration: BoxDecoration(color: HomeTokens.chipActiveBg, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
-              child: Icon(categoryIconFor(tx['categoryId']?.toString(), categoryName), size: 18, color: HomeTokens.accentDark),
+              child: Icon(categories.iconForTransaction(tx), size: 18, color: HomeTokens.accentDark),
             ),
             const SizedBox(width: 10),
             Expanded(

@@ -111,11 +111,11 @@ List<CategoryAmount> markUnspecifiedSubcategories(List<CategoryAmount> rows, Lis
 
 /// Rolls `/api/reports/categories` rows up to 대분류 (major categories).
 ///
-/// That endpoint groups by each transaction's own category *name* - i.e. the
-/// leaf (식사/배달/카페/...), never the parent - and doesn't return a
-/// categoryId. [categories] is the `/api/categories` list, used to look up
-/// which major (root) category each leaf name belongs to, so 식사 + 배달 +
-/// 카페 + ... add up to one 식비 row.
+/// That endpoint groups by each transaction's own category - i.e. the leaf
+/// (식사/배달/카페/...), never the parent. [categories] is the
+/// `/api/categories` list, used to look up which major (root) category each
+/// leaf belongs to (see [_majorLookup]), so 식사 + 배달 + 카페 + ... add up to
+/// one 식비 row under the 대분류's display name.
 ///
 /// - Only `EXPENSE` categories take part, matching the report itself.
 /// - A row whose name matches no category, or matches several categories
@@ -130,7 +130,7 @@ List<CategoryAmount> rollUpToMajorCategories(List<CategoryAmount> leafAmounts, L
 
   final groups = <String, ({String name, int sortOrder, int amount, int count})>{};
   for (final leaf in leafAmounts) {
-    final root = majorOf(leaf.name);
+    final root = majorOf(leaf);
     final key = root != null ? 'id:${root['id']}' : 'name:${leaf.name}';
     final previous = groups[key];
     groups[key] = (
@@ -167,13 +167,15 @@ List<CategoryAmount> rollUpToMajorCategories(List<CategoryAmount> leafAmounts, L
 Map<String, String> majorNamesByLeaf(List<CategoryAmount> leafAmounts, List<dynamic> categories) {
   final majorOf = _majorLookup(categories);
   return {
-    for (final leaf in leafAmounts) leaf.name: (majorOf(leaf.name)?['name'] ?? leaf.name).toString(),
+    for (final leaf in leafAmounts) leaf.name: (majorOf(leaf)?['name'] ?? leaf.name).toString(),
   };
 }
 
-/// Finds the 대분류 (root EXPENSE category) a row name belongs to, or null when
-/// the name is unknown or shared by categories under different majors.
-Map? Function(String name) _majorLookup(List<dynamic> categories) {
+/// Finds the 대분류 (root EXPENSE category) a row belongs to: by its
+/// categoryId when the report sends one (so a user's rename never changes the
+/// grouping), else by name - null when that name is unknown or shared by
+/// categories under different majors.
+Map? Function(CategoryAmount row) _majorLookup(List<dynamic> categories) {
   final expense = categories.whereType<Map>().where((c) => c['type'] == 'EXPENSE').toList();
   final byId = {for (final c in expense) (c['id'] ?? '').toString(): c};
 
@@ -196,8 +198,10 @@ Map? Function(String name) _majorLookup(List<dynamic> categories) {
     rootIdsByName.putIfAbsent((c['name'] ?? '').toString(), () => <String>{}).add(rootId);
   }
 
-  return (name) {
-    final rootIds = rootIdsByName[name];
+  return (row) {
+    final byRowId = byId[row.categoryId];
+    if (byRowId != null) return rootOf(byRowId);
+    final rootIds = rootIdsByName[row.name];
     return rootIds != null && rootIds.length == 1 ? rootById[rootIds.first] : null;
   };
 }

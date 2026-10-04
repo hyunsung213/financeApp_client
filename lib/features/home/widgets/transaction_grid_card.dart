@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/category/category_appearance.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/surface_style.dart';
 import '../theme/home_tokens.dart';
-import '../utils/category_icons.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -19,19 +20,19 @@ int _toInt(dynamic value) {
 /// One card in Home's "실시간 거래 내역" 2-column grid (Figma Rectangle
 /// 29/34/36/38/89/90). Presentation only — the transaction map comes from
 /// the existing `homeRecentTransactionsProvider` data untouched.
-class TransactionGridCard extends StatelessWidget {
+class TransactionGridCard extends ConsumerWidget {
   final Map<dynamic, dynamic> transaction;
   final VoidCallback? onTap;
 
   const TransactionGridCard({super.key, required this.transaction, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tx = transaction;
+    final categories = ref.watch(categoryDirectoryProvider);
     final amount = _toInt(tx['amount']);
-    final title = (tx['merchantOrTitle'] ?? (tx['category'] is Map ? tx['category']['name'] : null) ?? '내역').toString();
-    final categoryName = ((tx['category'] is Map ? tx['category']['name'] : null) ?? '지출').toString();
-    final categoryId = (tx['categoryId'] ?? '').toString();
+    final title = (tx['merchantOrTitle'] ?? categories.nameForTransaction(tx) ?? '내역').toString();
+    final categoryName = categories.nameForTransaction(tx) ?? '지출';
     final dateStr = (tx['occurredAt'] ?? '').toString();
     final timeOrDate = dateStr.length >= 10 ? dateStr.substring(5) : dateStr;
 
@@ -72,7 +73,7 @@ class TransactionGridCard extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(color: HomeTokens.chipActiveBg, borderRadius: BorderRadius.circular(8)),
-                  child: Icon(categoryIconFor(categoryId, categoryName), size: 17, color: HomeTokens.accent),
+                  child: Icon(categories.iconForTransaction(tx), size: 17, color: HomeTokens.accent),
                 ),
               ],
             ),

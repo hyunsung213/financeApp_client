@@ -5,6 +5,7 @@ import '../widgets/logout_dialog.dart';
 import 'account_settings_screen.dart';
 import 'app_info_screen.dart';
 import 'budget_plan_settings_screen.dart';
+import 'category_management_screen.dart';
 import 'coming_soon_screen.dart';
 import 'notification_settings_screen.dart';
 import 'salary_cycle_settings_screen.dart';
@@ -90,10 +91,8 @@ class MyPageScreen extends ConsumerWidget {
                       icon: Icons.grid_view_outlined,
                       title: '카테고리 관리',
                       subtitle: '지출/수입 카테고리 관리',
-                      onTap: () => _push(
-                        context,
-                        const ComingSoonScreen(title: '카테고리 관리'),
-                      ),
+                      onTap: () =>
+                          _push(context, const CategoryManagementScreen()),
                     ),
                     _menuRow(
                       context,

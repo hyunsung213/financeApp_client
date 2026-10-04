@@ -26,6 +26,11 @@ class DemoStore {
   Map<String, dynamic> profile = {};
   List<Map<String, dynamic>> transactions = [];
   List<Map<String, dynamic>> customCategories = [];
+
+  /// Per-category display overrides (displayName/icon/color) by category id,
+  /// like the backend's UserCategoryPreference: system categories keep their
+  /// canonical rows in demo_catalog.dart.
+  Map<String, Map<String, dynamic>> categoryPreferences = {};
   List<Map<String, dynamic>> fixedExpenses = [];
   Map<String, String> bookmarks = {};
   Map<String, String> calendarEvents = {};
@@ -77,6 +82,7 @@ class DemoStore {
           'profile': profile,
           'transactions': transactions,
           'customCategories': customCategories,
+          'categoryPreferences': categoryPreferences,
           'fixedExpenses': fixedExpenses,
           'bookmarks': bookmarks,
           'calendarEvents': calendarEvents,
@@ -109,6 +115,10 @@ class DemoStore {
     profile = Map<String, dynamic>.from(s['profile'] as Map);
     transactions = rows(s['transactions']);
     customCategories = rows(s['customCategories']);
+    categoryPreferences = {
+      for (final e in (s['categoryPreferences'] as Map? ?? const {}).entries)
+        '${e.key}': Map<String, dynamic>.from(e.value as Map),
+    };
     fixedExpenses = rows(s['fixedExpenses']);
     bookmarks = Map<String, String>.from(s['bookmarks'] as Map? ?? const {});
     calendarEvents = Map<String, String>.from(
@@ -143,6 +153,7 @@ class DemoStore {
       'region': '서울',
     };
     customCategories = [];
+    categoryPreferences = {};
     bookmarks = {};
     calendarEvents = {};
     transactions = [];

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/category/category_appearance.dart';
 import '../../../data/api/category_api.dart';
 import '../../../data/api/report_api.dart';
 import '../utils/report_date_utils.dart';
@@ -42,10 +43,12 @@ List<DailyPoint> _toDailyPoints(List<dynamic> raw) {
     ..sort((a, b) => a.day.compareTo(b.day));
 }
 
-List<CategoryAmount> _toCategoryAmounts(List<dynamic> raw) {
+/// The report sends each row's canonical category name; the name shown is
+/// the user's, looked up by the row's categoryId in [categories].
+List<CategoryAmount> _toCategoryAmounts(List<dynamic> raw, CategoryDirectory categories) {
   return raw.map((item) {
     return CategoryAmount(
-      name: (item['category'] ?? '기타').toString(),
+      name: categories.nameOf(item['categoryId']?.toString(), (item['category'] ?? '기타').toString())!,
       amount: _toInt(item['amount']),
       transactionCount: _toInt(item['transactionCount']),
       percentage: (item['percentage'] is num) ? (item['percentage'] as num).toDouble() : double.tryParse('${item['percentage']}') ?? 0,
@@ -54,6 +57,16 @@ List<CategoryAmount> _toCategoryAmounts(List<dynamic> raw) {
     );
   }).toList()
     ..sort((a, b) => b.amount.compareTo(a.amount));
+}
+
+/// The user's category names, or the report's own names if the category
+/// list can't be loaded.
+Future<CategoryDirectory> _categoryDirectory(Ref ref) async {
+  try {
+    return CategoryDirectory(await ref.watch(categoriesProvider.future));
+  } catch (_) {
+    return CategoryDirectory.empty;
+  }
 }
 
 /// Everything the Report main screen (Figma 362:3635) needs, fetched and
@@ -111,7 +124,7 @@ final reportMainDataProvider = FutureProvider.autoDispose.family<ReportMainData,
 
   final totalExpense = _toInt(currentSummary['expense']);
   final dailyPoints = _toDailyPoints(dailyRaw).where((p) => p.day <= lastValidDay).toList();
-  final categories = _toCategoryAmounts(categoriesRaw);
+  final categories = _toCategoryAmounts(categoriesRaw, await _categoryDirectory(ref));
   final momPct = momPercent(totalExpense, previousExpense);
   final dailyRows = dailyRaw.cast<Map<String, dynamic>>();
   final peak = peakSpendingDay(dailyRows);
@@ -225,8 +238,9 @@ final monthlyReportDataProvider = FutureProvider.autoDispose.family<MonthlyRepor
 
   final currentDaily = currentDailyRaw.cast<Map<String, dynamic>>();
   final previousDaily = previousDailyRaw.cast<Map<String, dynamic>>();
-  var currentCategories = _toCategoryAmounts(currentCategoriesRaw);
-  final previousCategories = _toCategoryAmounts(previousCategoriesRaw);
+  final directory = await _categoryDirectory(ref);
+  var currentCategories = _toCategoryAmounts(currentCategoriesRaw, directory);
+  final previousCategories = _toCategoryAmounts(previousCategoriesRaw, directory);
 
   // The endpoint groups by leaf category name; the donut/legend are about
   // 대분류, so roll up with the category tree. If the tree can't be loaded,

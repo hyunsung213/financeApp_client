@@ -1,61 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../core/category/category_appearance.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../home/theme/home_tokens.dart';
-
-IconData categoryIconFor(String? name) {
-  final n = (name ?? '').toLowerCase();
-  if (n == '생활') return Icons.home_work_outlined;
-  if (n.contains('식비') || n.contains('식사') || n.contains('배달') || n.contains('간식')) return Icons.restaurant;
-  if (n.contains('카페') || n.contains('술')) return Icons.local_cafe_outlined;
-  if (n.contains('편의점')) return Icons.local_convenience_store_outlined;
-  if (n.contains('차량관리')) return Icons.build_outlined;
-  if (n.contains('교통') || n.contains('대중교통') || n.contains('기차') || n.contains('버스')) return Icons.directions_bus_outlined;
-  if (n.contains('택시')) return Icons.local_taxi_outlined;
-  if (n.contains('주유') || n.contains('차량')) return Icons.local_gas_station_outlined;
-  if (n.contains('주차')) return Icons.local_parking_outlined;
-  if (n.contains('생필품') || n.contains('마트') || n.contains('장보기')) return Icons.shopping_basket_outlined;
-  if (n.contains('통신비')) return Icons.phone_android;
-  if (n.contains('공과금')) return Icons.receipt_long_outlined;
-  if (n.contains('주거비')) return Icons.home_outlined;
-  if (n.contains('구독')) return Icons.subscriptions_outlined;
-  if (n.contains('의류')) return Icons.checkroom_outlined;
-  if (n.contains('신발') || n.contains('잡화')) return Icons.shopping_bag_outlined;
-  if (n.contains('화장품') || n.contains('미용')) return Icons.face_retouching_natural_outlined;
-  if (n.contains('전자기기')) return Icons.devices_outlined;
-  if (n.contains('가구') || n.contains('인테리어')) return Icons.weekend_outlined;
-  if (n.contains('쇼핑')) return Icons.shopping_cart_outlined;
-  if (n.contains('영화') || n.contains('공연')) return Icons.theaters_outlined;
-  if (n.contains('게임')) return Icons.sports_esports_outlined;
-  if (n.contains('취미')) return Icons.palette_outlined;
-  if (n.contains('여행')) return Icons.flight_takeoff_outlined;
-  if (n.contains('스포츠')) return Icons.sports_soccer_outlined;
-  if (n.contains('콘텐츠') || n.contains('여가') || n.contains('문화')) return Icons.movie_filter_outlined;
-  if (n.contains('병원')) return Icons.local_hospital_outlined;
-  if (n.contains('약국')) return Icons.medication_outlined;
-  if (n.contains('운동')) return Icons.fitness_center_outlined;
-  if (n.contains('건강')) return Icons.favorite_border;
-  if (n.contains('도서')) return Icons.menu_book_outlined;
-  if (n.contains('강의')) return Icons.school_outlined;
-  if (n.contains('학원')) return Icons.cast_for_education_outlined;
-  if (n.contains('자격증')) return Icons.workspace_premium_outlined;
-  if (n.contains('학비') || n.contains('교육')) return Icons.school_outlined;
-  if (n.contains('친구') || n.contains('모임')) return Icons.groups_outlined;
-  if (n.contains('데이트')) return Icons.favorite_outline;
-  if (n.contains('선물')) return Icons.card_giftcard_outlined;
-  if (n.contains('경조사')) return Icons.celebration_outlined;
-  if (n.contains('회비') || n.contains('관계')) return Icons.people_outline;
-  if (n.contains('수수료')) return Icons.payments_outlined;
-  if (n.contains('이자')) return Icons.percent_outlined;
-  if (n.contains('세금')) return Icons.account_balance_outlined;
-  if (n.contains('보험')) return Icons.shield_outlined;
-  if (n.contains('대출') || n.contains('금융')) return Icons.account_balance_outlined;
-  if (n.contains('투자')) return Icons.trending_up;
-  if (n.contains('저축')) return Icons.savings_outlined;
-  if (n.contains('수입')) return Icons.attach_money;
-  if (n.contains('미분류') || n.contains('기타')) return Icons.more_horiz;
-  return Icons.receipt_long_outlined;
-}
 
 /// The four "거래 유형" tab ids ([AddTransactionModal._selectedParentId]).
 /// `core.expense` no longer exists as a literal category row - see
@@ -292,7 +239,8 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
                           itemCount: items.length,
                           itemBuilder: (context, i) {
                             final item = items[i];
-                            final name = (item['name'] ?? '').toString();
+                            final appearance = CategoryAppearance.fromJson(item);
+                            final name = appearance.name;
                             final isSelected = highlighted != null && highlighted['id'] == item['id'];
                             return GestureDetector(
                               onTap: () => isSubStep ? _onSubTap(item) : _onMajorTap(item),
@@ -305,7 +253,7 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(categoryIconFor(name), size: 24, color: isSelected ? HomeTokens.accentDark : HomeTokens.textDark),
+                                    Icon(appearance.icon, size: 24, color: isSelected ? HomeTokens.accentDark : appearance.color ?? HomeTokens.textDark),
                                     const SizedBox(height: 6),
                                     Text(
                                       name,

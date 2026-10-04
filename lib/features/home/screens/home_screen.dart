@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/category/category_appearance.dart';
 import '../../../core/providers/current_date_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
@@ -19,7 +20,6 @@ import '../../transaction/screens/transaction_list_screen.dart';
 import '../../transaction/widgets/category_picker_screen.dart'
     show majorCategoriesFor;
 import '../theme/home_tokens.dart';
-import '../utils/category_icons.dart';
 import '../widgets/category_filter_chip.dart';
 import '../widgets/home_section_header.dart';
 import '../widgets/gauge_progress_bar.dart';
@@ -61,6 +61,7 @@ class HomeScreen extends ConsumerWidget {
     final user = ref.watch(authProvider).user;
     final selectedFilter = ref.watch(homeCategoryFilterProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final categoryDirectory = ref.watch(categoryDirectoryProvider);
     final recentTxAsync = ref.watch(homeRecentTransactionsProvider);
     final recentRegretAsync = ref.watch(recentRegrettableTransactionsProvider);
     // Single "today" for this whole build - the date pill, D-Day and
@@ -478,7 +479,7 @@ class HomeScreen extends ConsumerWidget {
                                   padding: const EdgeInsets.only(right: 8),
                                   child: CategoryFilterChip(
                                     label: name,
-                                    icon: categoryIconFor(id, name),
+                                    icon: CategoryAppearance.fromJson(c).icon,
                                     selected: selectedFilter == id,
                                     onTap: () => ref
                                         .read(
@@ -553,20 +554,14 @@ class HomeScreen extends ConsumerWidget {
                               (tx) => {
                                 'merchantOrTitle':
                                     (tx['merchantOrTitle'] ??
-                                            (tx['category'] is Map
-                                                ? tx['category']['name']
-                                                : null) ??
+                                            categoryDirectory.nameForTransaction(tx) ??
                                             '내역')
                                         .toString(),
                                 'time': _formatOccurredAt(tx['occurredAt']),
                                 'amountLabel':
                                     '-${NumberFormat('#,###').format(_toInt(tx['amount']))}원',
                                 'categoryPath':
-                                    ((tx['category'] is Map
-                                                ? tx['category']['name']
-                                                : null) ??
-                                            '기타')
-                                        .toString(),
+                                    categoryDirectory.nameForTransaction(tx) ?? '기타',
                                 'id': tx['id'],
                               },
                             )

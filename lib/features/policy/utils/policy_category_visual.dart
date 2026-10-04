@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 /// large visual area (Featured Card / list thumbnail), each category gets a
 /// gradient + a Material icon - consistent with this project's existing
 /// convention of using Material Icons instead of Figma's Iconoir assets
-/// (see lib/features/home/utils/category_icons.dart). `category` matching is
+/// (see lib/core/category/category_appearance.dart). `category` matching is
 /// substring-based since `/api/policies` returns whatever free-text label
 /// the sync job mapped from the source category name.
 ///
