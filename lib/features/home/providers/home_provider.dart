@@ -32,8 +32,9 @@ class HomeData {
   final DateTime? cycleStartDate;
   final DateTime? cycleProjectedEndDate;
 
-  // The backend sends 0 only once the expected payday has arrived without a
-  // salary entered (the ACTIVE cycle keeps running); otherwise it is >= 1.
+  // The backend rolls the cycle over on payday from the saved salary setting,
+  // so this is normally >= 1. It sends 0 only when that cannot happen (no
+  // salary amount or budget plan) and the ACTIVE cycle keeps running.
   bool get awaitingSalary => daysUntilSalary <= 0;
 
   // Shown in place of a D-0 that would never advance while awaiting salary.

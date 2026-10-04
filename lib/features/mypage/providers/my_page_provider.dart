@@ -86,9 +86,13 @@ class MyPageActionsNotifier extends Notifier<void> {
       } catch (_) {}
     }
 
-    // Invalidate caches
+    // Invalidate caches. A salary change re-budgets the current cycle, so
+    // the report screens showing its limits refetch too.
     ref.invalidate(myPageDataProvider);
     ref.invalidate(homeDataProvider);
+    ref.invalidate(reportMainDataProvider);
+    ref.invalidate(monthlyReportDataProvider);
+    ref.invalidate(monthlyReportProvider);
     ref.invalidate(profileProvider);
     ref.invalidate(recommendedPoliciesProvider);
   }
