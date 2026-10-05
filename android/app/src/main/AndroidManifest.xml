@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:label="finance_client"
+        android:label="월릿"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
@@ -33,7 +33,7 @@
         <!-- Notification Listener Service for financial notifications -->
         <service
             android:name=".notification.service.FinanceNotificationListenerService"
-            android:label="Finance notification listener"
+            android:label="월릿"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true">
             <intent-filter>

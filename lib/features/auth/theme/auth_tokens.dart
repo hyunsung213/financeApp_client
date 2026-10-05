@@ -73,9 +73,6 @@ class AuthAssets {
   static const String iconLightBulb = '$_dir/icon_light_bulb.png';
   static const String iconCheckSquare = '$_dir/icon_check_square.png';
   static const String iconArrowLeft = '$_dir/icon_arrow_left.png';
-  static const String logoMarkWhite = '$_dir/logo_mark_white.png';
-  static const String logoMarkGreen = '$_dir/logo_mark_green.png';
-  static const String logoWordmarkMask = '$_dir/logo_wordmark_mask.png';
   static const String socialKakao = '$_dir/social_kakao.png';
   static const String socialGoogle = '$_dir/social_google.png';
   static const String socialApple = '$_dir/social_apple.png';

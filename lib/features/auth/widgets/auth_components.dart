@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/branding/wallet_brand.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../theme/auth_tokens.dart';
 
@@ -152,7 +153,8 @@ class AuthBackButton extends StatelessWidget {
   }
 }
 
-/// Figma "Group 1": wallet mark (24.47px) + "월릿" wordmark, 39px tall.
+/// Final 월릿 lockup (Figma 789:2449) in the 39px-tall slot of the auth
+/// Figma "Group 1", so the screens keep their spacing.
 class AuthLogo extends StatelessWidget {
   const AuthLogo({super.key, this.onGreen = false});
 
@@ -161,36 +163,11 @@ class AuthLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        width: 83,
-        height: 39,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              left: -0.27,
-              top: 5.32,
-              width: 25,
-              height: 25,
-              child: Image.asset(
-                onGreen ? AuthAssets.logoMarkWhite : AuthAssets.logoMarkGreen,
-                filterQuality: FilterQuality.high,
-              ),
-            ),
-            Positioned(
-              left: 32,
-              top: 0,
-              width: 51,
-              height: 39,
-              child: Image.asset(
-                AuthAssets.logoWordmarkMask,
-                color: onGreen ? Colors.white : AuthTokens.accent,
-                colorBlendMode: BlendMode.srcIn,
-                filterQuality: FilterQuality.high,
-              ),
-            ),
-          ],
+    return SizedBox(
+      height: 39,
+      child: Center(
+        child: WalletLogo(
+          tone: onGreen ? WalletLogoTone.white : WalletLogoTone.green,
         ),
       ),
     );
