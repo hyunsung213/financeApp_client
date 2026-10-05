@@ -2,17 +2,15 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-enum NotificationAccessStatus {
-  granted,
-  denied,
-  unsupported,
-}
+enum NotificationAccessStatus { granted, denied, unsupported }
 
 class NotificationService {
-  static const MethodChannel _methodChannel =
-      MethodChannel('finance_app/notification_access');
-  static const EventChannel _eventChannel =
-      EventChannel('finance_app/notification_events');
+  static const MethodChannel _methodChannel = MethodChannel(
+    'finance_app/notification_access',
+  );
+  static const EventChannel _eventChannel = EventChannel(
+    'finance_app/notification_events',
+  );
 
   static Stream<Map<String, dynamic>>? _eventStream;
 
@@ -23,7 +21,8 @@ class NotificationService {
     }
 
     try {
-      final granted = await _methodChannel.invokeMethod<bool>(
+      final granted =
+          await _methodChannel.invokeMethod<bool>(
             'isNotificationAccessGranted',
           ) ??
           false;
@@ -43,7 +42,8 @@ class NotificationService {
     }
 
     try {
-      final result = await _methodChannel.invokeMethod<bool>(
+      final result =
+          await _methodChannel.invokeMethod<bool>(
             'openNotificationAccessSettings',
           ) ??
           false;
@@ -64,13 +64,11 @@ class NotificationService {
     }
 
     try {
-      final result = await _methodChannel.invokeMethod<bool>(
-            'updateConfig',
-            {
-              'baseUrl': baseUrl,
-              'authToken': authToken,
-            },
-          ) ??
+      final result =
+          await _methodChannel.invokeMethod<bool>('updateConfig', {
+            'baseUrl': baseUrl,
+            'authToken': authToken,
+          }) ??
           false;
       return result;
     } catch (e) {
@@ -93,7 +91,9 @@ class NotificationService {
         {'limit': limit},
       );
       if (result == null) return [];
-      return result.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+      return result
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
     } catch (e) {
       debugPrint('Error getting recent notifications: $e');
       return [];
@@ -107,10 +107,8 @@ class NotificationService {
     }
 
     try {
-      final result = await _methodChannel.invokeMethod<bool>(
-            'triggerManualSync',
-          ) ??
-          false;
+      final result =
+          await _methodChannel.invokeMethod<bool>('triggerManualSync') ?? false;
       return result;
     } catch (e) {
       debugPrint('Error triggering manual sync: $e');
@@ -124,9 +122,9 @@ class NotificationService {
       return const Stream.empty();
     }
 
-    _eventStream ??= _eventChannel
-        .receiveBroadcastStream()
-        .map((event) => Map<String, dynamic>.from(event as Map));
+    _eventStream ??= _eventChannel.receiveBroadcastStream().map(
+      (event) => Map<String, dynamic>.from(event as Map),
+    );
     return _eventStream!;
   }
 }

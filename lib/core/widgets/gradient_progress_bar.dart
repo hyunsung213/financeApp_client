@@ -35,7 +35,11 @@ class GradientProgressBar extends StatelessWidget {
           widthFactor: value.clamp(0.0, 1.0),
           child: Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: colors, begin: Alignment.centerLeft, end: Alignment.centerRight),
+              gradient: LinearGradient(
+                colors: colors,
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
             ),
           ),
         ),
