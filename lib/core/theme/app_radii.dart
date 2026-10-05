@@ -5,6 +5,16 @@
 class AppRadii {
   AppRadii._();
 
+  // The 월릿 radius scale. New/restyled surfaces pick from these four:
+  // sm - inset tiles, inputs, small badges
+  // md - list items, chips-as-cards, settings sections
+  // lg - section cards (Report/Calendar/Home)
+  // xl - the hero card, bottom sheets
+  static const double sm = 12;
+  static const double md = 16;
+  static const double lg = 20;
+  static const double xl = 24;
+
   /// Chip/pill shapes.
   static const double pill = 30;
 

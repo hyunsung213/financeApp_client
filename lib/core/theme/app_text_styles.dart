@@ -69,6 +69,36 @@ class AppTextStyles {
     fontWeight: FontWeight.w800,
   );
 
+  // Money. Tabular figures keep digits from shifting width as amounts
+  // change, and the tighter tracking keeps big numbers compact.
+  static const List<FontFeature> _tabular = [FontFeature.tabularFigures()];
+
+  /// The one amount a screen is about (Home's "오늘 쓸 수 있는 돈").
+  static const TextStyle amountHero = TextStyle(
+    fontSize: 44,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -1.4,
+    height: 1.1,
+    fontFeatures: _tabular,
+  );
+
+  /// Second-tier amount (a card's key figure).
+  static const TextStyle amountLarge = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.6,
+    height: 1.2,
+    fontFeatures: _tabular,
+  );
+
+  /// Amount inside a list item / row.
+  static const TextStyle amountMedium = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.3,
+    fontFeatures: _tabular,
+  );
+
   /// Brand-green accent for an emphasized value inside running text.
   static const Color accent = AppColorTokens.accent;
 }
