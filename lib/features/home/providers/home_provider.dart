@@ -27,6 +27,9 @@ class HomeData {
   final String paceStatus;
   final int paceDifference;
   final double flexibleUsageRatio;
+  // Confirmed non-salary income already added to the ACTIVE cycle's budget
+  // (`budget.additionalIncomeAmount`); null when an older backend omits it.
+  final int? additionalIncomeAmount;
   // The ACTIVE cycle's real dates as the backend stores them (`cycle.startDate`
   // / `cycle.projectedEndDate`); null when an older backend omits them.
   final DateTime? cycleStartDate;
@@ -53,6 +56,7 @@ class HomeData {
     required this.paceStatus,
     required this.paceDifference,
     required this.flexibleUsageRatio,
+    this.additionalIncomeAmount,
     this.cycleStartDate,
     this.cycleProjectedEndDate,
   });
@@ -89,6 +93,9 @@ class HomeData {
       paceStatus: json['pace']?['status']?.toString() ?? 'UNKNOWN',
       paceDifference: _toInt(json['pace']?['difference']),
       flexibleUsageRatio: ratio,
+      additionalIncomeAmount: budget?['additionalIncomeAmount'] == null
+          ? null
+          : _toInt(budget?['additionalIncomeAmount']),
       cycleStartDate: DateTime.tryParse('${json['cycle']?['startDate']}'),
       cycleProjectedEndDate: DateTime.tryParse(
         '${json['cycle']?['projectedEndDate']}',

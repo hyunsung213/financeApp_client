@@ -782,6 +782,7 @@ class DemoBackendAdapter implements HttpClientAdapter {
         'elapsedDays': elapsedDays,
         'remainingDays': remainingDays,
         'salaryAmount': salary,
+        'additionalIncomeAmount': additional,
         'savingBudgetAmount': allocations[_savingId] ?? 0,
         'investmentBudgetAmount': allocations[_investmentId] ?? 0,
         'fixedExpenseBudgetAmount': allocations[_fixedId] ?? 0,
@@ -837,6 +838,7 @@ class DemoBackendAdapter implements HttpClientAdapter {
         'calculationMode': 'CATEGORY_PERCENTAGE_ALLOCATION',
         for (final key in const [
           'salaryAmount',
+          'additionalIncomeAmount',
           'savingBudgetAmount',
           'investmentBudgetAmount',
           'fixedExpenseBudgetAmount',

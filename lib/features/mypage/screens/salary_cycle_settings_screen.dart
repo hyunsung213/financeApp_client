@@ -5,6 +5,7 @@ import '../../home/providers/home_provider.dart';
 import '../../../core/widgets/gradient_progress_bar.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../providers/my_page_provider.dart';
+import '../providers/salary_budget_preview.dart';
 import '../theme/my_tokens.dart';
 import '../utils/currency_input_formatter.dart';
 import '../utils/profile_regions.dart';
@@ -49,6 +50,14 @@ class _SalaryCycleSettingsScreenState
     return null;
   }
 
+  /// The 정기 수입 typed in the field, or null while it isn't a valid amount.
+  int? get _draftSalary {
+    final salary = int.tryParse(
+      _salaryController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+    );
+    return salary != null && salary > 0 ? salary : null;
+  }
+
   void _initializeData(MyPageData data) {
     if (_isInitialized) return;
     _isInitialized = true;
@@ -91,6 +100,15 @@ class _SalaryCycleSettingsScreenState
             age: age,
             region: _selectedRegion,
           );
+
+      // Wait for the re-budgeted cycle so the summary never pairs the new
+      // salary with the previous cycle's numbers.
+      try {
+        await Future.wait([
+          ref.read(myPageDataProvider.future),
+          ref.read(homeDataProvider.future),
+        ]);
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -178,7 +196,7 @@ class _SalaryCycleSettingsScreenState
                 ),
               ),
               const SizedBox(height: 16),
-              _buildPreviewCard(context, ref),
+              _buildPreviewCard(context, ref, data),
               const SizedBox(height: 24),
 
               SettingsSectionCard(
@@ -187,6 +205,8 @@ class _SalaryCycleSettingsScreenState
                   controller: _salaryController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [CurrencyInputFormatter()],
+                  // The summary card previews the typed amount.
+                  onChanged: (_) => setState(() {}),
                   decoration: settingsInputDecoration(
                     labelText: '한 번에 들어오는 금액',
                     suffixText: '원',
@@ -272,7 +292,11 @@ class _SalaryCycleSettingsScreenState
     );
   }
 
-  Widget _buildPreviewCard(BuildContext context, WidgetRef ref) {
+  Widget _buildPreviewCard(
+    BuildContext context,
+    WidgetRef ref,
+    MyPageData myPage,
+  ) {
     final homeAsync = ref.watch(homeDataProvider);
     return homeAsync.when(
       // Keep the preview card's slot while home data is loading or
@@ -326,7 +350,26 @@ class _SalaryCycleSettingsScreenState
         final cycleRange = cycleStart != null && cycleEnd != null
             ? '${dateFormat.format(cycleStart)} - ${dateFormat.format(cycleEnd)}'
             : '';
-        final usagePercent = (home.flexibleUsageRatio * 100).round();
+        // While the typed 정기 수입 differs from the saved one, show what the
+        // current cycle becomes once it's saved rather than pairing the new
+        // amount with the budget built from the old one.
+        final draft = _draftSalary;
+        final isDraft =
+            draft != null &&
+            draft != _parseToInt(myPage.setting['salaryAmount']);
+        final preview = isDraft
+            ? previewSalaryChange(
+                salaryAmount: draft,
+                home: home,
+                planAllocations: myPage.allocations,
+              )
+            : null;
+        final remaining =
+            preview?.remainingUsableAmount ?? home.remainingFlexibleAmount;
+        final usageRatio = preview?.usageRatio ?? home.flexibleUsageRatio;
+        final usagePercent = (usageRatio * 100).round();
+        final additionalIncome = home.additionalIncomeAmount ?? 0;
+        final won = NumberFormat('#,###');
 
         return _previewShell(
           child: Column(
@@ -355,13 +398,20 @@ class _SalaryCycleSettingsScreenState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${NumberFormat('#,###').format(home.remainingFlexibleAmount)}원 남았어요',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: MyTokens.textPrimary,
+                  // The daily-spendable pool (저축/투자/고정지출 excluded),
+                  // the same remaining budget Home's daily allowance uses.
+                  Flexible(
+                    child: Text(
+                      remaining < 0
+                          ? '쓸 수 있는 예산을 ${won.format(-remaining)}원 넘었어요'
+                          : '쓸 수 있는 예산 ${won.format(remaining)}원 남았어요',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: MyTokens.textPrimary,
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     '$usagePercent% 사용',
                     style: const TextStyle(
@@ -374,11 +424,34 @@ class _SalaryCycleSettingsScreenState
               ),
               const SizedBox(height: 8),
               GradientProgressBar(
-                value: home.flexibleUsageRatio,
+                value: usageRatio,
                 height: 6,
                 backgroundColor: Colors.white,
                 colors: MyTokens.progressGradient,
               ),
+              if (additionalIncome > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '추가 수입 ${won.format(additionalIncome)}원 포함',
+                  style: const TextStyle(
+                    color: MyTokens.placeholder,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+              if (isDraft) ...[
+                SizedBox(height: additionalIncome > 0 ? 2 : 8),
+                Text(
+                  preview != null
+                      ? '저장하면 현재 예산에 바로 반영돼요.'
+                      : '아직 저장되지 않은 변경사항이에요. 위 금액은 현재 적용 중인 예산이에요.',
+                  style: const TextStyle(
+                    color: MyTokens.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ],
           ),
         );
