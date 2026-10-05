@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/format/money_format.dart';
 import 'report_date_utils.dart';
 
 /// Rule-based Report insight sentences.
@@ -235,16 +236,6 @@ DailyPeak? peakSpendingDay(List<Map<String, dynamic>> dailyRows) {
   return peak;
 }
 
-String _formatWon(int amount) {
-  final s = amount.abs().toString();
-  final buf = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-    buf.write(s[i]);
-  }
-  return '${amount < 0 ? '-' : ''}${buf.toString()}원';
-}
-
 /// Which detail screen a Report main summary row leads to.
 enum ReportHighlightKind { topCategory, topDay, topWeek }
 
@@ -254,13 +245,32 @@ class ReportHighlight {
   final ReportHighlightKind kind;
   final IconData icon;
   final String label;
-  final String value;
+
+  /// What the row is about, e.g. `식비`, `9월 12일`, `2주차`.
+  final String subject;
+
+  /// Kept as a number so the screen formats it with the user's
+  /// 금액 표시 형식 ([formatValue]).
+  final int amount;
 
   /// The day itself for [ReportHighlightKind.topDay], so navigation can
   /// hand the exact date to the Calendar instead of re-deriving it from text.
   final DateTime? date;
 
-  const ReportHighlight({required this.kind, required this.icon, required this.label, required this.value, this.date});
+  const ReportHighlight({
+    required this.kind,
+    required this.icon,
+    required this.label,
+    required this.subject,
+    required this.amount,
+    this.date,
+  });
+
+  /// `식비 · 120,000원` (or `식비 · 12만원` in the compact format).
+  String formatValue(MoneyDisplayFormat format) =>
+      '$subject · ${formatMoney(amount, format)}';
+
+  String get value => formatValue(MoneyDisplayFormat.exact);
 }
 
 /// Builds the "이번 달 리포트 요약" rows for the Report main screen. All
@@ -281,14 +291,16 @@ List<ReportHighlight> buildMainHighlights({
         kind: ReportHighlightKind.topCategory,
         icon: Icons.pie_chart_outline_rounded,
         label: '가장 많이 쓴 카테고리',
-        value: '${topMajorCategory.name} · ${_formatWon(topMajorCategory.amount)}',
+        subject: topMajorCategory.name,
+        amount: topMajorCategory.amount,
       ),
     if (peakDay != null)
       ReportHighlight(
         kind: ReportHighlightKind.topDay,
         icon: Icons.event_outlined,
         label: '가장 많이 쓴 날',
-        value: '${peakDay.date.month}월 ${peakDay.date.day}일 · ${_formatWon(peakDay.amount)}',
+        subject: '${peakDay.date.month}월 ${peakDay.date.day}일',
+        amount: peakDay.amount,
         date: DateTime(peakDay.date.year, peakDay.date.month, peakDay.date.day),
       ),
     if (topWeek != null)
@@ -296,7 +308,8 @@ List<ReportHighlight> buildMainHighlights({
         kind: ReportHighlightKind.topWeek,
         icon: Icons.bar_chart_rounded,
         label: '가장 많이 쓴 주',
-        value: '${topWeek + 1}주차 · ${_formatWon(weeklyTotals[topWeek])}',
+        subject: '${topWeek + 1}주차',
+        amount: weeklyTotals[topWeek],
       ),
   ];
 }
@@ -341,4 +354,6 @@ List<ReportInsight> buildMonthlyInsights({
   return insights;
 }
 
-String formatWon(int amount) => _formatWon(amount);
+/// Exact `1,234원`, for callers without a [BuildContext]. Widgets use
+/// `context.formatWon` so the 금액 표시 형식 setting applies.
+String formatWon(int amount) => formatMoney(amount, MoneyDisplayFormat.exact);
