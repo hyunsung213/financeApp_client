@@ -52,3 +52,6 @@ symbols/
 
 # Exceptions to above rules.
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
+
+# Local automation artifacts (Playwright MCP screenshots/logs)
+/.playwright-mcp/
