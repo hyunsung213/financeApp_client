@@ -2,7 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 /// Formats a digits-only amount with thousands separators as it's typed
-/// (월급 금액 in 월급 설정 and onboarding).
+/// (정기 수입 금액 in 정기 수입 설정 and onboarding).
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(

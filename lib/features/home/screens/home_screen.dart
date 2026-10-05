@@ -340,8 +340,8 @@ class HomeScreen extends ConsumerWidget {
                                                   children: [
                                                     Text(
                                                       data.awaitingSalary
-                                                          ? '예정 월급일이 지났어요 · '
-                                                          : '다음 월급일까지 앞으로 ',
+                                                          ? '예정 수입일이 지났어요 · '
+                                                          : '다음 수입까지 앞으로 ',
                                                       style: const TextStyle(
                                                         fontSize: 14,
                                                         fontWeight:
@@ -639,7 +639,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           _DetailRow(
             Icons.event_outlined,
-            '다음 월급일까지',
+            '다음 수입까지',
             data.salaryCountdownLabel,
           ),
           _DetailRow(
@@ -648,7 +648,7 @@ class HomeScreen extends ConsumerWidget {
             _formatCurrency(data.remainingFlexibleAmount),
           ),
         ],
-        footer: '현재 월급 주기와 남은 금액을 기준으로 계산되었어요.',
+        footer: '현재 수입 주기와 남은 금액을 기준으로 계산되었어요.',
       ),
     );
   }
@@ -674,9 +674,9 @@ class HomeScreen extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => _DetailSheet(
-        title: '이번 월급 주기',
+        title: '이번 수입 주기',
         subtitle: data.awaitingSalary
-            ? '예정 월급일이 지났어요'
+            ? '예정 수입일이 지났어요'
             : '${dateFormat.format(cycleStart)} ~ ${dateFormat.format(cycleEnd)}',
         headline: data.salaryCountdownLabel,
         headlineColor: HomeTokens.accent,
@@ -699,7 +699,7 @@ class HomeScreen extends ConsumerWidget {
           _DetailRow(
             Icons.hourglass_bottom,
             '남은 기간',
-            data.awaitingSalary ? '월급 입력 전' : '${data.daysUntilSalary}일',
+            data.awaitingSalary ? '수입 입력 전' : '${data.daysUntilSalary}일',
           ),
           _DetailRow(
             Icons.stars_outlined,

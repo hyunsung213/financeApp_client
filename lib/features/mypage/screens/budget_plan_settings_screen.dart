@@ -171,7 +171,7 @@ class _BudgetPlanSettingsScreenState
                   children: [
                     if (widget.isOnboarding) ...[
                       const Text(
-                        '월급을 어떻게 나눠 쓸까요?',
+                        '수입을 어떻게 나눠 쓸까요?',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -189,7 +189,7 @@ class _BudgetPlanSettingsScreenState
                       ),
                     ] else
                       const Text(
-                        '월급을 저축·투자·지출로 나눠 배분해요. 저장하면 현재 예산에 바로 반영돼요.',
+                        '정기 수입을 저축·투자·지출로 나눠 배분해요. 저장하면 현재 예산에 바로 반영돼요.',
                         style: TextStyle(
                           fontSize: 13,
                           height: 1.5,

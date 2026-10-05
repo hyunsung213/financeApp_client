@@ -39,7 +39,7 @@ class HomeData {
 
   // Shown in place of a D-0 that would never advance while awaiting salary.
   String get salaryCountdownLabel =>
-      awaitingSalary ? '월급 입력 대기' : 'D-$daysUntilSalary';
+      awaitingSalary ? '수입 입력 대기' : 'D-$daysUntilSalary';
 
   HomeData({
     required this.recommendedAmount,

@@ -390,7 +390,7 @@ class DemoBackendAdapter implements HttpClientAdapter {
     final day = (body['salaryDay'] as num?)?.toInt();
     final reportingDay = (body['reportingStartDay'] as num?)?.toInt();
     if (amount == null || amount < 0 || day == null || day < 1 || day > 31) {
-      throw _DemoError.validation('월급 금액과 월급일을 확인해주세요.');
+      throw _DemoError.validation('정기 수입 금액과 들어오는 날을 확인해주세요.');
     }
     _store.setting = {
       ..._store.setting,

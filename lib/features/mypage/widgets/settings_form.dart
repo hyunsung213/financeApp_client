@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/my_tokens.dart';
 
-/// Form building blocks shared by the 월급 설정 and 예산 배분 설정 screens, so
+/// Form building blocks shared by the 정기 수입 설정 and 예산 배분 설정 screens, so
 /// both keep the exact same card/input/button look.
 
 /// App bar used by the settings detail screens. [leading] replaces the

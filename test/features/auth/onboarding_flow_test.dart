@@ -106,12 +106,16 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('기본 정보를 알려주세요'), findsOneWidget);
+    expect(find.text('주기적으로 들어오는 돈을 알려주세요'), findsOneWidget);
+    expect(find.text('월급, 알바비, 용돈 등 무엇이든 괜찮아요.'), findsOneWidget);
+    expect(find.text('한 번에 들어오는 금액'), findsOneWidget);
+    expect(find.text('들어오는 날'), findsOneWidget);
+    expect(find.textContaining('가장 생활비 기준이 되는 수입 하나만'), findsOneWidget);
 
     // Required salary info missing: nothing is saved.
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
-    expect(find.text('월급 금액을 입력해주세요.'), findsOneWidget);
+    expect(find.text('한 번에 들어오는 금액을 입력해주세요.'), findsOneWidget);
     expect(finance.setting, isNull);
 
     await tester.enterText(
@@ -129,7 +133,7 @@ void main() {
     expect(finance.setting?['salaryDay'], 5);
     expect(policy.profileUpdates, isEmpty); // optional fields left empty
     expect(container.read(onboardingStepProvider).value, OnboardingStep.budget);
-    expect(find.text('월급을 어떻게 나눠 쓸까요?'), findsOneWidget);
+    expect(find.text('수입을 어떻게 나눠 쓸까요?'), findsOneWidget);
     expect(find.text('3,000,000원'), findsOneWidget); // 저축 100% preview
 
     await tester.tap(find.text('완료'));

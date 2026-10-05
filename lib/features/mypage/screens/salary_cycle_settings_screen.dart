@@ -75,7 +75,7 @@ class _SalaryCycleSettingsScreenState
     if (salary == null || salary <= 0) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('올바른 월급 금액을 입력해주세요.')));
+      ).showSnackBar(const SnackBar(content: Text('올바른 수입 금액을 입력해주세요.')));
       return;
     }
     setState(() => _isSaving = true);
@@ -117,7 +117,7 @@ class _SalaryCycleSettingsScreenState
 
     return Scaffold(
       backgroundColor: MyTokens.pageBackground,
-      appBar: settingsAppBar('월급 설정'),
+      appBar: settingsAppBar('정기 수입 설정'),
       body: myPageAsync.when(
         loading: () => const FormSkeleton(),
         error: (error, stack) => Center(child: Text('데이터를 불러오지 못했습니다: $error')),
@@ -128,11 +128,11 @@ class _SalaryCycleSettingsScreenState
             padding: const EdgeInsets.all(20),
             children: [
               SettingsSectionCard(
-                title: '월급일',
+                title: '들어오는 날',
                 child: Column(
                   children: [
                     _daySelector(
-                      label: '월급일',
+                      label: '들어오는 날',
                       value: _salaryDay,
                       onChanged: (v) => setState(() => _salaryDay = v),
                     ),
@@ -140,7 +140,7 @@ class _SalaryCycleSettingsScreenState
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        '월급 주기',
+                        '수입 주기',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -182,13 +182,13 @@ class _SalaryCycleSettingsScreenState
               const SizedBox(height: 24),
 
               SettingsSectionCard(
-                title: '월급 금액',
+                title: '정기 수입 금액',
                 child: TextField(
                   controller: _salaryController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [CurrencyInputFormatter()],
                   decoration: settingsInputDecoration(
-                    labelText: '월급 금액',
+                    labelText: '한 번에 들어오는 금액',
                     suffixText: '원',
                     prefixIcon: const Icon(Icons.monetization_on_outlined),
                   ),
@@ -253,7 +253,7 @@ class _SalaryCycleSettingsScreenState
           children: [
             const Expanded(
               child: Text(
-                '월급 금액을 기준으로 예산을 나눠 설정할 수 있어요.',
+                '정기 수입을 기준으로 예산을 나눠 설정할 수 있어요.',
                 style: TextStyle(fontSize: 13, color: MyTokens.placeholder),
               ),
             ),
@@ -296,7 +296,7 @@ class _SalaryCycleSettingsScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '다음 월급일까지 앞으로',
+              '다음 수입까지 앞으로',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: MyTokens.accent,
@@ -335,7 +335,7 @@ class _SalaryCycleSettingsScreenState
               Text(
                 home.awaitingSalary
                     ? home.salaryCountdownLabel
-                    : '다음 월급일까지 앞으로 ${home.salaryCountdownLabel}',
+                    : '다음 수입까지 앞으로 ${home.salaryCountdownLabel}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: MyTokens.accent,
@@ -345,7 +345,7 @@ class _SalaryCycleSettingsScreenState
               // Once the expected payday has passed the projected end is
               // behind us - show the state instead of a range (as Home does).
               Text(
-                home.awaitingSalary ? '예정 월급일이 지났어요' : cycleRange,
+                home.awaitingSalary ? '예정 수입일이 지났어요' : cycleRange,
                 style: const TextStyle(
                   color: MyTokens.textPrimary,
                   fontSize: 12,

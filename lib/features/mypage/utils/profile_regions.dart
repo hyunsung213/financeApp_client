@@ -1,5 +1,5 @@
 /// Region options for the policy-profile `region` field (`PUT /api/profile`),
-/// shared by the 월급 설정 and 계정 관리 profile forms.
+/// shared by the 정기 수입 설정 and 계정 관리 profile forms.
 const List<String> profileRegions = [
   '서울',
   '부산',

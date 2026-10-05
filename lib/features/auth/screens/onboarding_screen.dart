@@ -43,9 +43,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-/// 사용자 정보: the salary setting the budget is calculated from (required)
-/// plus the policy-profile fields already used by 월급 설정/계정 관리
+/// 사용자 정보: the recurring income the budget is calculated from (required)
+/// plus the policy-profile fields already used by 정기 수입 설정/계정 관리
 /// (optional).
+///
+/// Shown to users as "정기 수입" (월급·알바비·용돈 alike) but stored as the
+/// existing monthly salaryAmount/salaryDay setting.
 class _ProfileStep extends ConsumerStatefulWidget {
   final VoidCallback onSaved;
 
@@ -93,9 +96,9 @@ class _ProfileStepState extends ConsumerState<_ProfileStep> {
     final age = int.tryParse(ageText);
     final String? error;
     if (salary == null || salary <= 0) {
-      error = '월급 금액을 입력해주세요.';
+      error = '한 번에 들어오는 금액을 입력해주세요.';
     } else if (_salaryDay == null) {
-      error = '월급일을 선택해주세요.';
+      error = '들어오는 날을 선택해주세요.';
     } else if (ageText.isNotEmpty && (age == null || age > 120)) {
       error = '만 나이를 0~120 사이로 입력해주세요.';
     } else {
@@ -156,7 +159,7 @@ class _ProfileStepState extends ConsumerState<_ProfileStep> {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
             children: [
               const Text(
-                '기본 정보를 알려주세요',
+                '주기적으로 들어오는 돈을 알려주세요',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -165,7 +168,7 @@ class _ProfileStepState extends ConsumerState<_ProfileStep> {
               ),
               const SizedBox(height: 6),
               const Text(
-                '월급과 월급일로 매일 쓸 수 있는 예산을 계산해요.',
+                '월급, 알바비, 용돈 등 무엇이든 괜찮아요.',
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.5,
@@ -174,7 +177,7 @@ class _ProfileStepState extends ConsumerState<_ProfileStep> {
               ),
               const SizedBox(height: 24),
               SettingsSectionCard(
-                title: '월급',
+                title: '정기 수입',
                 child: Column(
                   children: [
                     TextField(
@@ -183,7 +186,7 @@ class _ProfileStepState extends ConsumerState<_ProfileStep> {
                       keyboardType: TextInputType.number,
                       inputFormatters: [CurrencyInputFormatter()],
                       decoration: settingsInputDecoration(
-                        labelText: '월급 금액',
+                        labelText: '한 번에 들어오는 금액',
                         suffixText: '원',
                         prefixIcon: const Icon(Icons.monetization_on_outlined),
                       ),
@@ -193,7 +196,7 @@ class _ProfileStepState extends ConsumerState<_ProfileStep> {
                       key: const ValueKey('onboarding-salary-day'),
                       initialValue: _salaryDay,
                       decoration: settingsInputDecoration(
-                        labelText: '월급일',
+                        labelText: '들어오는 날',
                         prefixIcon: const Icon(Icons.calendar_month_outlined),
                       ),
                       items: [
@@ -201,6 +204,19 @@ class _ProfileStepState extends ConsumerState<_ProfileStep> {
                           DropdownMenuItem(value: day, child: Text('매월 $day일')),
                       ],
                       onChanged: (value) => setState(() => _salaryDay = value),
+                    ),
+                    const SizedBox(height: 12),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '가장 생활비 기준이 되는 수입 하나만 입력해주세요.\n'
+                        '다른 수입은 나중에 추가할 수 있어요.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.5,
+                          color: MyTokens.placeholder,
+                        ),
+                      ),
                     ),
                   ],
                 ),

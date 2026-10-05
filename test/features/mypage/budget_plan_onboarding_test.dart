@@ -76,7 +76,7 @@ void main() {
     tester,
   ) async {
     await pump(tester);
-    expect(find.text('월급을 어떻게 나눠 쓸까요?'), findsOneWidget);
+    expect(find.text('수입을 어떻게 나눠 쓸까요?'), findsOneWidget);
     expect(find.text('예산 배분'), findsOneWidget);
     final label = tester.widget<Text>(
       find.byKey(const ValueKey('budget-allocation-label')),

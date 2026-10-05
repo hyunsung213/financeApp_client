@@ -73,8 +73,8 @@ class MyPageScreen extends ConsumerWidget {
                     _menuRow(
                       context,
                       icon: Icons.calendar_month_outlined,
-                      title: '월급 설정',
-                      subtitle: '월급일, 월급 금액, 주기 설정',
+                      title: '정기 수입 설정',
+                      subtitle: '정기 수입 금액과 들어오는 날',
                       onTap: () =>
                           _push(context, const SalaryCycleSettingsScreen()),
                     ),
