@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../home/theme/home_tokens.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/manual_input_fab.dart' show kBottomNavBarHeight;
 import '../providers/policy_provider.dart';
 import '../utils/policy_bookmark_action.dart';
 import '../widgets/policy_featured_card.dart';
 import '../widgets/policy_filter_chips.dart';
 import '../widgets/policy_list_card.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Figma node 238:4676 (FINAL_POLICY_SCREENS, "Frame 116"): a single scroll
 /// (header -> Featured Card -> filter chips -> list), replacing the old
@@ -31,7 +34,8 @@ class _PolicyScreenState extends ConsumerState<PolicyScreen> {
     final recommendedAsync = ref.watch(recommendedPoliciesProvider);
 
     return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+      // The tab shell paints the ambient background behind every tab.
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: recommendedAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -74,7 +78,7 @@ class _PolicyScreenState extends ConsumerState<PolicyScreen> {
     final allAsync = ref.watch(allPoliciesProvider);
     return allAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, st) => Center(child: Text('정책 정보를 불러오지 못했습니다.', style: const TextStyle(color: HomeTokens.textMuted))),
+      error: (e, st) => Center(child: Text('정책 정보를 불러오지 못했습니다.', style: TextStyle(color: context.glass.textTertiary))),
       data: (policies) => _PolicyList(
         policies: policies,
         selectedCategory: _selectedCategory,
@@ -124,9 +128,9 @@ class _PolicyList extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.search_off_rounded, size: 56, color: HomeTokens.textMuted.withValues(alpha: 0.6)),
+                  Icon(Icons.search_off_rounded, size: 56, color: context.glass.textTertiary.withValues(alpha: 0.6)),
                   const SizedBox(height: 12),
-                  const Text('표시할 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted)),
+                  Text('표시할 정책이 없습니다.', style: TextStyle(color: context.glass.textTertiary)),
                 ],
               ),
             ),
@@ -174,7 +178,7 @@ class _PolicyList extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: bookmarksAsync.hasError
-                  ? const Text('북마크를 불러오지 못했습니다.', style: TextStyle(color: HomeTokens.textMuted))
+                  ? Text('북마크를 불러오지 못했습니다.', style: TextStyle(color: context.glass.textTertiary))
                   : const CircularProgressIndicator(),
             ),
           ),
@@ -185,9 +189,9 @@ class _PolicyList extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Column(
               children: [
-                Icon(Icons.bookmark_border_rounded, size: 56, color: HomeTokens.textMuted.withValues(alpha: 0.6)),
+                Icon(Icons.bookmark_border_rounded, size: 56, color: context.glass.textTertiary.withValues(alpha: 0.6)),
                 const SizedBox(height: 12),
-                const Text('북마크한 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted)),
+                Text('북마크한 정책이 없습니다.', style: TextStyle(color: context.glass.textTertiary)),
               ],
             ),
           ),
@@ -199,10 +203,10 @@ class _PolicyList extends ConsumerWidget {
         );
       }
     } else if (filtered.isEmpty) {
-      listSliver = const SliverToBoxAdapter(
+      listSliver = SliverToBoxAdapter(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 24),
-          child: Center(child: Text('선택한 카테고리의 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted))),
+          child: Center(child: Text('선택한 카테고리의 정책이 없습니다.', style: TextStyle(color: context.glass.textTertiary))),
         ),
       );
     } else {
@@ -216,7 +220,7 @@ class _PolicyList extends ConsumerWidget {
       slivers: [
         _sliverHeader(context),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           sliver: SliverToBoxAdapter(child: PolicyFeaturedCard(policy: featured, onTap: () => context.push('/policy/${featured['id']}'))),
         ),
         if (profileBanner != null)
@@ -231,7 +235,8 @@ class _PolicyList extends ConsumerWidget {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
+          // Bottom inset clears the floating nav pill.
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, kBottomNavBarHeight + 24),
           sliver: listSliver,
         ),
       ],
@@ -244,7 +249,7 @@ class _PolicyList extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
         child: Row(
           children: [
-            const Text('청년정책', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+            Text('청년정책', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: context.glass.textPrimary)),
             const Spacer(),
             // Figma's header only has a bell icon; the bookmark entry point
             // is an intentional addition since the old "관심" tab was
@@ -252,11 +257,11 @@ class _PolicyList extends ConsumerWidget {
             // bookmark-list screen to point to instead (see
             // docs/development-work-policy.md scope notes for Policy).
             IconButton(
-              icon: const Icon(Icons.bookmark_border_rounded, color: HomeTokens.textDark),
+              icon: Icon(Icons.bookmark_border_rounded, color: context.glass.textPrimary),
               onPressed: () => context.push('/policy/bookmarks'),
             ),
             IconButton(
-              icon: const Icon(Icons.notifications_none_rounded, color: HomeTokens.textDark),
+              icon: Icon(Icons.notifications_none_rounded, color: context.glass.textPrimary),
               onPressed: () {},
             ),
           ],
@@ -276,21 +281,21 @@ class _ProfileBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: HomeTokens.chipActiveBg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: HomeTokens.chipActiveBorder),
+        color: context.glass.accentSoft,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: context.glass.chipSelectedBorder),
       ),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
               '나이·지역을 입력하면 나에게 맞는 정책을 추천해 드려요.',
-              style: TextStyle(fontSize: 13, color: HomeTokens.accentDark, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 13, color: context.glass.chipSelectedText, fontWeight: FontWeight.w600),
             ),
           ),
           TextButton(
             onPressed: onSetup,
-            child: const Text('설정하기', style: TextStyle(color: HomeTokens.accentDark, fontWeight: FontWeight.bold)),
+            child: Text('설정하기', style: TextStyle(color: context.glass.chipSelectedText, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -341,17 +346,14 @@ class _ProfileQuickSetupSheetState extends ConsumerState<_ProfileQuickSetupSheet
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      child: GlassSheet(
+        child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('맞춤형 정책을 추천해 드릴게요', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+            Text('맞춤형 정책을 추천해 드릴게요', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.glass.textPrimary)),
             const SizedBox(height: 16),
             TextField(
               controller: _ageController,
@@ -370,8 +372,6 @@ class _ProfileQuickSetupSheetState extends ConsumerState<_ProfileQuickSetupSheet
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: HomeTokens.accent,
-                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: _saving ? null : _save,
@@ -381,6 +381,7 @@ class _ProfileQuickSetupSheetState extends ConsumerState<_ProfileQuickSetupSheet
               ),
             ),
           ],
+        ),
         ),
       ),
     );

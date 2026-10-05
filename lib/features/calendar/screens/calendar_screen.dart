@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/format/money_format.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/surface_style.dart';
+import '../../../core/theme/wallet_glass.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manual_input_fab.dart';
 import '../../../core/widgets/tab_header.dart';
 import '../../../data/api/finance_api.dart';
 import '../../../data/api/report_api.dart';
 import '../../../data/api/transaction_api.dart';
-import '../../home/theme/home_tokens.dart';
 import '../../policy/providers/policy_provider.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
 import '../providers/calendar_focus_provider.dart';
@@ -203,7 +206,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         // Not the default 25: the offset depends on the user's real salary day.
         final salaryDay = await ref.read(salaryDayProvider.future);
         if (!mounted) return;
-        final offset = salaryCycleOffsetBetween(DateTime.now(), focus, salaryDay);
+        final offset = salaryCycleOffsetBetween(
+          DateTime.now(),
+          focus,
+          salaryDay,
+        );
         setState(() {
           _lastCycleShiftDirection = offset.compareTo(_cycleOffset).toDouble();
           _cycleOffset = offset;
@@ -220,7 +227,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final focusRequest = ref.watch(calendarFocusProvider);
-    if (focusRequest != null && TickerMode.valuesOf(context).enabled) _maybeApplyFocus(focusRequest);
+    if (focusRequest != null && TickerMode.valuesOf(context).enabled) {
+      _maybeApplyFocus(focusRequest);
+    }
 
     final salaryDayAsync = ref.watch(salaryDayProvider);
     final salaryDay = salaryDayAsync.asData?.value ?? _defaultSalaryDay;
@@ -241,10 +250,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     // to this cycle's other spending days" heat value instead of an
     // absolute won threshold - see spendIntensityColor's call site in
     // _buildCalendarCell.
-    final expenseRange = _expenseRangeInCycle(gridDays, cycle, monthlyReportAsync);
+    final expenseRange = _expenseRangeInCycle(
+      gridDays,
+      cycle,
+      monthlyReportAsync,
+    );
 
     return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+      // The tab shell paints the ambient background behind every tab.
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           Column(
@@ -287,13 +301,19 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                     onPressed: _goToPreviousCycle,
                                   ),
                                   Expanded(
-                                    child: Text(
-                                      '${DateFormat('yyyy. M. d.').format(cycle.start)} ~ ${DateFormat('yyyy. M. d.').format(cycle.end)}',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                    // One line even on narrow screens or
+                                    // with a large system font.
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        '${DateFormat('yyyy. M. d.').format(cycle.start)} ~ ${DateFormat('yyyy. M. d.').format(cycle.end)}',
+                                        maxLines: 1,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -319,14 +339,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       // under the green header.
                       const SizedBox(height: AppSpacing.sectionGap),
 
-                      // One unified white card (Figma `calendar-reference`):
-                      // summary box (its own blue-bordered sub-card) + weekday
-                      // header + day grid, all on the same panel - not split
-                      // into separately-shadowed cards.
+                      // One unified glass card (Figma `calendar-reference`):
+                      // summary box + weekday header + day grid, all on the
+                      // same panel - not split into separately-shadowed
+                      // cards. The day cells themselves stay plain so dates
+                      // read clearly and taps land accurately.
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Container(
-                          decoration: AppSurfaces.contentCard.toBoxDecoration(),
+                        child: GlassSurface(
+                          radius: AppRadii.lg,
                           child: Column(
                             children: [
                               Padding(
@@ -344,8 +365,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   padding: const EdgeInsets.all(
                                     AppSpacing.itemPadding,
                                   ),
-                                  decoration: AppSurfaces.insetTile
-                                      .toBoxDecoration(),
+                                  decoration: BoxDecoration(
+                                    color: context.glass.insetFill,
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadii.md,
+                                    ),
+                                  ),
                                   child: _buildSummaryRow(monthlyReportAsync),
                                 ),
                               ),
@@ -379,6 +404,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _buildWeekdayHeader() {
+    final glass = context.glass;
     const labels = ['일', '월', '화', '수', '목', '금', '토'];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -391,11 +417,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   labels[weekday],
                   style: TextStyle(
                     color: weekday == 0
-                        ? HomeTokens.negative
-                        : (weekday == 6
-                              ? Colors.blue
-                              : HomeTokens.textDark.withValues(alpha: 0.8)),
-                    fontWeight: FontWeight.bold,
+                        ? glass.negative
+                        : (weekday == 6 ? glass.info : glass.textSecondary),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -558,84 +583,104 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     final noSpendLabel = isInitialLoad ? '-' : (noSpendDays?.toString() ?? '-');
     final incomeLabel = income != null
-        ? '${NumberFormat('#,###').format(income)} 원'
+        ? '${context.formatWon(income!, withUnit: false)} 원'
         : '-';
     final expenseLabel = expense != null
-        ? '${NumberFormat('#,###').format(expense)} 원'
+        ? '${context.formatWon(expense!, withUnit: false)} 원'
         : '-';
 
+    final glass = context.glass;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        RichText(
-          text: TextSpan(
-            style: const TextStyle(fontSize: 18, color: HomeTokens.textDark),
-            children: [
-              const TextSpan(text: '이번 달 '),
-              const TextSpan(
-                text: '무지출',
-                style: TextStyle(fontWeight: FontWeight.w600),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(fontSize: 18, color: glass.textPrimary),
+                children: [
+                  const TextSpan(text: '이번 달 '),
+                  const TextSpan(
+                    text: '무지출',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const TextSpan(text: ' '),
+                  TextSpan(
+                    text: '$noSpendLabel일',
+                    style: TextStyle(
+                      color: glass.accentText,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-              const TextSpan(text: ' '),
-              TextSpan(
-                text: '$noSpendLabel일',
-                style: const TextStyle(
-                  color: HomeTokens.accent,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Row(
+        const SizedBox(width: 8),
+        // Both sides shrink rather than overflow on narrow screens / large
+        // system fonts.
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text(
-                  '+ 수입 ',
-                  style: TextStyle(
-                    color: HomeTokens.accent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-                if (isInitialLoad)
-                  _summaryPlaceholderBar()
-                else
-                  Text(
-                    incomeLabel,
-                    style: TextStyle(
-                      color: HomeTokens.textDark.withValues(alpha: 0.8),
-                      fontSize: 13,
+                Row(
+                  children: [
+                    Text(
+                      '+ 수입 ',
+                      style: TextStyle(
+                        color: glass.positive,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
+                    if (isInitialLoad)
+                      _summaryPlaceholderBar()
+                    else
+                      Text(
+                        incomeLabel,
+                        style: TextStyle(
+                          color: glass.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      '- 지출 ',
+                      style: TextStyle(
+                        color: glass.negative,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (isInitialLoad)
+                      _summaryPlaceholderBar()
+                    else
+                      Text(
+                        expenseLabel,
+                        style: TextStyle(
+                          color: glass.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Text(
-                  '- 지출 ',
-                  style: TextStyle(
-                    color: HomeTokens.negative,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-                if (isInitialLoad)
-                  _summaryPlaceholderBar()
-                else
-                  Text(
-                    expenseLabel,
-                    style: TextStyle(
-                      color: HomeTokens.textDark.withValues(alpha: 0.8),
-                      fontSize: 13,
-                    ),
-                  ),
-              ],
-            ),
-          ],
+          ),
         ),
       ],
     );
@@ -646,7 +691,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       width: 64,
       height: 12,
       decoration: BoxDecoration(
-        color: HomeTokens.chipInactiveBorder,
+        color: context.glass.track,
         borderRadius: BorderRadius.circular(4),
       ),
     );
@@ -762,6 +807,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       primaryAlert = sorted.first;
     }
     final extraAlertCount = (alerts?.length ?? 0) - 1;
+    final glass = context.glass;
 
     return GestureDetector(
       onTap: () {
@@ -806,9 +852,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     height: 28,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? HomeTokens.accent
-                          : Colors.transparent,
+                      color: isSelected ? glass.accent : Colors.transparent,
                       shape: BoxShape.circle,
                     ),
                     child: Text(
@@ -817,10 +861,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         color: isSelected
                             ? Colors.white
                             : (isOutside
-                                  ? HomeTokens.textMuted
+                                  ? glass.textTertiary.withValues(alpha: 0.6)
+                                  : isToday
+                                  // Today is findable by weight + brand
+                                  // color, not a second ring that would
+                                  // clash with the spending ring.
+                                  ? glass.accentText
                                   : (day.weekday == 7
-                                        ? HomeTokens.negative
-                                        : HomeTokens.textDark)),
+                                        ? glass.negative
+                                        : glass.textPrimary)),
                         fontWeight: isSelected || isToday
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -835,24 +884,24 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               const SizedBox(height: 2),
               if (income > 0)
                 Text(
-                  '+${NumberFormat('#,###').format(income)}',
+                  '+${context.formatWon(income, withUnit: false)}',
                   maxLines: 1,
                   softWrap: false,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: HomeTokens.accent,
+                  style: TextStyle(
+                    color: glass.positive,
                     fontSize: 8,
                     height: 1,
                   ),
                 ),
               if (expense > 0)
                 Text(
-                  '-${NumberFormat('#,###').format(expense)}',
+                  '-${context.formatWon(expense, withUnit: false)}',
                   maxLines: 1,
                   softWrap: false,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: HomeTokens.negative,
+                  style: TextStyle(
+                    color: glass.negative,
                     fontSize: 8,
                     height: 1,
                   ),
@@ -874,9 +923,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
-                    color: HomeTokens.chipActiveBg,
+                    color: glass.accentSoft,
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: HomeTokens.accent, width: 0.5),
+                    border: Border.all(color: glass.accent, width: 0.5),
                   ),
                   child: Text(
                     extraAlertCount > 0
@@ -884,9 +933,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         : policyAlertLabel(primaryAlert.type),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: HomeTokens.accent,
+                    style: TextStyle(
+                      color: glass.accentText,
                       fontSize: 7,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
-import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
 import '../utils/report_date_utils.dart';
 import '../utils/report_insight_utils.dart';
@@ -12,6 +11,9 @@ import '../widgets/chart_selection_guide.dart';
 import '../widgets/month_picker_sheet.dart';
 import 'category_report_screen.dart';
 import 'monthly_insight_detail_screens.dart';
+import '../../../core/format/money_format.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Monthly Report detail: 소비 흐름 비교 + 월별 총지출 비교 + 주차별 비교
 /// (Figma frames 114:5143, 431:6676, 431:7759). The three insight rows from
@@ -37,12 +39,12 @@ class MonthlyReportScreen extends ConsumerWidget {
     final month = ref.watch(reportMonthProvider);
     final dataAsync = ref.watch(monthlyReportDataProvider(month));
 
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: HomeTokens.pageBackground,
+        backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, scrolledUnderElevation: 0,
         elevation: 0,
-        foregroundColor: HomeTokens.textDark,
+        foregroundColor: context.glass.textPrimary,
         title: const Text('월간 리포트', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: dataAsync.when(
@@ -71,21 +73,17 @@ class MonthlyReportScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
-                  boxShadow: AppShadows.card,
-                ),
+                decoration: glassDecoration(context, radius: AppRadii.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('비교안내', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: HomeTokens.textDark)),
+                    Text('비교안내', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: context.glass.textPrimary)),
                     const SizedBox(height: 6),
                     Text(
                       data.range.isPartial
                           ? '현재 진행 중인 월은 동일 일자(1일~${data.range.comparisonDay}일) 기준으로 지난달과 비교합니다.'
                           : '완료된 두 달 전체 기간을 기준으로 비교합니다.',
-                      style: const TextStyle(fontSize: 16, color: HomeTokens.textMuted),
+                      style: TextStyle(fontSize: 16, color: context.glass.textTertiary),
                     ),
                   ],
                 ),
@@ -94,7 +92,7 @@ class MonthlyReportScreen extends ConsumerWidget {
           );
         },
       ),
-    );
+    ));
   }
 
   void _handleInsightTap(BuildContext context, int index, DateTime month, MonthlyReportData data) {
@@ -207,35 +205,31 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.compactInput),
-        boxShadow: AppShadows.card,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('이번 달 소비 흐름 (일별)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: HomeTokens.textDark)),
+              Text('이번 달 소비 흐름 (일별)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: context.glass.textPrimary)),
               InkWell(
                 onTap: widget.onChangeMonth,
-                borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                borderRadius: BorderRadius.circular(AppRadii.md),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: HomeTokens.cardSurface,
-                    borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                    color: context.glass.cardFill,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
                     boxShadow: AppShadows.hairline,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _LegendDot(color: HomeTokens.accent.withValues(alpha: 0.35), label: '${previousMonth.month}월'),
+                      _LegendDot(color: context.glass.accentText.withValues(alpha: 0.35), label: '${previousMonth.month}월'),
                       const SizedBox(width: 6),
-                      _LegendDot(color: HomeTokens.accent, label: '${month.month}월'),
-                      const Icon(Icons.keyboard_arrow_down, size: 15, color: HomeTokens.textMuted),
+                      _LegendDot(color: context.glass.accentText, label: '${month.month}월'),
+                      Icon(Icons.keyboard_arrow_down, size: 15, color: context.glass.textTertiary),
                     ],
                   ),
                 ),
@@ -318,7 +312,7 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
                             LineChartBarData(
                               spots: smoothLineSpots(_spotsFor(data.previousDaily)),
                               isCurved: false,
-                              color: HomeTokens.accent.withValues(alpha: 0.35),
+                              color: context.glass.accentText.withValues(alpha: 0.35),
                               barWidth: 1.6,
                               isStrokeCapRound: true,
                               isStrokeJoinRound: true,
@@ -326,13 +320,13 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
                                 show: true,
                                 checkToShowDot: (spot, barData) => selectedDay != null && spot.x == selectedDay.toDouble(),
                                 getDotPainter: (spot, percent, barData, index) =>
-                                    FlDotCirclePainter(radius: 5, color: Colors.white, strokeWidth: 1.5, strokeColor: HomeTokens.accent.withValues(alpha: 0.35)),
+                                    FlDotCirclePainter(radius: 5, color: context.glass.surfaceFill, strokeWidth: 1.5, strokeColor: context.glass.accentText.withValues(alpha: 0.35)),
                               ),
                             ),
                             LineChartBarData(
                               spots: smoothLineSpots(_spotsFor(data.currentDaily)),
                               isCurved: false,
-                              color: HomeTokens.accent,
+                              color: context.glass.accentText,
                               barWidth: 2.0,
                               isStrokeCapRound: true,
                               isStrokeJoinRound: true,
@@ -340,7 +334,7 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
                                 show: true,
                                 checkToShowDot: (spot, barData) => selectedDay != null && spot.x == selectedDay.toDouble(),
                                 getDotPainter: (spot, percent, barData, index) =>
-                                    FlDotCirclePainter(radius: 5, color: Colors.white, strokeWidth: 1.5, strokeColor: HomeTokens.accent),
+                                    FlDotCirclePainter(radius: 5, color: context.glass.surfaceFill, strokeWidth: 1.5, strokeColor: context.glass.accentText),
                               ),
                             ),
                           ],
@@ -373,10 +367,10 @@ class _FlowComparisonCardState extends State<_FlowComparisonCard> {
                               child: _ComparisonTooltip(
                                 currentLabel: '${month.month}월',
                                 currentAmount: currentSelected,
-                                currentColor: HomeTokens.accent,
+                                currentColor: context.glass.accentText,
                                 previousLabel: '${previousMonth.month}월',
                                 previousAmount: previousSelected,
-                                previousColor: HomeTokens.accent.withValues(alpha: 0.35),
+                                previousColor: context.glass.accentText.withValues(alpha: 0.35),
                               ),
                             ),
                           ),
@@ -458,32 +452,34 @@ class _ComparisonTooltip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.input),
-        border: Border.all(color: HomeTokens.accent.withValues(alpha: 0.25)),
+        // Chart tooltip: opaque so the plot never shows through the numbers.
+        color: context.glass.surfaceFill,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        border: Border.all(color: context.glass.accentText.withValues(alpha: 0.25)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (currentAmount != null) _row(currentLabel, currentAmount!, currentColor),
+          if (currentAmount != null) _row(context, currentLabel, currentAmount!, currentColor),
           if (currentAmount != null && previousAmount != null) const SizedBox(height: 3),
-          if (previousAmount != null) _row(previousLabel, previousAmount!, previousColor),
+          if (previousAmount != null) _row(context, previousLabel, previousAmount!, previousColor),
         ],
       ),
     );
   }
 
-  Widget _row(String label, int amount, Color dotColor) {
+  Widget _row(BuildContext context, String label, int amount, Color dotColor) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor)),
         const SizedBox(width: 5),
-        SizedBox(width: 22, child: Text(label, style: const TextStyle(fontSize: 11, color: HomeTokens.textMuted))),
+        // Wide enough for a two-digit month ("10월") on one line.
+        ConstrainedBox(constraints: const BoxConstraints(minWidth: 22), child: Text(label, maxLines: 1, softWrap: false, style: TextStyle(fontSize: 11, color: context.glass.textTertiary))),
         const SizedBox(width: 4),
-        Text(formatWon(amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: HomeTokens.textDark)),
+        Text(context.formatWon(amount), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.glass.textPrimary)),
       ],
     );
   }
@@ -501,7 +497,7 @@ class _LegendDot extends StatelessWidget {
       children: [
         Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: HomeTokens.textDark)),
+        Text(label, style: TextStyle(fontSize: 11, color: context.glass.textPrimary)),
       ],
     );
   }
@@ -517,30 +513,26 @@ class _InsightRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Figma highlights only the savings/positive row with a light-green
     // background (114:5143 node 431:6649); the other rows stay plain white.
-    final headerBg = insight.positive ? HomeTokens.chipActiveBg : Colors.white;
+    final headerBg = insight.positive ? context.glass.accentSoft : Colors.transparent;
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.compactInput),
-        boxShadow: AppShadows.card,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.md),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.compactInput),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(color: headerBg, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
+          decoration: BoxDecoration(color: headerBg, borderRadius: BorderRadius.circular(AppRadii.md)),
           child: Row(
             children: [
-              Icon(insight.icon, size: 18, color: HomeTokens.accentDark),
+              Icon(insight.icon, size: 18, color: context.glass.chipSelectedText),
               const SizedBox(width: 10),
               Expanded(
                 child: Text.rich(
-                  TextSpan(text: insight.text, style: const TextStyle(fontSize: 16, color: HomeTokens.textDark)),
+                  TextSpan(text: insight.text, style: TextStyle(fontSize: 16, color: context.glass.textPrimary)),
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 20, color: HomeTokens.textMuted),
+              Icon(Icons.chevron_right, size: 20, color: context.glass.textTertiary),
             ],
           ),
         ),

@@ -85,7 +85,14 @@ class ManualInputFab extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: AppGradients.fab,
-              border: Border.all(color: Colors.white, width: 1.5),
+              // Same light rim the other floating glass surfaces use - a
+              // solid white ring would glare on the dark theme.
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.28)
+                    : Colors.white,
+                width: 1.5,
+              ),
               boxShadow: AppShadows.fab,
             ),
             child: IconButton(

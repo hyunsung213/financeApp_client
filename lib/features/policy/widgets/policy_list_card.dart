@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../home/theme/home_tokens.dart';
+import '../../../core/theme/wallet_glass.dart';
+import '../../../core/widgets/glass.dart';
 import '../utils/policy_category_visual.dart';
 
 /// Figma node 244:5045 (policy list row). Figma's list cards have no
@@ -39,73 +40,70 @@ class PolicyListCard extends StatelessWidget {
     final summary = _summary();
     final visual = PolicyCategoryVisual.forCategory(category);
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppRadii.compactInput),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.compactInput),
+    final glass = context.glass;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GlassCard(
+        radius: AppRadii.md,
         onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadii.compactInput),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1))],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(category, style: const TextStyle(fontSize: 12, color: HomeTokens.textDark)),
-                    const SizedBox(height: 8),
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Category reads as a label, not a second title.
+                  Text(
+                    category,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: glass.accentText),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: glass.textPrimary, height: 1.3),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (summary.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Text(
-                      title,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: HomeTokens.textDark),
-                      maxLines: 1,
+                      summary,
+                      style: TextStyle(fontSize: 12, color: glass.textSecondary, height: 1.4),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (summary.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        summary,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF8F8E8E)),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 81,
-                height: 81,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(AppRadii.compactInput),
-                          gradient: LinearGradient(colors: visual.gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
-                        ),
-                        child: Icon(visual.icon, color: Colors.white, size: 32),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 81,
+              height: 81,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadii.sm),
+                        gradient: LinearGradient(colors: visual.gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
                       ),
+                      child: Icon(visual.icon, color: Colors.white, size: 32),
                     ),
-                    if (onBookmarkTap != null)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: _BookmarkBadge(isBookmarked: isBookmarked, onTap: onBookmarkTap!),
-                      ),
-                  ],
-                ),
+                  ),
+                  if (onBookmarkTap != null)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: _BookmarkBadge(isBookmarked: isBookmarked, onTap: onBookmarkTap!),
+                    ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -139,7 +137,8 @@ class _BookmarkBadge extends StatelessWidget {
             child: Icon(
               isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
               size: 18,
-              color: isBookmarked ? HomeTokens.accent : HomeTokens.textFaint,
+              // The disc is always white, so these stay light-theme colors.
+              color: isBookmarked ? WalletGlass.light.accentText : WalletGlass.light.textSecondary,
             ),
           ),
         ),

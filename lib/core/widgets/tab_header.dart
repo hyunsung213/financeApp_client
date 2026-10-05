@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_gradients.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/wallet_glass.dart';
 
 /// Title row every tab opens with (Home/Calendar/Report): white title,
 /// optional white subtitle, trailing white icon actions.
@@ -71,11 +71,18 @@ class TabHeaderBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hero = context.glass.heroGradient;
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: AppGradients.tabHeader,
-        borderRadius: BorderRadius.vertical(
+      decoration: BoxDecoration(
+        // Same deep-green-to-mint band Home's hero panel opens with.
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [hero[0], hero[1], hero[2]],
+          stops: const [0.0, 0.3, 1.0],
+        ),
+        borderRadius: const BorderRadius.vertical(
           bottom: Radius.circular(AppSpacing.headerBandRadius),
         ),
       ),

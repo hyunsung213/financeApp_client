@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../../core/theme/app_shadows.dart';
 import '../../../core/widgets/manual_input_fab.dart' show kBottomNavBarHeight;
-import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
 import '../utils/report_date_utils.dart';
-import '../utils/report_insight_utils.dart';
+import '../../../core/format/money_format.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Monthly Total Comparison Detail (Figma frame 118, `431:6676`) and Weekly
 /// Comparison Detail (Figma frame 157, `431:7759`) — separate, navigable
@@ -29,27 +29,23 @@ class MonthlyTotalComparisonDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: HomeTokens.pageBackground,
+        backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, scrolledUnderElevation: 0,
         elevation: 0,
-        foregroundColor: HomeTokens.textDark,
+        foregroundColor: context.glass.textPrimary,
         title: const Text('월 총지출 비교', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadii.compactInput),
-            boxShadow: AppShadows.card,
-          ),
+          decoration: glassDecoration(context, radius: AppRadii.md),
           child: TotalComparisonDetail(month: month, data: data),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -66,21 +62,21 @@ class WeeklyExpenseDetailScreen extends ConsumerWidget {
     final dataAsync = ref.watch(monthlyReportDataProvider(month));
     return dataAsync.when(
       data: (data) => WeeklyComparisonDetailScreen(month: month, data: data),
-      loading: () => _placeholder(const CircularProgressIndicator()),
-      error: (e, st) => _placeholder(Text('불러오지 못했어요\n$e', textAlign: TextAlign.center)),
+      loading: () => _placeholder(context, const CircularProgressIndicator()),
+      error: (e, st) => _placeholder(context, Text('불러오지 못했어요\n$e', textAlign: TextAlign.center)),
     );
   }
 
-  Widget _placeholder(Widget child) => Scaffold(
-        backgroundColor: HomeTokens.pageBackground,
+  Widget _placeholder(BuildContext context, Widget child) => WalletBackground(child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
-          backgroundColor: HomeTokens.pageBackground,
+          backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, scrolledUnderElevation: 0,
           elevation: 0,
-          foregroundColor: HomeTokens.textDark,
+          foregroundColor: context.glass.textPrimary,
           title: const Text('주차별 지출 비교', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         ),
         body: Center(child: child),
-      );
+      ));
 }
 
 class WeeklyComparisonDetailScreen extends StatelessWidget {
@@ -90,12 +86,12 @@ class WeeklyComparisonDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: HomeTokens.pageBackground,
+        backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, scrolledUnderElevation: 0,
         elevation: 0,
-        foregroundColor: HomeTokens.textDark,
+        foregroundColor: context.glass.textPrimary,
         title: const Text('주차별 지출 비교', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: SingleChildScrollView(
@@ -105,15 +101,11 @@ class WeeklyComparisonDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 20, 20, kBottomNavBarHeight + 20),
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadii.compactInput),
-            boxShadow: AppShadows.card,
-          ),
+          decoration: glassDecoration(context, radius: AppRadii.md),
           child: WeeklyComparisonDetail(month: month, data: data),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -136,8 +128,8 @@ class TotalComparisonDetail extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: Text(formatWon(data.previousTotal), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: HomeTokens.textMuted))),
-            Expanded(child: Text(formatWon(data.currentTotal), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: HomeTokens.accent))),
+            Expanded(child: Text(context.formatWon(data.previousTotal), textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: context.glass.textTertiary))),
+            Expanded(child: Text(context.formatWon(data.currentTotal), textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: context.glass.accentText))),
           ],
         ),
         const SizedBox(height: 4),
@@ -160,47 +152,47 @@ class TotalComparisonDetail extends StatelessWidget {
                 ),
               ),
               barGroups: [
-                BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: data.previousTotal.toDouble(), color: HomeTokens.accent.withValues(alpha: 0.35), width: 36, borderRadius: BorderRadius.circular(6))]),
-                BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: data.currentTotal.toDouble(), color: HomeTokens.accent, width: 36, borderRadius: BorderRadius.circular(6))]),
+                BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: data.previousTotal.toDouble(), color: context.glass.accentText.withValues(alpha: 0.35), width: 36, borderRadius: BorderRadius.circular(6))]),
+                BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: data.currentTotal.toDouble(), color: context.glass.accentText, width: 36, borderRadius: BorderRadius.circular(6))]),
               ],
             ),
           ),
         ),
         const SizedBox(height: 16),
-        _kvDot(HomeTokens.accent.withValues(alpha: 0.35), '${previousMonth.month}월 총 지출', formatWon(data.previousTotal)),
-        _kvDot(HomeTokens.accent, '${month.month}월 총 지출', formatWon(data.currentTotal)),
-        _kv(Icons.remove_circle_outline, '차이', '${diff <= 0 ? '' : '+'}${formatWon(diff)}', valueColor: diff <= 0 ? HomeTokens.accent : HomeTokens.negative),
-        _kv(Icons.percent_rounded, '변화율 비율', '${pct <= 0 ? '' : '+'}${pct.round()}%', valueColor: pct <= 0 ? HomeTokens.accent : HomeTokens.negative),
+        _kvDot(context, context.glass.accentText.withValues(alpha: 0.35), '${previousMonth.month}월 총 지출', context.formatWon(data.previousTotal)),
+        _kvDot(context, context.glass.accentText, '${month.month}월 총 지출', context.formatWon(data.currentTotal)),
+        _kv(context, Icons.remove_circle_outline, '차이', '${diff <= 0 ? '' : '+'}${context.formatWon(diff)}', valueColor: diff <= 0 ? context.glass.accentText : context.glass.negative),
+        _kv(context, Icons.percent_rounded, '변화율 비율', '${pct <= 0 ? '' : '+'}${pct.round()}%', valueColor: pct <= 0 ? context.glass.accentText : context.glass.negative),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: HomeTokens.chipActiveBg, borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: context.glass.accentSoft, borderRadius: BorderRadius.circular(10)),
           child: Text(
-            '${month.month}월의 총 지출은 ${formatWon(data.currentTotal)}으로 지난달 대비 ${formatWon(diff.abs())}(${pct.abs().round()}%) ${pct <= 0 ? '적게' : '많이'} 사용했어요.',
-            style: const TextStyle(fontSize: 12, color: HomeTokens.textDark),
+            '${month.month}월의 총 지출은 ${context.formatWon(data.currentTotal)}으로 지난달 대비 ${context.formatWon(diff.abs())}(${pct.abs().round()}%) ${pct <= 0 ? '적게' : '많이'} 사용했어요.',
+            style: TextStyle(fontSize: 12, color: context.glass.textPrimary),
           ),
         ),
       ],
     );
   }
 
-  Widget _kv(IconData icon, String k, String v, {Color valueColor = HomeTokens.textDark}) => Padding(
+  Widget _kv(BuildContext context, IconData icon, String k, String v, {Color? valueColor}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(children: [
-          Icon(icon, size: 18, color: HomeTokens.textDark),
+          Icon(icon, size: 18, color: context.glass.textPrimary),
           const SizedBox(width: 6),
-          Expanded(child: Text(k, style: const TextStyle(fontSize: 14, color: HomeTokens.textDark))),
-          Text(v, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor)),
+          Expanded(child: Text(k, style: TextStyle(fontSize: 14, color: context.glass.textPrimary))),
+          Text(v, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor ?? context.glass.textPrimary)),
         ]),
       );
 
-  Widget _kvDot(Color color, String k, String v) => Padding(
+  Widget _kvDot(BuildContext context, Color color, String k, String v) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(children: [
           Container(width: 12, height: 12, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
           const SizedBox(width: 8),
-          Expanded(child: Text(k, style: const TextStyle(fontSize: 14, color: HomeTokens.textDark))),
-          Text(v, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: HomeTokens.textDark)),
+          Expanded(child: Text(k, style: TextStyle(fontSize: 14, color: context.glass.textPrimary))),
+          Text(v, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.glass.textPrimary)),
         ]),
       );
 }
@@ -233,8 +225,8 @@ class WeeklyComparisonDetail extends StatelessWidget {
             return Expanded(
               child: Column(
                 children: [
-                  Text(formatWon(data.previousWeekly[i]), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: HomeTokens.textMuted)),
-                  Text(formatWon(data.currentWeekly[i]), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: HomeTokens.accent)),
+                  Text(context.formatWon(data.previousWeekly[i]), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: context.glass.textTertiary)),
+                  Text(context.formatWon(data.currentWeekly[i]), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: context.glass.accentText)),
                 ],
               ),
             );
@@ -261,8 +253,8 @@ class WeeklyComparisonDetail extends StatelessWidget {
               ),
               barGroups: List.generate(4, (i) {
                 return BarChartGroupData(x: i, barRods: [
-                  BarChartRodData(toY: data.previousWeekly[i].toDouble(), color: HomeTokens.accent.withValues(alpha: 0.35), width: 12, borderRadius: BorderRadius.circular(4)),
-                  BarChartRodData(toY: data.currentWeekly[i].toDouble(), color: HomeTokens.accent, width: 12, borderRadius: BorderRadius.circular(4)),
+                  BarChartRodData(toY: data.previousWeekly[i].toDouble(), color: context.glass.accentText.withValues(alpha: 0.35), width: 12, borderRadius: BorderRadius.circular(4)),
+                  BarChartRodData(toY: data.currentWeekly[i].toDouble(), color: context.glass.accentText, width: 12, borderRadius: BorderRadius.circular(4)),
                 ], barsSpace: 4);
               }),
             ),
@@ -274,14 +266,14 @@ class WeeklyComparisonDetail extends StatelessWidget {
           children: [
             TableRow(children: [
               const SizedBox(),
-              Text('${previousMonth.month}월', textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, color: HomeTokens.textMuted)),
-              Text('${month.month}월', textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, color: HomeTokens.textMuted)),
+              Text('${previousMonth.month}월', textAlign: TextAlign.right, style: TextStyle(fontSize: 13, color: context.glass.textTertiary)),
+              Text('${month.month}월', textAlign: TextAlign.right, style: TextStyle(fontSize: 13, color: context.glass.textTertiary)),
             ]),
             for (var i = 0; i < 4; i++)
               TableRow(children: [
                 Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text('${i + 1}주차', style: const TextStyle(fontSize: 13))),
-                Text(formatWon(data.previousWeekly[i]), textAlign: TextAlign.right, style: const TextStyle(fontSize: 13)),
-                Text(formatWon(data.currentWeekly[i]), textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                Text(context.formatWon(data.previousWeekly[i]), textAlign: TextAlign.right, style: const TextStyle(fontSize: 13)),
+                Text(context.formatWon(data.currentWeekly[i]), textAlign: TextAlign.right, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
               ]),
           ],
         ),
@@ -311,20 +303,20 @@ class _WeeklyExpenseBars extends StatelessWidget {
         Text('${month.month}월 주차별 지출', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
         const SizedBox(height: 4),
         Text(
-          top == null ? '이번 달 지출 내역이 없어요' : '가장 많이 쓴 주 · ${top + 1}주차 ${formatWon(weekly[top])}',
-          style: TextStyle(fontSize: 13, color: top == null ? HomeTokens.textMuted : HomeTokens.accentDark, fontWeight: FontWeight.w600),
+          top == null ? '이번 달 지출 내역이 없어요' : '가장 많이 쓴 주 · ${top + 1}주차 ${context.formatWon(weekly[top])}',
+          style: TextStyle(fontSize: 13, color: top == null ? context.glass.textTertiary : context.glass.chipSelectedText, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 14),
         for (var i = 0; i < weekly.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _bar(i, isTop: i == top, maxValue: maxValue),
+            child: _bar(context, i, isTop: i == top, maxValue: maxValue),
           ),
       ],
     );
   }
 
-  Widget _bar(int index, {required bool isTop, required int maxValue}) {
+  Widget _bar(BuildContext context, int index, {required bool isTop, required int maxValue}) {
     final (startDay, endDay) = weekDayRange(index, month);
     final fraction = maxValue == 0 ? 0.0 : weekly[index] / maxValue;
     return Row(
@@ -334,8 +326,8 @@ class _WeeklyExpenseBars extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${index + 1}주차', style: TextStyle(fontSize: 13, fontWeight: isTop ? FontWeight.bold : FontWeight.w500, color: HomeTokens.textDark)),
-              Text('$startDay~$endDay일', style: const TextStyle(fontSize: 11, color: HomeTokens.textMuted)),
+              Text('${index + 1}주차', style: TextStyle(fontSize: 13, fontWeight: isTop ? FontWeight.bold : FontWeight.w500, color: context.glass.textPrimary)),
+              Text('$startDay~$endDay일', style: TextStyle(fontSize: 11, color: context.glass.textTertiary)),
             ],
           ),
         ),
@@ -343,12 +335,12 @@ class _WeeklyExpenseBars extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) => Stack(
               children: [
-                Container(height: 14, decoration: BoxDecoration(color: HomeTokens.chipInactiveBg, borderRadius: BorderRadius.circular(7))),
+                Container(height: 14, decoration: BoxDecoration(color: context.glass.chipFill, borderRadius: BorderRadius.circular(7))),
                 Container(
                   height: 14,
                   width: constraints.maxWidth * fraction,
                   decoration: BoxDecoration(
-                    color: isTop ? HomeTokens.accent : HomeTokens.accent.withValues(alpha: 0.28),
+                    color: isTop ? context.glass.accentText : context.glass.accentText.withValues(alpha: 0.28),
                     borderRadius: BorderRadius.circular(7),
                   ),
                 ),
@@ -360,9 +352,9 @@ class _WeeklyExpenseBars extends StatelessWidget {
         SizedBox(
           width: 82,
           child: Text(
-            formatWon(weekly[index]),
+            context.formatWon(weekly[index]),
             textAlign: TextAlign.right,
-            style: TextStyle(fontSize: 13, fontWeight: isTop ? FontWeight.bold : FontWeight.w500, color: isTop ? HomeTokens.accentDark : HomeTokens.textDark),
+            style: TextStyle(fontSize: 13, fontWeight: isTop ? FontWeight.bold : FontWeight.w500, color: isTop ? context.glass.chipSelectedText : context.glass.textPrimary),
           ),
         ),
       ],

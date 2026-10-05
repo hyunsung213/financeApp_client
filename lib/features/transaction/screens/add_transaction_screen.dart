@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../../data/api/api_error.dart';
 import '../../../data/api/transaction_api.dart';
 import '../../../data/api/category_api.dart';
-import '../../home/theme/home_tokens.dart';
 import '../widgets/category_picker_screen.dart';
 import '../providers/transaction_provider.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
@@ -100,10 +100,10 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     Icons.sentiment_satisfied,
   ];
   static const _moodLabels = ['아쉬운', '평범한', '만족한'];
-  static const _moodColors = [
-    HomeTokens.negative,
-    HomeTokens.textMuted,
-    HomeTokens.accent,
+  List<Color> get _moodColors => [
+    context.glass.negative,
+    context.glass.textTertiary,
+    context.glass.accentText,
   ];
   static const _moodValues = ['REGRETTABLE', 'NORMAL', 'GOOD'];
 
@@ -156,32 +156,32 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
 
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: HomeTokens.pageBackground,
+        backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, scrolledUnderElevation: 0,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
             size: 20,
-            color: HomeTokens.textDark,
+            color: context.glass.textPrimary,
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           _isEditing ? '내역 수정하기' : '수기 거래 입력',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
-            color: HomeTokens.textDark,
+            color: context.glass.textPrimary,
           ),
         ),
         centerTitle: false,
         actions: [
           if (_isEditing)
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+              icon: Icon(Icons.delete_outline, color: context.glass.negative),
               onPressed: _isSubmitting ? null : _delete,
             ),
         ],
@@ -201,28 +201,28 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: HomeTokens.chipActiveBg,
+                          color: context.glass.accentSoft,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text(
+                        child: Text(
                           '거래명은 그대로 유지돼요. 나머지 항목은 눌러서 수정할 수 있어요.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: HomeTokens.textFaint,
+                            color: context.glass.textSecondary,
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
                     ],
 
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(left: 6, bottom: 10),
                       child: Text(
                         '거래 유형',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: HomeTokens.textDark,
+                          color: context.glass.textPrimary,
                         ),
                       ),
                     ),
@@ -234,13 +234,13 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           '지출',
                           'core.expense',
                           Icons.remove_circle_outline,
-                          HomeTokens.negative,
+                          context.glass.negative,
                         ),
                         _buildTypePill(
                           '저축',
                           'core.saving',
                           Icons.add_circle_outline,
-                          HomeTokens.accent,
+                          context.glass.accentText,
                         ),
                         _buildTypePill(
                           '투자',
@@ -252,7 +252,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           '수입',
                           'core.income',
                           Icons.attach_money,
-                          Colors.blue,
+                          context.glass.info,
                         ),
                       ],
                     ),
@@ -268,11 +268,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                       decoration: _cardDecoration(),
                       child: Row(
                         children: [
-                          const Text(
+                          Text(
                             '거래명',
                             style: TextStyle(
                               fontSize: 16,
-                              color: HomeTokens.textDark,
+                              color: context.glass.textPrimary,
                             ),
                           ),
                           const Spacer(),
@@ -281,12 +281,12 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                               controller: _titleController,
                               readOnly: _isEditing,
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: HomeTokens.textDark,
+                                color: context.glass.textPrimary,
                               ),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 isDense: true,
                                 isCollapsed: true,
                                 filled: false,
@@ -297,17 +297,17 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                 contentPadding: EdgeInsets.zero,
                                 hintText: '내용을 입력하세요',
                                 hintStyle: TextStyle(
-                                  color: HomeTokens.textMuted,
+                                  color: context.glass.textTertiary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(
+                          Icon(
                             Icons.edit_outlined,
                             size: 18,
-                            color: HomeTokens.textFaint,
+                            color: context.glass.textSecondary,
                           ),
                         ],
                       ),
@@ -323,11 +323,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                       decoration: _cardDecoration(),
                       child: Row(
                         children: [
-                          const Text(
+                          Text(
                             '금액',
                             style: TextStyle(
                               fontSize: 16,
-                              color: HomeTokens.textDark,
+                              color: context.glass.textPrimary,
                             ),
                           ),
                           Expanded(
@@ -336,10 +336,10 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                               keyboardType: TextInputType.number,
                               inputFormatters: [CurrencyInputFormatter()],
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: HomeTokens.textDark,
+                                color: context.glass.textPrimary,
                               ),
                               decoration: const InputDecoration(
                                 isDense: true,
@@ -380,15 +380,15 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           vertical: 15,
                         ),
                         decoration: _cardDecoration(
-                          border: HomeTokens.chipInactiveBorder,
+                          border: context.glass.chipBorder,
                         ),
                         child: Row(
                           children: [
-                            const Text(
+                            Text(
                               '날짜',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: HomeTokens.textDark,
+                                color: context.glass.textPrimary,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -399,18 +399,18 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                   'ko_KR',
                                 ).format(_selectedDate),
                                 textAlign: TextAlign.right,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: HomeTokens.textMuted,
+                                  color: context.glass.textTertiary,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Icon(
+                            Icon(
                               Icons.calendar_today_outlined,
                               size: 20,
-                              color: HomeTokens.accent,
+                              color: context.glass.accentText,
                             ),
                           ],
                         ),
@@ -427,13 +427,13 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                       ),
                       error: (e, st) {
                         debugPrint('카테고리 로딩 실패: $e');
-                        return const Padding(
+                        return Padding(
                           padding: EdgeInsets.symmetric(vertical: 14),
                           child: Text(
                             '카테고리 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.',
                             style: TextStyle(
                               fontSize: 14,
-                              color: HomeTokens.textMuted,
+                              color: context.glass.textTertiary,
                             ),
                           ),
                         );
@@ -464,13 +464,13 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                             onTap: () => _openCategoryPicker(categories),
                             child: Row(
                               children: [
-                                const Padding(
+                                Padding(
                                   padding: EdgeInsets.only(left: 6),
                                   child: Text(
                                     '카테고리',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: HomeTokens.textDark,
+                                      color: context.glass.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -492,30 +492,30 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                             vertical: 3,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: HomeTokens.chipInactiveBg,
+                                            color: context.glass.chipFill,
                                             borderRadius: BorderRadius.circular(
                                               AppRadii.pill,
                                             ),
                                             border: Border.all(
-                                              color: HomeTokens.chipInactiveBorder,
+                                              color: context.glass.chipBorder,
                                             ),
                                           ),
                                           child: Text(
                                             _categoryPathLabel ?? '카테고리를 선택하세요',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w500,
-                                              color: HomeTokens.textDark,
+                                              color: context.glass.textPrimary,
                                             ),
                                           ),
                                         ),
                                       ),
-                                      const Icon(
+                                      Icon(
                                         Icons.chevron_right,
                                         size: 22,
-                                        color: HomeTokens.textFaint,
+                                        color: context.glass.textSecondary,
                                       ),
                                     ],
                                   ),
@@ -528,14 +528,14 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                     ),
 
                     const SizedBox(height: 12),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(left: 6, bottom: 10),
                       child: Text(
                         '소비 평가',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: HomeTokens.textDark,
+                          color: context.glass.textPrimary,
                         ),
                       ),
                     ),
@@ -552,12 +552,14 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                               child: Container(
                                 height: 66,
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                                  color: isSelected
+                                      ? Color.alphaBlend(_moodColors[i].withValues(alpha: 0.08), context.glass.cardFill)
+                                      : context.glass.cardFill,
+                                  borderRadius: BorderRadius.circular(AppRadii.md),
                                   border: Border.all(
                                     color: isSelected
                                         ? _moodColors[i]
-                                        : HomeTokens.chipInactiveBorder,
+                                        : context.glass.chipBorder,
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -569,7 +571,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                       size: 24,
                                       color: isSelected
                                           ? _moodColors[i]
-                                          : HomeTokens.textMuted,
+                                          : context.glass.textTertiary,
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
@@ -579,7 +581,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                         fontWeight: FontWeight.w600,
                                         color: isSelected
                                             ? _moodColors[i]
-                                            : HomeTokens.textMuted,
+                                            : context.glass.textTertiary,
                                       ),
                                     ),
                                   ],
@@ -599,26 +601,26 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                         vertical: 15,
                       ),
                       decoration: _cardDecoration(
-                        border: HomeTokens.chipInactiveBorder,
+                        border: context.glass.chipBorder,
                       ),
                       child: Row(
                         children: [
-                          const Text(
+                          Text(
                             '메모',
                             style: TextStyle(
                               fontSize: 16,
-                              color: HomeTokens.textDark,
+                              color: context.glass.textPrimary,
                             ),
                           ),
                           Expanded(
                             child: TextField(
                               controller: _memoController,
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: HomeTokens.textDark,
+                                color: context.glass.textPrimary,
                               ),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 isDense: true,
                                 isCollapsed: true,
                                 filled: false,
@@ -629,16 +631,16 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                 contentPadding: EdgeInsets.zero,
                                 hintText: '메모를 입력하세요 (선택)',
                                 hintStyle: TextStyle(
-                                  color: HomeTokens.textMuted,
+                                  color: context.glass.textTertiary,
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(
+                          Icon(
                             Icons.edit_outlined,
                             size: 18,
-                            color: HomeTokens.textFaint,
+                            color: context.glass.textSecondary,
                           ),
                         ],
                       ),
@@ -653,27 +655,15 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
             Container(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
               decoration: BoxDecoration(
-                color: HomeTokens.pageBackground,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
+                color: context.glass.backgroundBottom.withValues(alpha: 0.94),
+                border: Border(top: BorderSide(color: context.glass.divider)),
               ),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: HomeTokens.accent,
-                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadii.button),
-                    ),
-                    elevation: 0,
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
@@ -697,16 +687,16 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   BoxDecoration _cardDecoration({Color border = Colors.transparent}) {
     return BoxDecoration(
-      color: HomeTokens.cardSurface,
-      borderRadius: BorderRadius.circular(AppRadii.compactInput),
+      color: context.glass.cardFill,
+      borderRadius: BorderRadius.circular(AppRadii.md),
       border: Border.all(
         color: border == Colors.transparent
-            ? HomeTokens.chipInactiveBorder
+            ? context.glass.chipBorder
             : border,
       ),
       boxShadow: AppShadows.card,
@@ -773,14 +763,13 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => CategoryPickerScreen(
-        categories: categories,
-        parentTypeId: _selectedParentId,
-        initialCategoryId: _selectedCategoryId,
+      backgroundColor: Colors.transparent,
+      builder: (_) => GlassSheet(
+        child: CategoryPickerScreen(
+          categories: categories,
+          parentTypeId: _selectedParentId,
+          initialCategoryId: _selectedCategoryId,
+        ),
       ),
     );
     if (result != null) {
@@ -813,10 +802,12 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         height: 46,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppRadii.compactInput),
+          color: isSelected
+              ? Color.alphaBlend(color.withValues(alpha: 0.08), context.glass.cardFill)
+              : context.glass.cardFill,
+          borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(
-            color: isSelected ? color : HomeTokens.chipInactiveBorder,
+            color: isSelected ? color : context.glass.chipBorder,
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: AppShadows.hairline,
@@ -827,13 +818,13 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
             Icon(
               icon,
               size: 20,
-              color: isSelected ? color : HomeTokens.textMuted,
+              color: isSelected ? color : context.glass.textTertiary,
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? color : HomeTokens.textMuted,
+                color: isSelected ? color : context.glass.textTertiary,
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
@@ -887,9 +878,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text('내역이 수정되었습니다.'),
-              backgroundColor: AppColors.primary,
+              backgroundColor: context.glass.accentText,
             ),
           );
           _refreshAfterChange();
@@ -931,7 +922,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
             content: Text(
               '[$categoryName] ${NumberFormat('#,###').format(amount)}원이 등록되었습니다! ✨',
             ),
-            backgroundColor: AppColors.primary,
+            backgroundColor: context.glass.accentText,
           ),
         );
         _refreshAfterChange();
@@ -962,7 +953,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제', style: TextStyle(color: AppColors.danger)),
+            child: Text('삭제', style: TextStyle(color: context.glass.negative)),
           ),
         ],
       ),

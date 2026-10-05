@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../../core/theme/app_shadows.dart';
-import '../../home/theme/home_tokens.dart';
 import '../utils/policy_category_visual.dart';
 import '../utils/policy_dday.dart';
 
@@ -15,7 +13,11 @@ class PolicyFeaturedCard extends StatelessWidget {
   final Map<String, dynamic> policy;
   final VoidCallback onTap;
 
-  const PolicyFeaturedCard({super.key, required this.policy, required this.onTap});
+  const PolicyFeaturedCard({
+    super.key,
+    required this.policy,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,29 +29,41 @@ class PolicyFeaturedCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadii.compactInput),
+      borderRadius: BorderRadius.circular(AppRadii.lg),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.compactInput),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
         onTap: onTap,
         child: Container(
           height: 210,
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.compactInput),
+            borderRadius: BorderRadius.circular(AppRadii.lg),
             gradient: LinearGradient(
               colors: visual.gradient,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            boxShadow: AppShadows.card,
+            boxShadow: [
+              BoxShadow(
+                color: visual.gradient.first.withValues(alpha: 0.22),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
+          // Clip the oversized faint category icon to the card's corners.
+          clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
               Positioned(
                 right: -16,
                 bottom: -16,
-                child: Icon(visual.icon, size: 120, color: Colors.white.withValues(alpha: 0.18)),
+                child: Icon(
+                  visual.icon,
+                  size: 120,
+                  color: Colors.white.withValues(alpha: 0.18),
+                ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,33 +71,78 @@ class PolicyFeaturedCard extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.pill)),
-                        child: Text(category, style: const TextStyle(fontSize: 13, color: HomeTokens.textDark, fontWeight: FontWeight.w600)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(AppRadii.pill),
+                        ),
+                        child: Text(
+                          category,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF17201C),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                       const Spacer(),
                       if (dDay != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(color: HomeTokens.negative, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
-                          child: Text(dDay, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0553A),
+                            borderRadius: BorderRadius.circular(AppRadii.pill),
+                          ),
+                          child: Text(
+                            dDay,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                     ],
                   ),
                   const Spacer(),
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.3,
+                      shadows: [
+                        Shadow(color: Color(0x33000000), blurRadius: 8),
+                      ],
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (summary.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Text(
-                      summary,
-                      style: const TextStyle(fontSize: 15, color: Colors.white, height: 1.4),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    // Flexible so a large system font shortens the summary
+                    // instead of overflowing the fixed-height card.
+                    Flexible(
+                      child: Text(
+                        summary,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withValues(alpha: 0.92),
+                          height: 1.45,
+                          shadows: const [
+                            Shadow(color: Color(0x33000000), blurRadius: 8),
+                          ],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ],

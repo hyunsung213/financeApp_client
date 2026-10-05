@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/my_tokens.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Live 배분 진행 상태 for the budget plan: how much of 100% is allocated,
 /// how much is left, and a thin bar. Recomputed from [totalPercentage] on
@@ -17,18 +17,18 @@ class BudgetAllocationProgress extends StatelessWidget {
     final total = totalPercentage;
     final isComplete = total == 100;
     final isOver = total > 100;
-    final fillColor = isOver ? MyTokens.negative : MyTokens.accent;
+    final fillColor = isOver ? context.glass.negative : context.glass.accent;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _label(total, isComplete: isComplete, isOver: isOver),
+        _label(context, total, isComplete: isComplete, isOver: isOver),
         const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(_barHeight / 2),
           child: Container(
             height: _barHeight,
-            color: MyTokens.accentSoftBg,
+            color: context.glass.accentSoft,
             alignment: Alignment.centerLeft,
             child: TweenAnimationBuilder<double>(
               tween: Tween(end: (total.clamp(0, 100)) / 100),
@@ -51,11 +51,16 @@ class BudgetAllocationProgress extends StatelessWidget {
     );
   }
 
-  Widget _label(int total, {required bool isComplete, required bool isOver}) {
+  Widget _label(
+    BuildContext context,
+    int total, {
+    required bool isComplete,
+    required bool isOver,
+  }) {
     const base = TextStyle(fontSize: 13, height: 1.4);
     const strong = TextStyle(fontWeight: FontWeight.w700);
-    const muted = TextStyle(
-      color: MyTokens.placeholder,
+    final muted = TextStyle(
+      color: context.glass.textTertiary,
       fontWeight: FontWeight.w500,
     );
 
@@ -63,26 +68,26 @@ class BudgetAllocationProgress extends StatelessWidget {
     if (isOver) {
       spans = [
         TextSpan(text: '$total% 배분', style: muted),
-        const TextSpan(text: ' · ', style: muted),
+        TextSpan(text: ' · ', style: muted),
         TextSpan(
           text: '${total - 100}% 초과',
-          style: strong.copyWith(color: MyTokens.negative),
+          style: strong.copyWith(color: context.glass.negative),
         ),
       ];
     } else if (isComplete) {
       spans = [
         TextSpan(
           text: '배분 완료 100%',
-          style: strong.copyWith(color: MyTokens.accent),
+          style: strong.copyWith(color: context.glass.accentText),
         ),
-        const WidgetSpan(
+        WidgetSpan(
           alignment: PlaceholderAlignment.middle,
           child: Padding(
-            padding: EdgeInsets.only(left: 4),
+            padding: const EdgeInsets.only(left: 4),
             child: Icon(
               Icons.check_circle_rounded,
               size: 15,
-              color: MyTokens.accent,
+              color: context.glass.accentText,
             ),
           ),
         ),
@@ -91,9 +96,9 @@ class BudgetAllocationProgress extends StatelessWidget {
       spans = [
         TextSpan(
           text: '배분됨 $total%',
-          style: strong.copyWith(color: MyTokens.accent),
+          style: strong.copyWith(color: context.glass.accentText),
         ),
-        const TextSpan(text: ' · ', style: muted),
+        TextSpan(text: ' · ', style: muted),
         TextSpan(text: '남음 ${100 - total}%', style: muted),
       ];
     }

@@ -7,11 +7,15 @@ import '../../../core/widgets/skeleton.dart';
 import '../../../core/widgets/success_overlay.dart';
 import '../providers/my_page_provider.dart';
 import '../providers/salary_budget_preview.dart';
+import '../../../core/theme/app_radii.dart';
 import '../theme/my_tokens.dart';
 import '../utils/currency_input_formatter.dart';
 import '../utils/profile_regions.dart';
 import '../widgets/settings_form.dart';
 import 'budget_plan_settings_screen.dart';
+import '../../../core/format/money_format.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 class SalaryCycleSettingsScreen extends ConsumerStatefulWidget {
   const SalaryCycleSettingsScreen({super.key});
@@ -128,160 +132,191 @@ class _SalaryCycleSettingsScreenState
   Widget build(BuildContext context) {
     final myPageAsync = ref.watch(myPageDataProvider);
 
-    return Scaffold(
-      backgroundColor: MyTokens.pageBackground,
-      appBar: settingsAppBar('정기 수입 설정'),
-      body: myPageAsync.when(
-        loading: () => const FormSkeleton(),
-        error: (error, stack) => Center(child: Text('데이터를 불러오지 못했습니다: $error')),
-        data: (data) {
-          _initializeData(data);
+    return WalletBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: settingsAppBar('정기 수입 설정'),
+        body: myPageAsync.when(
+          loading: () => const FormSkeleton(),
+          error: (error, stack) =>
+              Center(child: Text('데이터를 불러오지 못했습니다: $error')),
+          data: (data) {
+            _initializeData(data);
 
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              SettingsSectionCard(
-                title: '들어오는 날',
-                child: Column(
-                  children: [
-                    _daySelector(
-                      label: '들어오는 날',
-                      value: _salaryDay,
-                      onChanged: (v) => setState(() => _salaryDay = v),
-                    ),
-                    const SizedBox(height: 16),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '수입 주기',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: MyTokens.textPrimary,
+            return ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                SettingsSectionCard(
+                  title: '들어오는 날',
+                  child: Column(
+                    children: [
+                      _daySelector(
+                        label: '들어오는 날',
+                        value: _salaryDay,
+                        onChanged: (v) => setState(() => _salaryDay = v),
+                      ),
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '수입 주기',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: context.glass.textPrimary,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _cycleTab('매달', selected: true),
-                        _cycleTab('2주', comingSoon: true),
-                        _cycleTab('1주', comingSoon: true),
-                        _cycleTab('기타', comingSoon: true),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '격주·주급 주기는 준비 중이에요. 지금은 매달 주기만 지원해요.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: MyTokens.placeholder,
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _cycleTab('매달', selected: true),
+                          _cycleTab('2주', comingSoon: true),
+                          _cycleTab('1주', comingSoon: true),
+                          _cycleTab('기타', comingSoon: true),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '격주·주급 주기는 준비 중이에요. 지금은 매달 주기만 지원해요.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: context.glass.textTertiary,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    _daySelector(
-                      label: '월 시작일',
-                      value: _reportingStartDay,
-                      onChanged: (v) => setState(() => _reportingStartDay = v),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildPreviewCard(context, ref, data),
-              const SizedBox(height: 24),
-
-              SettingsSectionCard(
-                title: '정기 수입 금액',
-                child: TextField(
-                  controller: _salaryController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [CurrencyInputFormatter()],
-                  // The summary card previews the typed amount.
-                  onChanged: (_) => setState(() {}),
-                  decoration: settingsInputDecoration(
-                    labelText: '한 번에 들어오는 금액',
-                    suffixText: '원',
-                    prefixIcon: const Icon(Icons.monetization_on_outlined),
+                      const SizedBox(height: 16),
+                      _daySelector(
+                        label: '월 시작일',
+                        value: _reportingStartDay,
+                        onChanged: (v) =>
+                            setState(() => _reportingStartDay = v),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                _buildPreviewCard(context, ref, data),
+                const SizedBox(height: 24),
 
-              _buildBudgetPlanLink(context),
-              const SizedBox(height: 24),
-
-              SettingsSectionCard(
-                title: '맞춤 청년정책 프로필',
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _ageController,
-                      keyboardType: TextInputType.number,
-                      decoration: settingsInputDecoration(
-                        labelText: '만 나이',
-                        suffixText: '세',
-                        prefixIcon: const Icon(Icons.cake_outlined),
-                      ),
+                SettingsSectionCard(
+                  title: '정기 수입 금액',
+                  child: TextField(
+                    controller: _salaryController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [CurrencyInputFormatter()],
+                    // The summary card previews the typed amount.
+                    onChanged: (_) => setState(() {}),
+                    decoration: settingsInputDecoration(
+                      context: context,
+                      labelText: '한 번에 들어오는 금액',
+                      suffixText: '원',
+                      prefixIcon: const Icon(Icons.monetization_on_outlined),
                     ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedRegion,
-                      decoration: settingsInputDecoration(
-                        labelText: '거주 지역',
-                        prefixIcon: const Icon(Icons.location_on_outlined),
-                      ),
-                      items: _regions
-                          .map(
-                            (r) => DropdownMenuItem(value: r, child: Text(r)),
-                          )
-                          .toList(),
-                      onChanged: (val) => setState(() => _selectedRegion = val),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
+                const SizedBox(height: 14),
 
-              SettingsSaveButton(isSaving: _isSaving, onPressed: _save),
-              const SizedBox(height: 24),
-            ],
-          );
-        },
+                _buildBudgetPlanButton(context),
+                const SizedBox(height: 36),
+
+                SettingsSectionCard(
+                  title: '맞춤 청년정책 프로필',
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _ageController,
+                        keyboardType: TextInputType.number,
+                        decoration: settingsInputDecoration(
+                          context: context,
+                          labelText: '만 나이',
+                          suffixText: '세',
+                          prefixIcon: const Icon(Icons.cake_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedRegion,
+                        decoration: settingsInputDecoration(
+                          context: context,
+                          labelText: '거주 지역',
+                          prefixIcon: const Icon(Icons.location_on_outlined),
+                        ),
+                        items: _regions
+                            .map(
+                              (r) => DropdownMenuItem(value: r, child: Text(r)),
+                            )
+                            .toList(),
+                        onChanged: (val) =>
+                            setState(() => _selectedRegion = val),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                SettingsSaveButton(isSaving: _isSaving, onPressed: _save),
+                const SizedBox(height: 24),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  /// Small pointer to the separate 예산 배분 설정 screen.
-  Widget _buildBudgetPlanLink(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const BudgetPlanSettingsScreen()),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: Row(
-          children: [
-            const Expanded(
-              child: Text(
-                '정기 수입을 기준으로 예산을 나눠 설정할 수 있어요.',
-                style: TextStyle(fontSize: 13, color: MyTokens.placeholder),
-              ),
+  /// Secondary button under the 정기 수입 금액 card that opens the separate
+  /// 예산 배분 설정 screen. Kept lighter than the primary 저장 button.
+  Widget _buildBudgetPlanButton(BuildContext context) {
+    final radius = BorderRadius.circular(AppRadii.md);
+    return Container(
+      height: 54,
+      // Level 2 glass card with a soft green outline so it still reads as
+      // a button.
+      decoration: glassDecoration(
+        context,
+        borderRadius: radius,
+      ).copyWith(border: Border.all(color: context.glass.chipSelectedBorder)),
+      child: Material(
+        type: MaterialType.transparency,
+        shape: RoundedRectangleBorder(borderRadius: radius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const BudgetPlanSettingsScreen()),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.donut_small_outlined,
+                  size: 22,
+                  color: context.glass.accentText,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '예산 배분 설정',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: context.glass.textPrimary,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 22,
+                  color: context.glass.accentText,
+                ),
+              ],
             ),
-            const Text(
-              '예산 배분 설정',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: MyTokens.accent,
-              ),
-            ),
-            const Icon(Icons.chevron_right, size: 18, color: MyTokens.accent),
-          ],
+          ),
         ),
       ),
     );
@@ -314,23 +349,23 @@ class _SalaryCycleSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               '다음 수입까지 앞으로',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: MyTokens.accent,
+                color: context.glass.accentText,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               '미리보기 정보를 불러오지 못했어요.',
-              style: TextStyle(color: MyTokens.placeholder, fontSize: 12),
+              style: TextStyle(color: context.glass.textTertiary, fontSize: 12),
             ),
             const SizedBox(height: 10),
             Container(
               height: 6,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.glass.track,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -364,7 +399,6 @@ class _SalaryCycleSettingsScreenState
         final usageRatio = preview?.usageRatio ?? home.flexibleUsageRatio;
         final usagePercent = (usageRatio * 100).round();
         final additionalIncome = home.additionalIncomeAmount ?? 0;
-        final won = NumberFormat('#,###');
 
         return _previewShell(
           child: Column(
@@ -374,9 +408,9 @@ class _SalaryCycleSettingsScreenState
                 home.awaitingSalary
                     ? home.salaryCountdownLabel
                     : '다음 수입까지 앞으로 ${home.salaryCountdownLabel}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: MyTokens.accent,
+                  color: context.glass.accentText,
                 ),
               ),
               const SizedBox(height: 4),
@@ -384,8 +418,8 @@ class _SalaryCycleSettingsScreenState
               // behind us - show the state instead of a range (as Home does).
               Text(
                 home.awaitingSalary ? '예정 수입일이 지났어요' : cycleRange,
-                style: const TextStyle(
-                  color: MyTokens.textPrimary,
+                style: TextStyle(
+                  color: context.glass.textPrimary,
                   fontSize: 12,
                 ),
               ),
@@ -398,20 +432,20 @@ class _SalaryCycleSettingsScreenState
                   Flexible(
                     child: Text(
                       remaining < 0
-                          ? '쓸 수 있는 예산을 ${won.format(-remaining)}원 넘었어요'
-                          : '쓸 수 있는 예산 ${won.format(remaining)}원 남았어요',
-                      style: const TextStyle(
+                          ? '쓸 수 있는 예산을 ${context.formatWon(-remaining)} 넘었어요'
+                          : '쓸 수 있는 예산 ${context.formatWon(remaining)} 남았어요',
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: MyTokens.textPrimary,
+                        color: context.glass.textPrimary,
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     '$usagePercent% 사용',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w500,
-                      color: MyTokens.accent,
+                      color: context.glass.accentText,
                       fontSize: 12,
                     ),
                   ),
@@ -421,15 +455,15 @@ class _SalaryCycleSettingsScreenState
               GradientProgressBar(
                 value: usageRatio,
                 height: 6,
-                backgroundColor: Colors.white,
+                backgroundColor: context.glass.track,
                 colors: MyTokens.progressGradient,
               ),
               if (additionalIncome > 0) ...[
                 const SizedBox(height: 8),
                 Text(
-                  '추가 수입 ${won.format(additionalIncome)}원 포함',
-                  style: const TextStyle(
-                    color: MyTokens.placeholder,
+                  '추가 수입 ${context.formatWon(additionalIncome)} 포함',
+                  style: TextStyle(
+                    color: context.glass.textTertiary,
                     fontSize: 11,
                   ),
                 ),
@@ -440,8 +474,8 @@ class _SalaryCycleSettingsScreenState
                   preview != null
                       ? '저장하면 현재 예산에 바로 반영돼요.'
                       : '아직 저장되지 않은 변경사항이에요. 위 금액은 현재 적용 중인 예산이에요.',
-                  style: const TextStyle(
-                    color: MyTokens.accent,
+                  style: TextStyle(
+                    color: context.glass.accentText,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -459,10 +493,10 @@ class _SalaryCycleSettingsScreenState
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: MyTokens.accentSoftBg,
-        border: Border.all(color: MyTokens.accent),
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-        boxShadow: MyTokens.cardShadow,
+        color: context.glass.accentSoft,
+        border: Border.all(color: context.glass.accent),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        boxShadow: context.glass.cardShadow,
       ),
       child: child,
     );
@@ -473,8 +507,8 @@ class _SalaryCycleSettingsScreenState
       width: width ?? double.infinity,
       height: height,
       borderRadius: BorderRadius.circular(height / 2),
-      baseColor: Colors.white.withValues(alpha: 0.55),
-      highlightColor: Colors.white,
+      baseColor: context.glass.surfaceFill.withValues(alpha: 0.55),
+      highlightColor: context.glass.surfaceFill,
     );
   }
 
@@ -489,36 +523,36 @@ class _SalaryCycleSettingsScreenState
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 14,
-              color: MyTokens.textPrimary,
+              color: context.glass.textPrimary,
             ),
           ),
         ),
         Container(
           padding: const EdgeInsets.only(left: 12, right: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: MyTokens.borderNeutral),
-            borderRadius: BorderRadius.circular(MyTokens.inputRadius),
-            boxShadow: MyTokens.cardShadow,
+            color: context.glass.insetFill,
+            border: Border.all(color: context.glass.divider),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<int>(
               value: value,
-              style: const TextStyle(fontSize: 16, color: MyTokens.textPrimary),
-              iconEnabledColor: MyTokens.textPrimary,
-              borderRadius: BorderRadius.circular(MyTokens.inputRadius),
+              style: TextStyle(fontSize: 16, color: context.glass.textPrimary),
+              iconEnabledColor: context.glass.textPrimary,
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+              dropdownColor: context.glass.surfaceFill,
               selectedItemBuilder: (context) => days
                   .map(
                     (d) => Center(
                       child: Text(
                         '$d일',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: MyTokens.accent,
+                          color: context.glass.accentText,
                         ),
                       ),
                     ),
@@ -548,10 +582,14 @@ class _SalaryCycleSettingsScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? MyTokens.accentSoftBg : MyTokens.cardSurface,
-            borderRadius: BorderRadius.circular(MyTokens.chipRadius),
+            color: selected
+                ? context.glass.chipSelectedFill
+                : context.glass.chipFill,
+            borderRadius: BorderRadius.circular(AppRadii.pill),
             border: Border.all(
-              color: selected ? MyTokens.accent : MyTokens.borderNeutral,
+              color: selected
+                  ? context.glass.chipSelectedBorder
+                  : context.glass.chipBorder,
             ),
           ),
           child: Center(
@@ -559,10 +597,10 @@ class _SalaryCycleSettingsScreenState
               label,
               style: TextStyle(
                 color: selected
-                    ? MyTokens.accent
+                    ? context.glass.chipSelectedText
                     : (comingSoon
-                          ? MyTokens.placeholder
-                          : MyTokens.textPrimary),
+                          ? context.glass.textTertiary
+                          : context.glass.textPrimary),
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                 fontSize: 13,
               ),

@@ -5,10 +5,12 @@ import '../../../core/category/category_appearance.dart';
 import '../../../data/api/api_error.dart';
 import '../../../data/api/category_api.dart';
 import '../providers/category_management_provider.dart';
-import '../theme/my_tokens.dart';
+import '../../../core/theme/app_radii.dart';
 import '../widgets/category_row_card.dart';
 import '../widgets/settings_form.dart';
 import 'category_editor_screen.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// 카테고리 관리 (Figma Frame 108). Without [parent] it shows the 지출/수입
 /// tabs; tapping a 지출 대분류 opens this same screen for its 소분류.
@@ -73,6 +75,11 @@ class _CategoryManagementScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: context.glass.surfaceFill,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+        ),
         title: Text("'${category['name']}' 삭제"),
         content: const Text('카테고리 목록과 입력 화면에서 사라져요.\n이미 기록된 거래는 그대로 남아요.'),
         actions: [
@@ -82,7 +89,9 @@ class _CategoryManagementScreenState
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: MyTokens.negative),
+            style: TextButton.styleFrom(
+              foregroundColor: context.glass.negative,
+            ),
             child: const Text('삭제'),
           ),
         ],
@@ -120,13 +129,13 @@ class _CategoryManagementScreenState
           _RowIconButton(
             icon: Icons.delete_outline,
             tooltip: '삭제',
-            color: MyTokens.negative,
+            color: context.glass.negative,
             onTap: () => _delete(category),
           ),
       ];
     }
-    return const [
-      Icon(Icons.chevron_right, size: 24, color: MyTokens.textPrimary),
+    return [
+      Icon(Icons.chevron_right, size: 24, color: context.glass.textPrimary),
     ];
   }
 
@@ -153,79 +162,84 @@ class _CategoryManagementScreenState
             categories,
           ).nameOf(widget.parent!['id'] as String, '${widget.parent!['name']}');
 
-    return Scaffold(
-      backgroundColor: MyTokens.pageBackground,
-      appBar: settingsAppBar(_isTopLevel ? '카테고리 관리' : parentName!),
-      body: Column(
-        children: [
-          if (_isTopLevel)
-            _CategoryTabs(
-              selected: _tab,
-              onSelected: (tab) => setState(() => _tab = tab),
-            ),
-          Expanded(
-            child: categoriesAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: MyTokens.accent),
+    return WalletBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: settingsAppBar(_isTopLevel ? '카테고리 관리' : parentName!),
+        body: Column(
+          children: [
+            if (_isTopLevel)
+              _CategoryTabs(
+                selected: _tab,
+                onSelected: (tab) => setState(() => _tab = tab),
               ),
-              error: (e, _) =>
-                  _LoadError(onRetry: () => ref.invalidate(categoriesProvider)),
-              data: (_) => ListView(
-                padding: const EdgeInsets.fromLTRB(15, 12, 15, 16),
-                children: [
-                  if (_isTopLevel && _showGuide) ...[
-                    _GuideBanner(
-                      onClose: () => setState(() => _showGuide = false),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (rows.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(
-                        child: Text(
-                          '아직 카테고리가 없어요.',
-                          style: TextStyle(color: MyTokens.placeholder),
+            Expanded(
+              child: categoriesAsync.when(
+                loading: () => Center(
+                  child: CircularProgressIndicator(
+                    color: context.glass.accentText,
+                  ),
+                ),
+                error: (e, _) => _LoadError(
+                  onRetry: () => ref.invalidate(categoriesProvider),
+                ),
+                data: (_) => ListView(
+                  padding: const EdgeInsets.fromLTRB(15, 12, 15, 16),
+                  children: [
+                    if (_isTopLevel && _showGuide) ...[
+                      _GuideBanner(
+                        onClose: () => setState(() => _showGuide = false),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (rows.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text(
+                            '아직 카테고리가 없어요.',
+                            style: TextStyle(color: context.glass.textTertiary),
+                          ),
                         ),
                       ),
-                    ),
-                  for (final category in rows) ...[
-                    Builder(
-                      builder: (context) {
-                        final look = CategoryAppearance.fromJson(category);
-                        return CategoryRowCard(
-                          key: ValueKey('category-row-${category['id']}'),
-                          icon: look.icon,
-                          iconColor: look.color ?? MyTokens.accentDark,
-                          name: look.name,
-                          trailing: _trailingFor(category),
-                          onTap: () => _onRowTap(category),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 6),
+                    for (final category in rows) ...[
+                      Builder(
+                        builder: (context) {
+                          final look = CategoryAppearance.fromJson(category);
+                          return CategoryRowCard(
+                            key: ValueKey('category-row-${category['id']}'),
+                            icon: look.icon,
+                            iconColor: look.color,
+                            name: look.name,
+                            trailing: _trailingFor(category),
+                            onTap: () => _onRowTap(category),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 6),
+                    ],
                   ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(15, 8, 15, 16),
-        child: Row(
-          children: [
-            _EditButton(
-              editing: _editing,
-              onTap: () => setState(() => _editing = !_editing),
-            ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: _AddButton(
-                onTap: categoriesAsync.hasValue ? _openAdd : null,
+                ),
               ),
             ),
           ],
+        ),
+        bottomNavigationBar: SafeArea(
+          minimum: const EdgeInsets.fromLTRB(15, 8, 15, 16),
+          child: Row(
+            children: [
+              _EditButton(
+                editing: _editing,
+                onTap: () => setState(() => _editing = !_editing),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: _AddButton(
+                  onTap: categoriesAsync.hasValue ? _openAdd : null,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -256,8 +270,8 @@ class _CategoryTabs extends StatelessWidget {
                       bottom: BorderSide(
                         width: 2,
                         color: tab == selected
-                            ? MyTokens.accent
-                            : MyTokens.placeholder,
+                            ? context.glass.accentText
+                            : context.glass.textTertiary,
                       ),
                     ),
                   ),
@@ -269,8 +283,8 @@ class _CategoryTabs extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.45,
                       color: tab == selected
-                          ? MyTokens.accent
-                          : MyTokens.placeholder,
+                          ? context.glass.accentText
+                          : context.glass.textTertiary,
                     ),
                   ),
                 ),
@@ -291,16 +305,14 @@ class _GuideBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 14, 8, 14),
-      decoration: BoxDecoration(
-        color: MyTokens.cardSurface,
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-        border: Border.all(color: MyTokens.accent),
-        boxShadow: MyTokens.cardShadow,
-      ),
+      decoration: glassDecoration(
+        context,
+        radius: AppRadii.md,
+      ).copyWith(border: Border.all(color: context.glass.accent)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -310,10 +322,10 @@ class _GuideBanner extends StatelessWidget {
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.45,
-                    color: MyTokens.accentDark,
+                    color: context.glass.chipSelectedText,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   '카테고리를 누르면 이름·아이콘·색상을 바꿀 수 있어요.\n'
                   '직접 추가한 카테고리만 삭제할 수 있어요.',
@@ -321,7 +333,7 @@ class _GuideBanner extends StatelessWidget {
                     fontSize: 14,
                     height: 1.3,
                     letterSpacing: -0.45,
-                    color: MyTokens.textPrimary,
+                    color: context.glass.textPrimary,
                   ),
                 ),
               ],
@@ -331,11 +343,7 @@ class _GuideBanner extends StatelessWidget {
             onPressed: onClose,
             tooltip: '닫기',
             visualDensity: VisualDensity.compact,
-            icon: const Icon(
-              Icons.close,
-              size: 24,
-              color: MyTokens.textPrimary,
-            ),
+            icon: Icon(Icons.close, size: 24, color: context.glass.textPrimary),
           ),
         ],
       ),
@@ -348,13 +356,15 @@ class _RowIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
-    this.color = MyTokens.textPrimary,
+    this.color,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
-  final Color color;
+
+  /// Defaults to the theme's primary text color.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -364,12 +374,13 @@ class _RowIconButton extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints.tightFor(width: 32, height: 32),
       padding: EdgeInsets.zero,
-      icon: Icon(icon, size: 24, color: color),
+      icon: Icon(icon, size: 24, color: color ?? context.glass.textPrimary),
     );
   }
 }
 
-// Figma bottom buttons: rounded 16, 55 tall, with the soft drop shadow.
+// Figma bottom buttons: rounded 16, 55 tall. The green 추가 button keeps
+// its soft drop shadow; 수정 is a glass card.
 const _bottomButtonShadow = [
   BoxShadow(color: Color(0x30606960), offset: Offset(0, 5.4), blurRadius: 5),
   BoxShadow(color: Color(0x1F606960), offset: Offset(0, 1.2), blurRadius: 1.2),
@@ -385,16 +396,14 @@ class _EditButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 55,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MyTokens.accentDark),
-        boxShadow: _bottomButtonShadow,
-      ),
+      decoration: glassDecoration(
+        context,
+        radius: AppRadii.md,
+      ).copyWith(border: Border.all(color: context.glass.chipSelectedText)),
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadii.md),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -404,16 +413,16 @@ class _EditButton extends StatelessWidget {
                 Icon(
                   editing ? Icons.check : Icons.edit_outlined,
                   size: 24,
-                  color: MyTokens.accentDark,
+                  color: context.glass.chipSelectedText,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   editing ? '완료' : '수정',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.45,
-                    color: MyTokens.accentDark,
+                    color: context.glass.chipSelectedText,
                   ),
                 ),
               ],
@@ -432,30 +441,34 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    // White on brand green; while disabled a muted track fill with muted
+    // content so it stays legible in both light and dark mode.
+    final content = enabled ? Colors.white : context.glass.textTertiary;
     return Container(
       height: 55,
       decoration: BoxDecoration(
-        color: onTap == null ? MyTokens.placeholder : const Color(0xFF00AF76),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: _bottomButtonShadow,
+        color: enabled ? const Color(0xFF00AF76) : context.glass.track,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        boxShadow: enabled ? _bottomButtonShadow : null,
       ),
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadii.md),
           onTap: onTap,
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add_circle_outline, size: 24, color: Colors.white),
-              SizedBox(width: 10),
+              Icon(Icons.add_circle_outline, size: 24, color: content),
+              const SizedBox(width: 10),
               Text(
                 '추가',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.45,
-                  color: Colors.white,
+                  color: content,
                 ),
               ),
             ],
@@ -477,9 +490,9 @@ class _LoadError extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             '카테고리를 불러오지 못했어요.',
-            style: TextStyle(color: MyTokens.textPrimary),
+            style: TextStyle(color: context.glass.textPrimary),
           ),
           TextButton(onPressed: onRetry, child: const Text('다시 시도')),
         ],

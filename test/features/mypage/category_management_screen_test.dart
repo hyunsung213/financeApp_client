@@ -1,3 +1,4 @@
+import 'package:finance_client/core/theme/wallet_glass.dart';
 import 'package:dio/dio.dart';
 import 'package:finance_client/data/api/category_api.dart';
 import 'package:finance_client/features/mypage/screens/category_management_screen.dart';
@@ -281,7 +282,7 @@ void main() {
     expect(find.text('2/20'), findsOneWidget);
     // Its own (taxi) icon leads the grid, selected; the default color too.
     expect(tileColor(tester, 'local_taxi_outlined'), MyTokens.accentSoftBg);
-    expect(tileColor(tester, 'pets_outlined'), Colors.white);
+    expect(tileColor(tester, 'pets_outlined'), WalletGlass.light.cardFill);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('category-color-default')),

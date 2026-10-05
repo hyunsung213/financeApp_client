@@ -1,16 +1,18 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/home_provider.dart';
+import '../providers/home_section_visibility_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/category/category_appearance.dart';
+import '../../../core/format/money_format.dart';
 import '../../../core/providers/current_date_provider.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/surface_style.dart';
+import '../../../core/theme/wallet_glass.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manual_input_fab.dart';
 import '../../../core/widgets/tab_header.dart';
 import '../../../data/api/category_api.dart';
@@ -19,7 +21,6 @@ import '../../transaction/screens/transaction_detail_screen.dart';
 import '../../transaction/screens/transaction_list_screen.dart';
 import '../../transaction/widgets/category_picker_screen.dart'
     show majorCategoriesFor;
-import '../theme/home_tokens.dart';
 import '../widgets/category_filter_chip.dart';
 import '../widgets/home_section_header.dart';
 import '../widgets/gauge_progress_bar.dart';
@@ -51,10 +52,6 @@ String _formatOccurredAt(dynamic occurredAt) {
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  String _formatCurrency(int amount) {
-    return '${NumberFormat('#,###').format(amount)}원';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final homeDataAsync = ref.watch(homeDataProvider);
@@ -67,37 +64,37 @@ class HomeScreen extends ConsumerWidget {
     // Single "today" for this whole build - the date pill, D-Day and
     // budget-cycle range must never disagree about what day it is.
     final now = ref.watch(currentDateProvider);
+    final sections = ref.watch(homeSectionVisibilityProvider);
+
+    final glass = context.glass;
 
     return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+      // The tab shell paints the ambient background behind every tab.
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           SafeArea(
             bottom: false,
             child: RefreshIndicator(
-              color: HomeTokens.accent,
+              color: glass.accent,
               onRefresh: () => _onRefresh(ref),
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  // Header + Date Pill + Hero Section share one gradient panel that
-                  // ends right where "실시간 거래 내역" begins, instead of a
-                  // viewport-height gradient bleeding under the transaction list.
+                  // Header + Date Pill + the main card share one hero panel
+                  // that dissolves into the ambient page background right
+                  // where "실시간 거래 내역" begins.
                   SliverToBoxAdapter(
                     child: Container(
                       decoration: BoxDecoration(
-                        // Fades all the way into the page background color (not
-                        // just the pale mint HomeTokens.heroGradient.last) so the
-                        // hero panel dissolves into the transaction list below
-                        // instead of ending on a hard-edged rectangle.
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            ...HomeTokens.heroGradient,
-                            HomeTokens.pageBackground,
+                            ...glass.heroGradient,
+                            glass.heroGradient.last.withValues(alpha: 0),
                           ],
-                          stops: const [0.0, 0.14, 0.5, 0.8, 1.0],
+                          stops: const [0.0, 0.14, 0.45, 0.72, 1.0],
                         ),
                       ),
                       child: Column(
@@ -127,7 +124,7 @@ class HomeScreen extends ConsumerWidget {
 
                           // Date Pill
                           Padding(
-                            padding: const EdgeInsets.only(top: 24),
+                            padding: const EdgeInsets.only(top: 20),
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -137,10 +134,7 @@ class HomeScreen extends ConsumerWidget {
                                 decoration: AppSurfaces.onHeroPill
                                     .toBoxDecoration(),
                                 child: Text(
-                                  DateFormat(
-                                    'M. d. E',
-                                    'ko_KR',
-                                  ).format(now),
+                                  DateFormat('M. d. E', 'ko_KR').format(now),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -151,9 +145,14 @@ class HomeScreen extends ConsumerWidget {
                             ),
                           ),
 
-                          // Hero Section (homeData dependent)
+                          // Hero card (homeData dependent)
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.gutter,
+                              20,
+                              AppSpacing.gutter,
+                              0,
+                            ),
                             child: homeDataAsync.when(
                               loading: () => const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 60),
@@ -169,49 +168,43 @@ class HomeScreen extends ConsumerWidget {
                                 // card must never surface DioException/SocketException
                                 // internals (host, port, etc.) to end users.
                                 debugPrint('홈 데이터 로딩 실패: $err');
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 20,
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(AppRadii.button),
-                                    ),
+                                return GlassSurface(
+                                  radius: AppRadii.xl,
+                                  fill: glass.heroCardFill,
+                                  border: glass.heroCardBorder,
+                                  blurSigma: GlassBlur.card,
+                                  padding: const EdgeInsets.all(20),
+                                  child: SizedBox(
+                                    width: double.infinity,
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(
+                                        Icon(
                                           Icons.error_outline,
-                                          color: Colors.redAccent,
+                                          color: glass.negative,
                                           size: 36,
                                         ),
                                         const SizedBox(height: 8),
-                                        const Text(
+                                        Text(
                                           '홈 정보를 불러오지 못했어요',
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w600,
-                                            color: HomeTokens.textDark,
+                                            color: glass.textPrimary,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
-                                        const Text(
+                                        Text(
                                           '잠시 후 다시 시도해주세요.',
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color: HomeTokens.textMuted,
+                                            color: glass.textSecondary,
                                           ),
                                         ),
                                         const SizedBox(height: 12),
                                         ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: HomeTokens.accent,
-                                            foregroundColor: Colors.white,
-                                          ),
                                           onPressed: () =>
                                               ref.invalidate(homeDataProvider),
                                           child: const Text('다시 시도'),
@@ -221,196 +214,15 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                 );
                               },
-                              data: (data) => Column(
-                                children: [
-                                  const SizedBox(height: 16),
-                                  // Big remaining amount + recommended amount label
-                                  GestureDetector(
-                                    onTap: () =>
-                                        _showTodayDetailSheet(context, data),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Flexible(
-                                          child: FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            alignment: Alignment.bottomLeft,
-                                            child: Text(
-                                              NumberFormat(
-                                                '#,###',
-                                              ).format(data.remainingToday),
-                                              style: TextStyle(
-                                                color: data.remainingToday < 0
-                                                    ? HomeTokens.negative
-                                                    : Colors.white,
-                                                fontSize: 48,
-                                                fontWeight: FontWeight.w800,
-                                                letterSpacing: -1,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 6,
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                '권장 소비액',
-                                                style: TextStyle(
-                                                  color: HomeTokens.textOnHero,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                              Text(
-                                                '/ ${_formatCurrency(data.recommendedAmount)}',
-                                                style: const TextStyle(
-                                                  color: HomeTokens.textOnHero,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 28),
-
-                                  // D-Day & Budget Card. Shadow lives on this
-                                  // outer, unclipped Container - putting it on
-                                  // the inner Container (inside the ClipRRect
-                                  // below) would have the clip cut the shadow
-                                  // away, leaving the card's right edge with
-                                  // nothing to separate it from the hero
-                                  // gradient once that gradient fades pale.
-                                  GestureDetector(
-                                    onTap: () => _showSalaryCycleDetailSheet(
-                                      context,
-                                      data,
-                                      now,
-                                    ),
-                                    child: Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(AppRadii.hero),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: HomeTokens.accentDark
-                                                .withValues(alpha: 0.16),
-                                            blurRadius: 24,
-                                            offset: const Offset(0, 10),
-                                          ),
-                                        ],
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(AppRadii.hero),
-                                        child: BackdropFilter(
-                                          filter: ImageFilter.blur(
-                                            sigmaX: 12,
-                                            sigmaY: 12,
-                                          ),
-                                          child: Container(
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.all(20),
-                                            // Near-opaque (not just a faint
-                                            // alpha wash) so the card reads as
-                                            // a solid, self-contained surface
-                                            // even where the hero gradient
-                                            // behind it has already faded to
-                                            // near-white - that stacked
-                                            // transparency was why the right
-                                            // edge used to disappear.
-                                            decoration: AppSurfaces.heroCard
-                                                .toBoxDecoration(),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    Text(
-                                                      data.awaitingSalary
-                                                          ? '예정 수입일이 지났어요 · '
-                                                          : '다음 수입까지 앞으로 ',
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color: Color(
-                                                          0xFF1F2937,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      data.salaryCountdownLabel,
-                                                      style: const TextStyle(
-                                                        fontSize: 15,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        color:
-                                                            HomeTokens.accent,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 10),
-                                                Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Text(
-                                                      '${_formatCurrency(data.remainingFlexibleAmount)} 남았어요',
-                                                      style: const TextStyle(
-                                                        fontSize: 20,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        color: Color(
-                                                          0xFF1F2937,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '${(data.flexibleUsageRatio * 100).round()}% 사용',
-                                                      style: const TextStyle(
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        color: Color(
-                                                          0xFF374151,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 14),
-                                                // Single continuous gauge with 25/50/75% ticks
-                                                // (replaces the previous 4-segment row) -
-                                                // ratio calculation itself is unchanged.
-                                                GaugeProgressBar(
-                                                  ratio:
-                                                      data.flexibleUsageRatio,
-                                                  backgroundColor:
-                                                      HomeTokens.gaugeTrack,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              data: (data) => _HomeHeroCard(
+                                data: data,
+                                onTodayTap: () =>
+                                    _showTodayDetailSheet(context, data),
+                                onCycleTap: () => _showSalaryCycleDetailSheet(
+                                  context,
+                                  data,
+                                  now,
+                                ),
                               ),
                             ),
                           ),
@@ -419,122 +231,142 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  // Transactions Header
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-                      child: HomeSectionHeader(
-                        title: '실시간 거래 내역',
-                        actionLabel: '더보기',
-                        // Branch-local push (not rootNavigator) so the shared
-                        // Bottom Navigation shell stays visible here
-                        // (docs/figma/report-spec.md C.8.1). Category Report's
-                        // "거래 내역 보기" also opens this screen, but on top of
-                        // that nav-less detail page, so it has no nav there.
-                        onActionTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const TransactionListScreen(),
+                  // 실시간 거래 내역 (header, chips, cards) - can be hidden in
+                  // 앱 설정 > 홈 화면 설정.
+                  if (sections.showRecentTransactions) ...[
+                    // Transactions Header
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                        child: HomeSectionHeader(
+                          title: '실시간 거래 내역',
+                          actionLabel: '더보기',
+                          // Branch-local push (not rootNavigator) so the shared
+                          // Bottom Navigation shell stays visible here
+                          // (docs/figma/report-spec.md C.8.1). Category Report's
+                          // "거래 내역 보기" also opens this screen, but on top of
+                          // that nav-less detail page, so it has no nav there.
+                          onActionTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const TransactionListScreen(),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
 
-                  // Filter Chips
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 0, 0),
-                      child: SizedBox(
-                        height: 38,
-                        child: categoriesAsync.when(
-                          loading: () => const SizedBox.shrink(),
-                          error: (e, st) => const SizedBox.shrink(),
-                          data: (categories) {
-                            final expenseCategories = majorCategoriesFor(
-                              categories,
-                              'core.expense',
-                            );
-                            return ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: expenseCategories.length + 1,
-                              itemBuilder: (ctx, i) {
-                                if (i == 0) {
+                    // Filter Chips
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 0, 0),
+                        child: SizedBox(
+                          height: 38,
+                          child: categoriesAsync.when(
+                            loading: () => const SizedBox.shrink(),
+                            error: (e, st) => const SizedBox.shrink(),
+                            data: (categories) {
+                              final expenseCategories = majorCategoriesFor(
+                                categories,
+                                'core.expense',
+                              );
+                              return ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: expenseCategories.length + 1,
+                                itemBuilder: (ctx, i) {
+                                  if (i == 0) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: CategoryFilterChip(
+                                        label: '전체',
+                                        selected: selectedFilter == 'ALL',
+                                        onTap: () => ref
+                                            .read(
+                                              homeCategoryFilterProvider
+                                                  .notifier,
+                                            )
+                                            .setFilter('ALL'),
+                                      ),
+                                    );
+                                  }
+                                  final c = expenseCategories[i - 1];
+                                  final id = (c['id'] ?? '').toString();
+                                  final name = (c['name'] ?? '').toString();
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 8),
                                     child: CategoryFilterChip(
-                                      label: '전체',
-                                      selected: selectedFilter == 'ALL',
+                                      label: name,
+                                      icon: CategoryAppearance.fromJson(c).icon,
+                                      selected: selectedFilter == id,
                                       onTap: () => ref
                                           .read(
                                             homeCategoryFilterProvider.notifier,
                                           )
-                                          .setFilter('ALL'),
+                                          .setFilter(id),
                                     ),
                                   );
-                                }
-                                final c = expenseCategories[i - 1];
-                                final id = (c['id'] ?? '').toString();
-                                final name = (c['name'] ?? '').toString();
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: CategoryFilterChip(
-                                    label: name,
-                                    icon: CategoryAppearance.fromJson(c).icon,
-                                    selected: selectedFilter == id,
-                                    onTap: () => ref
-                                        .read(
-                                          homeCategoryFilterProvider.notifier,
-                                        )
-                                        .setFilter(id),
-                                  ),
-                                );
-                              },
-                            );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Transaction Cards
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: recentTxAsync.when(
+                          loading: () => Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: glass.accent,
+                              ),
+                            ),
+                          ),
+                          error: (e, st) => Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              '거래 내역 로딩 오류: $e',
+                              style: TextStyle(color: glass.textTertiary),
+                            ),
+                          ),
+                          data: (transactions) {
+                            if (transactions.isEmpty) {
+                              return GlassCard(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 28,
+                                  horizontal: 20,
+                                ),
+                                radius: AppRadii.md,
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.receipt_long_outlined,
+                                      size: 28,
+                                      color: glass.textTertiary,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Center(
+                                      child: Text(
+                                        '오늘 등록된 거래 내역이 없습니다.',
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: glass.textSecondary,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return _buildTransactionGrid(context, transactions);
                           },
                         ),
                       ),
                     ),
-                  ),
-
-                  // Transaction Cards
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: recentTxAsync.when(
-                        loading: () => const Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: HomeTokens.accent,
-                            ),
-                          ),
-                        ),
-                        error: (e, st) => Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            '거래 내역 로딩 오류: $e',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                        data: (transactions) {
-                          if (transactions.isEmpty) {
-                            return Container(
-                              padding: const EdgeInsets.all(32),
-                              decoration: AppSurfaces.contentCard
-                                  .toBoxDecoration(),
-                              child: const Center(
-                                child: Text(
-                                  '오늘 등록된 거래 내역이 없습니다.',
-                                  style: AppTextStyles.caption,
-                                ),
-                              ),
-                            );
-                          }
-                          return _buildTransactionGrid(context, transactions);
-                        },
-                      ),
-                    ),
-                  ),
+                  ],
 
                   // "최근 소비 돌아보기" - wired to recentRegrettableTransactionsProvider,
                   // the most recently *evaluated* REGRETTABLE/BAD expenses from
@@ -545,42 +377,47 @@ class HomeScreen extends ConsumerWidget {
                   // existed. Rows can now span several different days, so `time`
                   // shows each transaction's occurredAt date instead of being left
                   // blank.
-                  SliverToBoxAdapter(
-                    child: recentRegretAsync.maybeWhen(
-                      data: (transactions) => RegretSpendingSection(
-                        items: transactions
-                            .whereType<Map>()
-                            .map(
-                              (tx) => {
-                                'merchantOrTitle':
-                                    (tx['merchantOrTitle'] ??
-                                            categoryDirectory.nameForTransaction(tx) ??
-                                            '내역')
-                                        .toString(),
-                                'time': _formatOccurredAt(tx['occurredAt']),
-                                'amountLabel':
-                                    '-${NumberFormat('#,###').format(_toInt(tx['amount']))}원',
-                                'categoryPath':
-                                    categoryDirectory.nameForTransaction(tx) ?? '기타',
-                                'id': tx['id'],
-                              },
-                            )
-                            .toList(),
-                        // Branch-local push (not rootNavigator) so the shared
-                        // Bottom Navigation shell stays visible here, matching
-                        // every other entry point into Transaction Detail
-                        // (docs/figma/report-spec.md C.8).
-                        onItemTap: (item) => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => TransactionDetailScreen(
-                              transactionId: item['id'].toString(),
+                  if (sections.showRegretReview)
+                    SliverToBoxAdapter(
+                      child: recentRegretAsync.maybeWhen(
+                        data: (transactions) => RegretSpendingSection(
+                          items: transactions
+                              .whereType<Map>()
+                              .map(
+                                (tx) => {
+                                  'merchantOrTitle':
+                                      (tx['merchantOrTitle'] ??
+                                              categoryDirectory
+                                                  .nameForTransaction(tx) ??
+                                              '내역')
+                                          .toString(),
+                                  'time': _formatOccurredAt(tx['occurredAt']),
+                                  'amountLabel':
+                                      '-${context.formatWon(_toInt(tx['amount']))}',
+                                  'categoryPath':
+                                      categoryDirectory.nameForTransaction(
+                                        tx,
+                                      ) ??
+                                      '기타',
+                                  'id': tx['id'],
+                                },
+                              )
+                              .toList(),
+                          // Branch-local push (not rootNavigator) so the shared
+                          // Bottom Navigation shell stays visible here, matching
+                          // every other entry point into Transaction Detail
+                          // (docs/figma/report-spec.md C.8).
+                          onItemTap: (item) => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => TransactionDetailScreen(
+                                transactionId: item['id'].toString(),
+                              ),
                             ),
                           ),
                         ),
+                        orElse: () => const RegretSpendingSection(items: null),
                       ),
-                      orElse: () => const RegretSpendingSection(items: null),
                     ),
-                  ),
 
                   // Bottom spacer
                   const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -611,31 +448,26 @@ class HomeScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => _DetailSheet(
         title: '오늘 쓸 수 있는 돈',
-        headline: _formatCurrency(data.remainingToday),
-        headlineColor: data.remainingToday < 0
-            ? HomeTokens.negative
-            : const Color(0xFF1F2937),
+        headline: context.formatWon(data.remainingToday),
+        isNegative: data.remainingToday < 0,
         rows: [
           _DetailRow(
             Icons.stars_outlined,
             '오늘 권장 소비액',
-            _formatCurrency(data.recommendedAmount),
+            context.formatWon(data.recommendedAmount),
           ),
           _DetailRow(
             Icons.access_time,
             '오늘 사용한 금액',
-            _formatCurrency(data.spentAmount),
+            context.formatWon(data.spentAmount),
           ),
           _DetailRow(
             Icons.check_circle_outline,
             '오늘 남은 금액',
-            _formatCurrency(data.remainingToday),
+            context.formatWon(data.remainingToday),
           ),
           _DetailRow(
             Icons.event_outlined,
@@ -645,7 +477,7 @@ class HomeScreen extends ConsumerWidget {
           _DetailRow(
             Icons.account_balance_wallet_outlined,
             '남은 가용금액',
-            _formatCurrency(data.remainingFlexibleAmount),
+            context.formatWon(data.remainingFlexibleAmount),
           ),
         ],
         footer: '현재 수입 주기와 남은 금액을 기준으로 계산되었어요.',
@@ -669,27 +501,24 @@ class HomeScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => _DetailSheet(
         title: '이번 수입 주기',
         subtitle: data.awaitingSalary
             ? '예정 수입일이 지났어요'
             : '${dateFormat.format(cycleStart)} ~ ${dateFormat.format(cycleEnd)}',
         headline: data.salaryCountdownLabel,
-        headlineColor: HomeTokens.accent,
+        isAccent: true,
         rows: [
           _DetailRow(
             Icons.check_circle_outline,
             '현재 남은 금액',
-            _formatCurrency(data.remainingFlexibleAmount),
+            context.formatWon(data.remainingFlexibleAmount),
           ),
           _DetailRow(
             Icons.payments_outlined,
             '사용한 금액',
-            _formatCurrency(data.usedFlexibleAmount),
+            context.formatWon(data.usedFlexibleAmount),
           ),
           _DetailRow(
             Icons.pie_chart_outline,
@@ -704,7 +533,7 @@ class HomeScreen extends ConsumerWidget {
           _DetailRow(
             Icons.stars_outlined,
             '오늘 권장 소비액',
-            _formatCurrency(data.recommendedAmount),
+            context.formatWon(data.recommendedAmount),
           ),
         ],
       ),
@@ -759,7 +588,8 @@ class _DetailSheet extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String headline;
-  final Color headlineColor;
+  final bool isNegative;
+  final bool isAccent;
   final List<_DetailRow> rows;
   final String? footer;
 
@@ -767,106 +597,314 @@ class _DetailSheet extends StatelessWidget {
     required this.title,
     this.subtitle,
     required this.headline,
-    this.headlineColor = const Color(0xFF1F2937),
+    this.isNegative = false,
+    this.isAccent = false,
     required this.rows,
     this.footer,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColorTokens.dividerTrack,
-                  borderRadius: BorderRadius.circular(2),
+    final glass = context.glass;
+    final headlineColor = isNegative
+        ? glass.negative
+        : (isAccent ? glass.accentText : glass.textPrimary);
+    return GlassSheet(
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: glass.textSecondary,
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-            if (subtitle != null) ...[
+              if (subtitle != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  subtitle!,
+                  style: TextStyle(fontSize: 13, color: glass.textTertiary),
+                ),
+              ],
               const SizedBox(height: 6),
               Text(
-                subtitle!,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+                headline,
+                style: AppTextStyles.amountHero.copyWith(
+                  fontSize: 32,
+                  color: headlineColor,
+                ),
               ),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              headline,
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: headlineColor,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ...rows.map(
-              (row) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
+              const SizedBox(height: 16),
+              // One inset group instead of loose rows, so label/value pairs
+              // scan as a table.
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: glass.insetFill,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Column(
                   children: [
-                    Icon(row.icon, size: 18, color: HomeTokens.accent),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        row.label,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF4B5563),
+                    for (final row in rows)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        child: Row(
+                          children: [
+                            Icon(row.icon, size: 18, color: glass.accent),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                row.label,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: glass.textSecondary,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              row.value,
+                              style: AppTextStyles.amountMedium.copyWith(
+                                fontSize: 14,
+                                color: glass.textPrimary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    Text(
-                      row.value,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
                   ],
                 ),
               ),
-            ),
-            if (footer != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                footer!,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+              if (footer != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  footer!,
+                  style: TextStyle(fontSize: 12, color: glass.textTertiary),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('확인'),
+                ),
               ),
             ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: HomeTokens.accent,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('확인'),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The main Home card: "오늘 쓸 수 있는 돈" first and largest, then the
+/// income cycle and how much of its flexible budget is used. Two tap areas
+/// open the same two detail sheets as before (today / income cycle).
+class _HomeHeroCard extends StatelessWidget {
+  final HomeData data;
+  final VoidCallback onTodayTap;
+  final VoidCallback onCycleTap;
+
+  const _HomeHeroCard({
+    required this.data,
+    required this.onTodayTap,
+    required this.onCycleTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final glass = context.glass;
+    final isOver = data.remainingToday < 0;
+    final usedPct = (data.flexibleUsageRatio * 100).round();
+    final amountColor = isOver ? glass.negative : glass.textPrimary;
+
+    return GlassSurface(
+      radius: AppRadii.xl,
+      fill: glass.heroCardFill,
+      border: glass.heroCardBorder,
+      blurSigma: GlassBlur.card,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Today's spendable amount.
+          InkWell(
+            onTap: onTodayTap,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadii.xl),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '오늘 쓸 수 있는 돈',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: glass.textSecondary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: glass.textTertiary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          context.formatWon(
+                            data.remainingToday,
+                            withUnit: false,
+                          ),
+                          style: AppTextStyles.amountHero.copyWith(
+                            color: amountColor,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '원',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: amountColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(text: '권장 소비액 '),
+                        TextSpan(
+                          text: '/ ${context.formatWon(data.recommendedAmount)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: glass.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    style: TextStyle(fontSize: 13, color: glass.textSecondary),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Divider(height: 1, thickness: 1, color: glass.divider),
+          ),
+          // 2. Income cycle + flexible budget progress.
+          InkWell(
+            onTap: onCycleTap,
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(AppRadii.xl),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          data.awaitingSalary
+                              ? '예정 수입일이 지났어요 · '
+                              : '다음 수입까지 앞으로 ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: glass.textSecondary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: glass.accentSoft,
+                          borderRadius: BorderRadius.circular(AppRadii.pill),
+                        ),
+                        child: Text(
+                          data.salaryCountdownLabel,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: glass.accentText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${context.formatWon(data.remainingFlexibleAmount)} 남았어요',
+                          style: AppTextStyles.amountLarge.copyWith(
+                            fontSize: 20,
+                            color: glass.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$usedPct% 사용',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: usedPct > 100
+                              ? glass.negative
+                              : glass.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Single continuous gauge with 25/50/75% ticks - ratio
+                  // calculation itself is unchanged.
+                  GaugeProgressBar(
+                    ratio: data.flexibleUsageRatio,
+                    backgroundColor: glass.track,
+                    tickColor: glass.heroCardFill.withValues(alpha: 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/surface_style.dart';
 import '../../../core/widgets/manual_input_fab.dart' show kBottomNavBarHeight;
 import '../../../core/widgets/tab_header.dart';
 import '../../calendar/providers/calendar_focus_provider.dart';
-import '../../home/theme/home_tokens.dart';
 import '../providers/report_provider.dart';
 import '../utils/report_date_utils.dart';
 import '../utils/report_insight_utils.dart';
@@ -19,6 +20,8 @@ import '../widgets/month_picker_sheet.dart';
 import 'monthly_insight_detail_screens.dart';
 import 'monthly_report_screen.dart';
 import 'category_report_screen.dart';
+import '../../../core/format/money_format.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Report main screen (Figma FINAL_REPORT_SCREENS frame 362:3635).
 ///
@@ -44,10 +47,11 @@ class ReportScreen extends ConsumerWidget {
     final dataAsync = ref.watch(reportMainDataProvider(currentMonth));
 
     return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+      // The tab shell paints the ambient background behind every tab.
+      backgroundColor: Colors.transparent,
       body: dataAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: HomeTokens.accent)),
-        error: (e, st) => SafeArea(child: Center(child: Text('리포트를 불러오지 못했어요\n$e', textAlign: TextAlign.center))),
+        loading: () => Center(child: CircularProgressIndicator(color: context.glass.accent)),
+        error: (e, st) => SafeArea(child: Center(child: Text('리포트를 불러오지 못했어요\n$e', textAlign: TextAlign.center, style: TextStyle(color: context.glass.textSecondary)))),
         data: (data) {
           // Top inset is handled by the header band itself (it paints under
           // the status bar), so only the bottom inset is reserved here.
@@ -167,7 +171,7 @@ class _HeroSummaryPanel extends ConsumerWidget {
         const SizedBox(height: 4),
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(formatWon(totalExpense), style: AppTextStyles.headerFigure),
+          child: Text(context.formatWon(totalExpense), style: AppTextStyles.headerFigure),
         ),
         if (momPct != null) ...[
           const SizedBox(height: 4),
@@ -219,24 +223,28 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final glass = context.glass;
+    return GlassCard(
       padding: const EdgeInsets.all(AppSpacing.cardPadding),
-      decoration: AppSurfaces.contentCard.toBoxDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: AppTextStyles.cardTitle),
+              Expanded(child: Text(title, style: AppTextStyles.cardTitle.copyWith(color: glass.textPrimary))),
               if (onMore != null)
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: onMore,
-                  child: const Text('더보기', style: AppTextStyles.sectionAction),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: Text('더보기', style: AppTextStyles.sectionAction.copyWith(color: glass.textSecondary)),
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           child,
         ],
       ),
@@ -311,7 +319,7 @@ class _DailyFlowCardState extends State<_DailyFlowCard> {
         // Tooltip strip above + 150px plot + badge strip below.
         height: kChartTooltipStrip + 150 + kChartDayBadgeStrip,
         child: points.isEmpty
-            ? const Center(child: Text('이번 달 거래 내역이 아직 없어요', style: TextStyle(color: HomeTokens.textMuted)))
+            ? Center(child: Text('이번 달 거래 내역이 아직 없어요', style: TextStyle(color: context.glass.textTertiary)))
             : LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
@@ -377,15 +385,15 @@ class _DailyFlowCardState extends State<_DailyFlowCard> {
                               // therefore matched on exact x, not `x.toInt()`.
                               spots: smoothLineSpots(points.map((p) => FlSpot(p.day.toDouble(), p.spent.toDouble())).toList()),
                               isCurved: false,
-                              color: HomeTokens.accent,
-                              barWidth: 2,
+                              color: context.glass.accent,
+                              barWidth: 2.5,
                               isStrokeCapRound: true,
                               isStrokeJoinRound: true,
                               dotData: FlDotData(
                                 show: true,
                                 checkToShowDot: (spot, barData) => selectedDay != null && spot.x == selectedDay.toDouble(),
                                 getDotPainter: (spot, percent, barData, index) =>
-                                    FlDotCirclePainter(radius: 4, color: Colors.white, strokeWidth: 2, strokeColor: HomeTokens.accent),
+                                    FlDotCirclePainter(radius: 4, color: context.glass.surfaceFill, strokeWidth: 2, strokeColor: context.glass.accent),
                               ),
                               belowBarData: BarAreaData(show: false),
                             ),
@@ -420,12 +428,12 @@ class _DailyFlowCardState extends State<_DailyFlowCard> {
                               // amount on its own line, not one run-on sentence.
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(color: HomeTokens.accentDark, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
+                                decoration: BoxDecoration(color: AppColorTokens.accentDark, borderRadius: BorderRadius.circular(AppRadii.sm - 4)),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text('${month.month}월 $selectedDay일', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                                    Text(formatWon(selectedAmount), style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                    Text(context.formatWon(selectedAmount), style: const TextStyle(color: Colors.white, fontSize: 11)),
                                   ],
                                 ),
                               ),
@@ -480,7 +488,7 @@ class _CategoryCard extends StatelessWidget {
       title: '카테고리 별 지출',
       onMore: onMore,
       child: categories.isEmpty
-          ? const SizedBox(height: 80, child: Center(child: Text('이번 달 지출 카테고리가 아직 없어요', style: TextStyle(color: HomeTokens.textMuted))))
+          ? SizedBox(height: 80, child: Center(child: Text('이번 달 지출 카테고리가 아직 없어요', style: TextStyle(color: context.glass.textTertiary))))
           : SizedBox(
               height: 200,
               child: Row(
@@ -492,7 +500,8 @@ class _CategoryCard extends StatelessWidget {
                       children: [
                         PieChart(
                           PieChartData(
-                            sectionsSpace: 0,
+                            // Thin gaps keep adjacent slices distinct.
+                            sectionsSpace: 1.5,
                             centerSpaceRadius: 50,
                             sections: List.generate(
                               categories.length,
@@ -503,8 +512,8 @@ class _CategoryCard extends StatelessWidget {
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('합계', style: TextStyle(fontSize: 12, color: HomeTokens.textMuted)),
-                            Text(formatWon(totalExpense), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+                            Text('합계', style: TextStyle(fontSize: 12, color: context.glass.textTertiary)),
+                            Text(context.formatWon(totalExpense), style: AppTextStyles.amountMedium.copyWith(color: context.glass.textPrimary)),
                           ],
                         ),
                       ],
@@ -523,7 +532,7 @@ class _CategoryCard extends StatelessWidget {
                               children: [
                                 Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: _colors[i % _colors.length])),
                                 const SizedBox(width: 8),
-                                Expanded(child: Text(c.name, style: const TextStyle(color: HomeTokens.textDark, fontSize: 13))),
+                                Expanded(child: Text(c.name, style: TextStyle(color: context.glass.textPrimary, fontSize: 13))),
                                 Text('${c.percentage.round()}%', style: TextStyle(color: _colors[i % _colors.length], fontWeight: FontWeight.bold, fontSize: 13)),
                               ],
                             ),
@@ -535,9 +544,9 @@ class _CategoryCard extends StatelessWidget {
                             child: Row(
                               children: [
                                 const SizedBox(width: 16),
-                                const Icon(Icons.more_horiz, size: 16, color: HomeTokens.textMuted),
+                                Icon(Icons.more_horiz, size: 16, color: context.glass.textTertiary),
                                 const SizedBox(width: 4),
-                                Text('외 $restCount건', style: const TextStyle(color: HomeTokens.textMuted, fontSize: 12)),
+                                Text('외 $restCount건', style: TextStyle(color: context.glass.textTertiary, fontSize: 12)),
                               ],
                             ),
                           ),
@@ -566,9 +575,9 @@ class _InsightSummaryCard extends StatelessWidget {
       title: '이번 달 리포트 요약',
       onMore: onMore,
       child: highlights.isEmpty
-          ? const Padding(
+          ? Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Center(child: Text('이번 달 지출 내역이 없어요', style: TextStyle(color: HomeTokens.textMuted))),
+              child: Center(child: Text('이번 달 지출 내역이 없어요', style: TextStyle(color: context.glass.textTertiary))),
             )
           : Column(
               children: highlights
@@ -581,22 +590,22 @@ class _InsightSummaryCard extends StatelessWidget {
                             // Nested inside the card -> inset tile; brand
                             // green for the neutral fact icon (orange stays
                             // reserved for over-budget warnings).
-                            decoration: AppSurfaces.insetTile.toBoxDecoration(),
+                            decoration: BoxDecoration(color: context.glass.insetFill, borderRadius: BorderRadius.circular(AppRadii.sm)),
                             child: Row(
                               children: [
-                                Icon(highlight.icon, size: 18, color: HomeTokens.accent),
+                                Icon(highlight.icon, size: 18, color: context.glass.accent),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(highlight.label, style: const TextStyle(fontSize: 12, color: HomeTokens.textFaint)),
+                                      Text(highlight.label, style: TextStyle(fontSize: 12, color: context.glass.textSecondary)),
                                       const SizedBox(height: 2),
-                                      Text(highlight.value, style: const TextStyle(fontSize: 14, color: HomeTokens.textDark, fontWeight: FontWeight.w600)),
+                                      Text(highlight.formatValue(context.moneyDisplayFormat), style: TextStyle(fontSize: 14, color: context.glass.textPrimary, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.chevron_right, size: 18, color: HomeTokens.textMuted),
+                                Icon(Icons.chevron_right, size: 18, color: context.glass.textTertiary),
                               ],
                             ),
                           ),

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/category/category_appearance.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../home/theme/home_tokens.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// The four "거래 유형" tab ids ([AddTransactionModal._selectedParentId]).
 /// `core.expense` no longer exists as a literal category row - see
@@ -170,14 +169,8 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(color: AppColorTokens.dividerTrack, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            const SizedBox(height: 16),
+            // Drag handle comes from the GlassSheet frame around this picker.
+            const SizedBox(height: 4),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 180),
               transitionBuilder: (child, animation) => FadeTransition(
@@ -198,7 +191,7 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: IconButton(
-                            icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: HomeTokens.textDark),
+                            icon: Icon(Icons.arrow_back_ios_new, size: 18, color: context.glass.textPrimary),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             onPressed: () => setState(() {
@@ -207,14 +200,14 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
                             }),
                           ),
                         ),
-                      const Text('카테고리', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: HomeTokens.textDark)),
+                      Text('카테고리', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: context.glass.textPrimary)),
                       if (isSubStep) ...[
                         const SizedBox(width: 6),
-                        Text('- ${_selectedMajor!['name'] ?? ''}', style: const TextStyle(fontSize: 16, color: HomeTokens.textFaint)),
+                        Text('- ${_selectedMajor!['name'] ?? ''}', style: TextStyle(fontSize: 16, color: context.glass.textSecondary)),
                       ],
                       const Spacer(),
                       IconButton(
-                        icon: const Icon(Icons.close, color: HomeTokens.textDark),
+                        icon: Icon(Icons.close, color: context.glass.textPrimary),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => Navigator.pop(context),
@@ -223,9 +216,9 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
                   ),
                   const SizedBox(height: 12),
                   items.isEmpty
-                      ? const Padding(
+                      ? Padding(
                           padding: EdgeInsets.symmetric(vertical: 32),
-                          child: Center(child: Text('선택할 수 있는 항목이 없습니다.', style: TextStyle(color: HomeTokens.textMuted))),
+                          child: Center(child: Text('선택할 수 있는 항목이 없습니다.', style: TextStyle(color: context.glass.textTertiary))),
                         )
                       : GridView.builder(
                           shrinkWrap: true,
@@ -246,14 +239,14 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
                               onTap: () => isSubStep ? _onSubTap(item) : _onMajorTap(item),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: isSelected ? HomeTokens.chipActiveBg : Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: isSelected ? HomeTokens.accent : HomeTokens.chipInactiveBorder, width: isSelected ? 1.5 : 1),
+                                  color: isSelected ? context.glass.accentSoft : context.glass.cardFill,
+                                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                                  border: Border.all(color: isSelected ? context.glass.accentText : context.glass.chipBorder, width: isSelected ? 1.5 : 1),
                                 ),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(appearance.icon, size: 24, color: isSelected ? HomeTokens.accentDark : appearance.color ?? HomeTokens.textDark),
+                                    Icon(appearance.icon, size: 24, color: isSelected ? context.glass.chipSelectedText : appearance.color ?? context.glass.textPrimary),
                                     const SizedBox(height: 6),
                                     Text(
                                       name,
@@ -262,7 +255,7 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
-                                        color: isSelected ? HomeTokens.accentDark : HomeTokens.textDark,
+                                        color: isSelected ? context.glass.chipSelectedText : context.glass.textPrimary,
                                       ),
                                     ),
                                   ],
@@ -277,11 +270,8 @@ class _CategoryPickerScreenState extends State<CategoryPickerScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: HomeTokens.accent,
-                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
-                          elevation: 0,
                         ),
                         onPressed: _highlightedSub == null ? null : () => _finishWithSub(_highlightedSub!),
                         child: const Text('저장', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),

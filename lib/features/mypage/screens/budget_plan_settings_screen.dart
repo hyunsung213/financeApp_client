@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../core/category/category_appearance.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../providers/my_page_provider.dart';
-import '../theme/my_tokens.dart';
 import '../utils/budget_plan_items.dart';
 import '../widgets/budget_allocation_progress.dart';
 import '../widgets/settings_form.dart';
+import '../../../core/format/money_format.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// 예산 배분 설정: the 12-item budget plan (저축/투자 + 10 지출 대분류), saved
 /// as a whole through `PUT /api/finance/budget-plan`. Saving also re-budgets
@@ -119,9 +120,9 @@ class _BudgetPlanSettingsScreenState
         await onComplete();
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('저장했어요. 현재 예산에 바로 반영됐어요.'),
-            backgroundColor: MyTokens.accent,
+          SnackBar(
+            content: const Text('저장했어요. 현재 예산에 바로 반영됐어요.'),
+            backgroundColor: context.glass.accent,
           ),
         );
       }
@@ -140,112 +141,115 @@ class _BudgetPlanSettingsScreenState
   Widget build(BuildContext context) {
     final myPageAsync = ref.watch(myPageDataProvider);
 
-    return Scaffold(
-      backgroundColor: MyTokens.pageBackground,
-      appBar: widget.isOnboarding
-          ? settingsAppBar(
-              '예산 배분',
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onOnboardingBack,
-              ),
-            )
-          : settingsAppBar('예산 배분 설정'),
-      body: myPageAsync.when(
-        loading: () => const FormSkeleton(),
-        error: (error, stack) => Center(child: Text('데이터를 불러오지 못했습니다: $error')),
-        data: (data) {
-          _initializeData(data);
-          final totalPercentage = _calculateTotalPercentage();
-          final isTotalValid = totalPercentage == 100;
-
-          // The list scrolls; the 배분 진행 상태 + 저장 panel stays pinned below
-          // it, so the running total is visible at any scroll position. The
-          // Scaffold resizes the body for the keyboard, which keeps the panel
-          // above it and lets the list scroll the focused field into view.
-          return Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                  children: [
-                    if (widget.isOnboarding) ...[
-                      const Text(
-                        '수입을 어떻게 나눠 쓸까요?',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: MyTokens.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        '저축·투자·지출 비율을 정해보세요.\n총 100%가 되도록 나눠주세요.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.5,
-                          color: MyTokens.placeholder,
-                        ),
-                      ),
-                    ] else
-                      const Text(
-                        '정기 수입을 저축·투자·지출로 나눠 배분해요. 저장하면 현재 예산에 바로 반영돼요.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.5,
-                          color: MyTokens.placeholder,
-                        ),
-                      ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      '예산 배분율 설정',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: MyTokens.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Three top-level groups - 저축, 투자, 지출 예산 - each its own card
-                    // with an icon, spaced further apart than the 지출 rows, so
-                    // 저축/투자 never read as siblings of 식비/교통.
-                    SettingsSectionCard(
-                      child: _topLevelRow(
-                        'core.saving',
-                        '저축',
-                        Icons.savings_outlined,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SettingsSectionCard(
-                      child: _topLevelRow(
-                        'core.investment',
-                        '투자',
-                        Icons.trending_up,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SettingsSectionCard(
-                      child: Column(
-                        children: [
-                          _sectionHeader(
-                            Icons.account_balance_wallet_outlined,
-                            '지출 예산',
-                          ),
-                          const SizedBox(height: 16),
-                          for (final (categoryId, name)
-                              in budgetPlanExpenseItems)
-                            _allocationRow(categoryId, name),
-                        ],
-                      ),
-                    ),
-                  ],
+    return WalletBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: widget.isOnboarding
+            ? settingsAppBar(
+                '예산 배분',
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: widget.onOnboardingBack,
                 ),
-              ),
-              _bottomPanel(totalPercentage, isTotalValid),
-            ],
-          );
-        },
+              )
+            : settingsAppBar('예산 배분 설정'),
+        body: myPageAsync.when(
+          loading: () => const FormSkeleton(),
+          error: (error, stack) =>
+              Center(child: Text('데이터를 불러오지 못했습니다: $error')),
+          data: (data) {
+            _initializeData(data);
+            final totalPercentage = _calculateTotalPercentage();
+            final isTotalValid = totalPercentage == 100;
+
+            // The list scrolls; the 배분 진행 상태 + 저장 panel stays pinned below
+            // it, so the running total is visible at any scroll position. The
+            // Scaffold resizes the body for the keyboard, which keeps the panel
+            // above it and lets the list scroll the focused field into view.
+            return Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                    children: [
+                      if (widget.isOnboarding) ...[
+                        Text(
+                          '수입을 어떻게 나눠 쓸까요?',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: context.glass.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '저축·투자·지출 비율을 정해보세요.\n총 100%가 되도록 나눠주세요.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.5,
+                            color: context.glass.textTertiary,
+                          ),
+                        ),
+                      ] else
+                        Text(
+                          '정기 수입을 저축·투자·지출로 나눠 배분해요. 저장하면 현재 예산에 바로 반영돼요.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.5,
+                            color: context.glass.textTertiary,
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+                      Text(
+                        '예산 배분율 설정',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: context.glass.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Three top-level groups - 저축, 투자, 지출 예산 - each its own card
+                      // with an icon, spaced further apart than the 지출 rows, so
+                      // 저축/투자 never read as siblings of 식비/교통.
+                      SettingsSectionCard(
+                        child: _topLevelRow(
+                          'core.saving',
+                          '저축',
+                          Icons.savings_outlined,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SettingsSectionCard(
+                        child: _topLevelRow(
+                          'core.investment',
+                          '투자',
+                          Icons.trending_up,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SettingsSectionCard(
+                        child: Column(
+                          children: [
+                            _sectionHeader(
+                              Icons.account_balance_wallet_outlined,
+                              '지출 예산',
+                            ),
+                            const SizedBox(height: 16),
+                            for (final (categoryId, name)
+                                in budgetPlanExpenseItems)
+                              _allocationRow(categoryId, name),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _bottomPanel(totalPercentage, isTotalValid),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -254,9 +258,11 @@ class _BudgetPlanSettingsScreenState
   /// and the 저장 button, which is enabled only at exactly 100%.
   Widget _bottomPanel(int totalPercentage, bool isTotalValid) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: MyTokens.pageBackground,
-        border: Border(top: BorderSide(color: MyTokens.borderNeutral)),
+      decoration: BoxDecoration(
+        // The list never scrolls under the panel, so a translucent floating
+        // fill (no blur) is enough to set it apart from the backdrop.
+        color: context.glass.floatingFill,
+        border: Border(top: BorderSide(color: context.glass.divider)),
       ),
       child: SafeArea(
         top: false,
@@ -285,11 +291,11 @@ class _BudgetPlanSettingsScreenState
     return Container(
       width: 32,
       height: 32,
-      decoration: const BoxDecoration(
-        color: MyTokens.accentSoftBg,
+      decoration: BoxDecoration(
+        color: context.glass.accentSoft,
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, size: 18, color: MyTokens.accent),
+      child: Icon(icon, size: 18, color: context.glass.accentText),
     );
   }
 
@@ -300,10 +306,10 @@ class _BudgetPlanSettingsScreenState
         const SizedBox(width: 10),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 16,
-            color: MyTokens.textPrimary,
+            color: context.glass.textPrimary,
           ),
         ),
       ],
@@ -321,10 +327,10 @@ class _BudgetPlanSettingsScreenState
           child: _allocationRow(
             categoryId,
             name,
-            nameStyle: const TextStyle(
+            nameStyle: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 16,
-              color: MyTokens.textPrimary,
+              color: context.glass.textPrimary,
             ),
             bottomPadding: 0,
           ),
@@ -338,13 +344,14 @@ class _BudgetPlanSettingsScreenState
   Widget _allocationRow(
     String categoryId,
     String name, {
-    TextStyle nameStyle = const TextStyle(
-      fontWeight: FontWeight.w600,
-      fontSize: 15,
-      color: MyTokens.textPrimary,
-    ),
+    TextStyle? nameStyle,
     double bottomPadding = 12,
   }) {
+    nameStyle ??= TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 15,
+      color: context.glass.textPrimary,
+    );
     final controller = _allocationControllers[categoryId];
     final salary = _salaryAmount;
     final percentage = int.tryParse(controller?.text ?? '') ?? 0;
@@ -359,15 +366,17 @@ class _BudgetPlanSettingsScreenState
               children: [
                 // The user's name for the 대분류; the plan stays keyed by id.
                 Text(
-                  ref.watch(categoryDirectoryProvider).nameOf(categoryId, name)!,
+                  ref
+                      .watch(categoryDirectoryProvider)
+                      .nameOf(categoryId, name)!,
                   style: nameStyle,
                 ),
                 if (salary != null && salary > 0)
                   Text(
-                    '${NumberFormat('#,###').format(salary * percentage ~/ 100)}원',
-                    style: const TextStyle(
+                    context.formatWon(salary * percentage ~/ 100),
+                    style: TextStyle(
                       fontSize: 12,
-                      color: MyTokens.placeholder,
+                      color: context.glass.textTertiary,
                     ),
                   ),
               ],
@@ -384,6 +393,7 @@ class _BudgetPlanSettingsScreenState
                 PercentInputFormatter(),
               ],
               decoration: settingsInputDecoration(
+                context: context,
                 suffixText: '%',
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(

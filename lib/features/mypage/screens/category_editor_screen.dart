@@ -5,9 +5,11 @@ import '../../../core/category/category_appearance.dart';
 import '../../../data/api/api_error.dart';
 import '../../../data/api/category_api.dart';
 import '../providers/category_management_provider.dart';
-import '../theme/my_tokens.dart';
+import '../../../core/theme/app_radii.dart';
 import '../widgets/category_row_card.dart';
 import '../widgets/settings_form.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 const categoryNameMaxLength = 20;
 
@@ -158,152 +160,163 @@ class _CategoryEditorScreenState extends ConsumerState<CategoryEditorScreen> {
     final showParentPicker =
         !_isEdit && widget.parent == null && requiresParentForNewCategory(_tab);
 
-    return Scaffold(
-      backgroundColor: MyTokens.pageBackground,
-      appBar: settingsAppBar(_isEdit ? '카테고리 수정' : '카테고리 추가'),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(15, 12, 15, 16),
-        children: [
-          if (original != null && original.isSystem) ...[
-            const _SystemCategoryNotice(),
-            const SizedBox(height: 16),
-          ],
-          const _Label('카테고리 명'),
-          const SizedBox(height: 8),
-          _NameField(controller: _nameController),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              const _Label('카테고리 유형'),
-              const SizedBox(width: 16),
-              for (final tab in CategoryTab.values) ...[
-                Expanded(
-                  child: _ChoiceButton(
-                    label: tab.label,
-                    selected: _tab == tab,
-                    // Under a fixed 대분류, or once it exists, the type is set.
-                    onTap: !_isEdit && widget.parent == null
-                        ? () => setState(() {
-                            _tab = tab;
-                            _parentId = null;
-                          })
-                        : null,
-                  ),
-                ),
-                if (tab != CategoryTab.values.last) const SizedBox(width: 6),
-              ],
+    return WalletBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: settingsAppBar(_isEdit ? '카테고리 수정' : '카테고리 추가'),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(15, 12, 15, 16),
+          children: [
+            if (original != null && original.isSystem) ...[
+              const _SystemCategoryNotice(),
+              const SizedBox(height: 16),
             ],
-          ),
-          if (widget.parent != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              "'${widget.parent!['name']}'의 하위 카테고리로 추가돼요.",
-              style: const TextStyle(fontSize: 13, color: MyTokens.accentDark),
-            ),
-          ],
-          if (showParentPicker) ...[
+            const _Label('카테고리 명'),
+            const SizedBox(height: 8),
+            _NameField(controller: _nameController),
             const SizedBox(height: 24),
-            const _Label('상위 카테고리'),
-            const SizedBox(height: 4),
-            const _Caption('지출 카테고리는 대분류 아래에 추가돼 예산에 함께 반영돼요.'),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+            Row(
               children: [
-                for (final major in categoriesForTab(categories, _tab))
-                  _ChoiceButton(
-                    label: '${major['name']}',
-                    selected: _parentId == major['id'],
-                    compact: true,
-                    onTap: () =>
-                        setState(() => _parentId = major['id'] as String),
+                const _Label('카테고리 유형'),
+                const SizedBox(width: 16),
+                for (final tab in CategoryTab.values) ...[
+                  Expanded(
+                    child: _ChoiceButton(
+                      label: tab.label,
+                      selected: _tab == tab,
+                      // Under a fixed 대분류, or once it exists, the type is set.
+                      onTap: !_isEdit && widget.parent == null
+                          ? () => setState(() {
+                              _tab = tab;
+                              _parentId = null;
+                            })
+                          : null,
+                    ),
                   ),
+                  if (tab != CategoryTab.values.last) const SizedBox(width: 6),
+                ],
               ],
             ),
-          ],
-          const SizedBox(height: 24),
-          const _Label('아이콘 선택'),
-          const SizedBox(height: 10),
-          _IconGrid(
-            keys: _iconKeys,
-            selected: _iconKey,
-            onSelected: (key) => setState(() => _iconKey = key),
-          ),
-          const SizedBox(height: 24),
-          const _Label('색상 선택'),
-          const SizedBox(height: 10),
-          _ColorRow(
-            selected: _color,
-            // Editing a category that still has its default color offers
-            // that default first, selected.
-            showDefault: original != null && original.color == null,
-            onSelected: (color) => setState(() => _color = color),
-          ),
-          const SizedBox(height: 24),
-          const _QuickAccessRow(),
-          const SizedBox(height: 20),
-          _Preview(
-            name: _name,
-            icon: categoryIconForKey(_iconKey),
-            color: _color ?? MyTokens.accentDark,
-          ),
-          if (original != null &&
-              original.isSystem &&
-              original.isCustomized) ...[
-            const SizedBox(height: 12),
-            Center(
-              child: TextButton(
-                key: const ValueKey('category-reset'),
-                onPressed: _isSaving ? null : _resetToDefault,
-                style: TextButton.styleFrom(
-                  foregroundColor: MyTokens.placeholder,
-                ),
-                child: Text(
-                  "기본값으로 되돌리기 ('${original.canonicalName}')",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    decoration: TextDecoration.underline,
-                    decorationColor: MyTokens.placeholder,
-                  ),
+            if (widget.parent != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                "'${widget.parent!['name']}'의 하위 카테고리로 추가돼요.",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: context.glass.chipSelectedText,
                 ),
               ),
-            ),
-          ],
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-        child: SizedBox(
-          height: 55,
-          child: FilledButton(
-            key: const ValueKey('category-save'),
-            onPressed: _canSave && !_isSaving ? () => _save(categories) : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF00AF76),
-              disabledBackgroundColor: MyTokens.placeholder,
-              foregroundColor: Colors.white,
-              disabledForegroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            child: _isSaving
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+            ],
+            if (showParentPicker) ...[
+              const SizedBox(height: 24),
+              const _Label('상위 카테고리'),
+              const SizedBox(height: 4),
+              const _Caption('지출 카테고리는 대분류 아래에 추가돼 예산에 함께 반영돼요.'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final major in categoriesForTab(categories, _tab))
+                    _ChoiceButton(
+                      label: '${major['name']}',
+                      selected: _parentId == major['id'],
+                      compact: true,
+                      onTap: () =>
+                          setState(() => _parentId = major['id'] as String),
                     ),
-                  )
-                : const Text(
-                    '저장',
+                ],
+              ),
+            ],
+            const SizedBox(height: 24),
+            const _Label('아이콘 선택'),
+            const SizedBox(height: 10),
+            _IconGrid(
+              keys: _iconKeys,
+              selected: _iconKey,
+              onSelected: (key) => setState(() => _iconKey = key),
+            ),
+            const SizedBox(height: 24),
+            const _Label('색상 선택'),
+            const SizedBox(height: 10),
+            _ColorRow(
+              selected: _color,
+              // Editing a category that still has its default color offers
+              // that default first, selected.
+              showDefault: original != null && original.color == null,
+              onSelected: (color) => setState(() => _color = color),
+            ),
+            const SizedBox(height: 24),
+            const _QuickAccessRow(),
+            const SizedBox(height: 20),
+            _Preview(
+              name: _name,
+              icon: categoryIconForKey(_iconKey),
+              color: _color ?? context.glass.chipSelectedText,
+            ),
+            if (original != null &&
+                original.isSystem &&
+                original.isCustomized) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton(
+                  key: const ValueKey('category-reset'),
+                  onPressed: _isSaving ? null : _resetToDefault,
+                  style: TextButton.styleFrom(
+                    foregroundColor: context.glass.textTertiary,
+                  ),
+                  child: Text(
+                    "기본값으로 되돌리기 ('${original.canonicalName}')",
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.45,
+                      fontSize: 14,
+                      decoration: TextDecoration.underline,
+                      decorationColor: context.glass.textTertiary,
                     ),
                   ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          minimum: const EdgeInsets.fromLTRB(14, 8, 14, 16),
+          child: SizedBox(
+            height: 55,
+            child: FilledButton(
+              key: const ValueKey('category-save'),
+              onPressed: _canSave && !_isSaving
+                  ? () => _save(categories)
+                  : null,
+              // Brand green; the disabled state uses the glass track/muted
+              // text so it stays legible in light and dark mode.
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF00AF76),
+                disabledBackgroundColor: context.glass.track,
+                foregroundColor: Colors.white,
+                disabledForegroundColor: context.glass.textTertiary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+              ),
+              child: _isSaving
+                  // Disabled while saving, so the spinner sits on the muted
+                  // fill: brand green instead of white.
+                  ? SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.glass.accent,
+                      ),
+                    )
+                  : const Text(
+                      '저장',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.45,
+                      ),
+                    ),
+            ),
           ),
         ),
       ),
@@ -320,14 +333,18 @@ class _SystemCategoryNotice extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: MyTokens.accentSoftBg,
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+        color: context.glass.accentSoft,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, size: 18, color: MyTokens.accentDark),
-          SizedBox(width: 8),
+          Icon(
+            Icons.info_outline,
+            size: 18,
+            color: context.glass.chipSelectedText,
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               '기본 카테고리예요. 이름·아이콘·색상은 내 화면에만 바뀌고, '
@@ -336,7 +353,7 @@ class _SystemCategoryNotice extends StatelessWidget {
                 fontSize: 13,
                 height: 1.35,
                 letterSpacing: -0.3,
-                color: MyTokens.accentDark,
+                color: context.glass.chipSelectedText,
               ),
             ),
           ),
@@ -354,11 +371,11 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w600,
       letterSpacing: -0.45,
-      color: MyTokens.textPrimary,
+      color: context.glass.textPrimary,
     ),
   );
 }
@@ -371,10 +388,10 @@ class _Caption extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 13,
       letterSpacing: -0.3,
-      color: MyTokens.placeholder,
+      color: context.glass.textTertiary,
     ),
   );
 }
@@ -390,9 +407,10 @@ class _NameField extends StatelessWidget {
       key: const ValueKey('category-name'),
       controller: controller,
       maxLength: categoryNameMaxLength,
-      style: const TextStyle(fontSize: 16, color: MyTokens.textPrimary),
+      style: TextStyle(fontSize: 16, color: context.glass.textPrimary),
       decoration:
           settingsInputDecoration(
+            context: context,
             contentPadding: const EdgeInsets.fromLTRB(17, 10, 9, 10),
             isDense: true,
           ).copyWith(
@@ -403,9 +421,9 @@ class _NameField extends StatelessWidget {
               padding: const EdgeInsets.only(right: 12),
               child: Text(
                 '${controller.text.characters.length}/$categoryNameMaxLength',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  color: MyTokens.placeholder,
+                  color: context.glass.textTertiary,
                 ),
               ),
             ),
@@ -432,19 +450,18 @@ class _ChoiceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null && !selected;
+    final glass = context.glass;
     return Material(
-      color: selected ? MyTokens.accentSoftBg : Colors.white,
+      color: selected ? glass.accentSoft : glass.cardFill,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         side: BorderSide(
-          color: selected ? MyTokens.accent : Colors.transparent,
-          width: 1.5,
+          color: selected ? glass.accent : glass.cardBorder,
+          width: selected ? 1.5 : 1,
         ),
       ),
-      elevation: selected ? 0 : 1,
-      shadowColor: Colors.black.withValues(alpha: 0.05),
       child: InkWell(
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         onTap: onTap,
         child: Container(
           height: 35,
@@ -457,10 +474,10 @@ class _ChoiceButton extends StatelessWidget {
               fontWeight: FontWeight.w600,
               letterSpacing: -0.45,
               color: selected
-                  ? MyTokens.accent
+                  ? context.glass.accentText
                   : disabled
-                  ? MyTokens.borderNeutral
-                  : MyTokens.placeholder,
+                  ? context.glass.divider
+                  : context.glass.textTertiary,
             ),
           ),
         ),
@@ -516,20 +533,19 @@ class _IconTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final glass = context.glass;
     return Material(
-      color: selected ? MyTokens.accentSoftBg : Colors.white,
+      color: selected ? glass.accentSoft : glass.cardFill,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         side: selected
-            ? const BorderSide(color: MyTokens.accent, width: 2)
-            : BorderSide.none,
+            ? BorderSide(color: glass.accent, width: 2)
+            : BorderSide(color: glass.cardBorder),
       ),
-      elevation: 1,
-      shadowColor: Colors.black.withValues(alpha: 0.05),
       child: InkWell(
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         onTap: onTap,
-        child: Icon(icon, size: 24, color: MyTokens.accentDark),
+        child: Icon(icon, size: 24, color: context.glass.chipSelectedText),
       ),
     );
   }
@@ -554,29 +570,34 @@ class _ColorRow extends StatelessWidget {
       runSpacing: 12,
       children: [
         if (showDefault)
-          _swatch(const ValueKey('category-color-default'), null),
+          _swatch(context, const ValueKey('category-color-default'), null),
         for (final color in categoryColorChoices)
-          _swatch(ValueKey('category-color-${categoryColorHex(color)}'), color),
+          _swatch(
+            context,
+            ValueKey('category-color-${categoryColorHex(color)}'),
+            color,
+          ),
       ],
     );
   }
 
-  Widget _swatch(Key key, Color? color) => GestureDetector(
-    key: key,
-    onTap: () => onSelected(color),
-    child: Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color ?? MyTokens.accentDark,
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-        boxShadow: MyTokens.cardShadow,
-      ),
-      child: color == selected
-          ? const Icon(Icons.check, size: 24, color: Colors.white)
-          : null,
-    ),
-  );
+  Widget _swatch(BuildContext context, Key key, Color? color) =>
+      GestureDetector(
+        key: key,
+        onTap: () => onSelected(color),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: color ?? context.glass.chipSelectedText,
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+            boxShadow: context.glass.cardShadow,
+          ),
+          child: color == selected
+              ? const Icon(Icons.check, size: 24, color: Colors.white)
+              : null,
+        ),
+      );
 }
 
 /// No quick-access field exists on categories yet, so the switch is shown
@@ -586,28 +607,28 @@ class _QuickAccessRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Label('입력화면에 바로 표시 (선택)'),
-              SizedBox(height: 2),
+              const _Label('입력화면에 바로 표시 (선택)'),
+              const SizedBox(height: 2),
               Text(
                 '카테고리가 입력 화면의 빠른 선택 목록에 표시됩니다.',
                 style: TextStyle(
                   fontSize: 14,
                   letterSpacing: -0.45,
-                  color: MyTokens.textPrimary,
+                  color: context.glass.textPrimary,
                 ),
               ),
-              SizedBox(height: 2),
-              _Caption('준비 중인 기능이에요.'),
+              const SizedBox(height: 2),
+              const _Caption('준비 중인 기능이에요.'),
             ],
           ),
         ),
-        Switch(value: false, onChanged: null),
+        const Switch(value: false, onChanged: null),
       ],
     );
   }
@@ -624,11 +645,7 @@ class _Preview extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(15, 12, 15, 16),
-      decoration: BoxDecoration(
-        color: MyTokens.cardSurface,
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-        boxShadow: MyTokens.cardShadow,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

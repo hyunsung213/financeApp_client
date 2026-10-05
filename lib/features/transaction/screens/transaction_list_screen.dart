@@ -5,12 +5,13 @@ import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../../data/api/category_api.dart';
 import '../../../data/api/transaction_api.dart';
-import '../../home/theme/home_tokens.dart';
 import '../../../core/category/category_appearance.dart';
 import '../../report/providers/report_provider.dart';
 import '../../report/utils/report_date_utils.dart';
-import '../../report/utils/report_insight_utils.dart';
 import 'transaction_detail_screen.dart';
+import '../../../core/format/money_format.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -160,12 +161,12 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
 
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: HomeTokens.pageBackground,
+        backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, scrolledUnderElevation: 0,
         elevation: 0,
-        foregroundColor: HomeTokens.textDark,
+        foregroundColor: context.glass.textPrimary,
         title: Text(
           _month == null ? '최근 거래내역 전체' : '${_month!.month}월 거래내역',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -193,13 +194,13 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
           Expanded(child: _buildBody()),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildBody() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_error != null) return Center(child: Text('불러오지 못했어요\n$_error', textAlign: TextAlign.center));
-    if (_items.isEmpty) return const Center(child: Text('거래 내역이 없어요', style: TextStyle(color: HomeTokens.textMuted)));
+    if (_items.isEmpty) return Center(child: Text('거래 내역이 없어요', style: TextStyle(color: context.glass.textTertiary)));
 
     final groups = _groupByMonthThenDay(_items);
 
@@ -316,15 +317,15 @@ class _CategoryFilterRowState extends State<_CategoryFilterRow> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? HomeTokens.chipActiveBg : HomeTokens.chipInactiveBg,
+          color: selected ? context.glass.accentSoft : context.glass.chipFill,
           borderRadius: BorderRadius.circular(AppRadii.pill),
-          border: Border.all(color: selected ? HomeTokens.chipActiveBorder : HomeTokens.chipInactiveBorder),
+          border: Border.all(color: selected ? context.glass.chipSelectedBorder : context.glass.chipBorder),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (icon != null) ...[Icon(icon, size: 14, color: selected ? HomeTokens.accentDark : HomeTokens.textDark), const SizedBox(width: 6)],
+            if (icon != null) ...[Icon(icon, size: 14, color: selected ? context.glass.chipSelectedText : context.glass.textPrimary), const SizedBox(width: 6)],
             Text(
               label,
               maxLines: 1,
@@ -342,7 +343,7 @@ class _CategoryFilterRowState extends State<_CategoryFilterRow> {
                 fontSize: 14,
                 height: 1.1,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: selected ? HomeTokens.accentDark : const Color(0xFF004725),
+                color: selected ? context.glass.chipSelectedText : context.glass.textPrimary,
               ),
             ),
           ],
@@ -377,23 +378,23 @@ class _MonthSection extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: HomeTokens.chipActiveBg,
-                  border: Border.all(color: HomeTokens.accent),
-                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                  color: context.glass.accentSoft,
+                  border: Border.all(color: context.glass.accentText),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text('${group.month.month}월', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: HomeTokens.accent)),
-                  const Icon(Icons.expand_less, size: 14, color: HomeTokens.accent),
+                  Text('${group.month.month}월', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: context.glass.accentText)),
+                  Icon(Icons.expand_less, size: 14, color: context.glass.accentText),
                 ]),
               ),
               const SizedBox(width: 8),
               Text.rich(
                 TextSpan(
-                  style: const TextStyle(fontSize: 16, color: HomeTokens.accent),
+                  style: TextStyle(fontSize: 16, color: context.glass.accentText),
                   children: [
                     TextSpan(text: label == null ? '소비 ' : '$label 소비 '),
                     TextSpan(
-                      text: totalAsync.maybeWhen(data: (v) => formatWon(v), orElse: () => ''),
+                      text: totalAsync.maybeWhen(data: (v) => context.formatWon(v), orElse: () => ''),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -429,14 +430,14 @@ class _DaySection extends StatelessWidget {
                     width: 36,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     decoration: BoxDecoration(
-                      color: HomeTokens.cardSurface,
+                      color: context.glass.cardFill,
                       borderRadius: BorderRadius.circular(AppRadii.button),
                       boxShadow: AppShadows.hairline,
                     ),
                     child: Column(
                       children: [
-                        Text('${day.date.day}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: HomeTokens.textDark)),
-                        Text(DateFormat('E', 'ko_KR').format(day.date), style: const TextStyle(fontSize: 11, color: HomeTokens.textMuted)),
+                        Text('${day.date.day}', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: context.glass.textPrimary)),
+                        Text(DateFormat('E', 'ko_KR').format(day.date), style: TextStyle(fontSize: 11, color: context.glass.textTertiary)),
                       ],
                     ),
                   ),
@@ -483,18 +484,14 @@ class _TransactionRow extends ConsumerWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppRadii.compactInput),
-          boxShadow: AppShadows.hairline,
-        ),
+        decoration: glassDecoration(context, radius: AppRadii.md),
         child: Row(
           children: [
             Container(
               width: 39,
               height: 39,
-              decoration: BoxDecoration(color: HomeTokens.chipActiveBg, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
-              child: Icon(categories.iconForTransaction(tx), size: 18, color: HomeTokens.accentDark),
+              decoration: BoxDecoration(color: context.glass.accentSoft, borderRadius: BorderRadius.circular(AppRadii.md)),
+              child: Icon(categories.iconForTransaction(tx), size: 18, color: context.glass.chipSelectedText),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -502,13 +499,13 @@ class _TransactionRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    Flexible(child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: HomeTokens.textDark), overflow: TextOverflow.ellipsis)),
-                    if (date != null) ...[const SizedBox(width: 6), Text(DateFormat('HH:mm').format(date), style: const TextStyle(fontSize: 11, color: HomeTokens.textMuted))],
+                    Flexible(child: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.glass.textPrimary), overflow: TextOverflow.ellipsis)),
+                    if (date != null) ...[const SizedBox(width: 6), Text(DateFormat('HH:mm').format(date), style: TextStyle(fontSize: 11, color: context.glass.textTertiary))],
                   ]),
                   const SizedBox(height: 4),
                   Text(
-                    '${isIncome ? '+' : '-'}${formatWon(amount)}',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isIncome ? HomeTokens.accentDark : HomeTokens.negative),
+                    '${isIncome ? '+' : '-'}${context.formatWon(amount)}',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isIncome ? context.glass.chipSelectedText : context.glass.negative),
                   ),
                 ],
               ),
@@ -516,10 +513,10 @@ class _TransactionRow extends ConsumerWidget {
             if (categoryName != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: HomeTokens.chipInactiveBg, borderRadius: BorderRadius.circular(AppRadii.pill), border: Border.all(color: HomeTokens.chipInactiveBorder)),
-                child: Text(categoryName, style: const TextStyle(fontSize: 11, color: HomeTokens.textDark)),
+                decoration: BoxDecoration(color: context.glass.chipFill, borderRadius: BorderRadius.circular(AppRadii.pill), border: Border.all(color: context.glass.chipBorder)),
+                child: Text(categoryName, style: TextStyle(fontSize: 11, color: context.glass.textPrimary)),
               ),
-            const Icon(Icons.chevron_right, size: 22, color: HomeTokens.textMuted),
+            Icon(Icons.chevron_right, size: 22, color: context.glass.textTertiary),
           ],
         ),
       ),

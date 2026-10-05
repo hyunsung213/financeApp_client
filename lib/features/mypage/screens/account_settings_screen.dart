@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../policy/providers/policy_provider.dart';
 import '../providers/my_page_provider.dart';
-import '../theme/my_tokens.dart';
+import '../../../core/theme/app_radii.dart';
 import '../utils/profile_regions.dart';
 import '../widgets/logout_dialog.dart';
 import '../widgets/settings_form.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// 계정 관리: the signed-in user's profile from `GET /api/profile` plus
 /// account actions.
@@ -27,68 +29,70 @@ class AccountSettingsScreen extends ConsumerWidget {
     final profileAsync = ref.watch(profileProvider);
     final profile = profileAsync.asData?.value;
 
-    return Scaffold(
-      backgroundColor: MyTokens.pageBackground,
-      appBar: settingsAppBar('계정 관리'),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        children: [
-          profileAsync.when(
-            loading: () => const _ProfileCardSkeleton(),
-            error: (e, _) => _ProfileErrorCard(
-              onRetry: () => ref.invalidate(profileProvider),
+    return WalletBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: settingsAppBar('계정 관리'),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: [
+            profileAsync.when(
+              loading: () => const _ProfileCardSkeleton(),
+              error: (e, _) => _ProfileErrorCard(
+                onRetry: () => ref.invalidate(profileProvider),
+              ),
+              data: (data) => _ProfileCard(
+                profile: data,
+                onEdit: () => _openProfileEditSheet(context, data),
+              ),
             ),
-            data: (data) => _ProfileCard(
-              profile: data,
-              onEdit: () => _openProfileEditSheet(context, data),
+            const SizedBox(height: 24),
+            _AccountSection(
+              title: '계정 정보',
+              rows: [
+                _AccountRow(
+                  icon: Icons.badge_outlined,
+                  title: '닉네임 변경',
+                  subtitle: '내 프로필 이름 수정',
+                  // Enabled once the profile is loaded, so the sheet can start
+                  // from the saved nickname.
+                  onTap: profile == null
+                      ? null
+                      : () => _openNicknameEditSheet(context, profile),
+                ),
+                const _AccountRow(
+                  icon: Icons.mail_outline,
+                  title: '이메일 변경',
+                  subtitle: _authPendingNote,
+                ),
+                const _AccountRow(
+                  icon: Icons.lock_outline,
+                  title: '비밀번호 변경',
+                  subtitle: _authPendingNote,
+                ),
+                const _AccountRow(
+                  icon: Icons.login_rounded,
+                  title: '로그인 방식 확인',
+                  subtitle: _authPendingNote,
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 24),
-          _AccountSection(
-            title: '계정 정보',
-            rows: [
-              _AccountRow(
-                icon: Icons.badge_outlined,
-                title: '닉네임 변경',
-                subtitle: '내 프로필 이름 수정',
-                // Enabled once the profile is loaded, so the sheet can start
-                // from the saved nickname.
-                onTap: profile == null
-                    ? null
-                    : () => _openNicknameEditSheet(context, profile),
-              ),
-              const _AccountRow(
-                icon: Icons.mail_outline,
-                title: '이메일 변경',
-                subtitle: _authPendingNote,
-              ),
-              const _AccountRow(
-                icon: Icons.lock_outline,
-                title: '비밀번호 변경',
-                subtitle: _authPendingNote,
-              ),
-              const _AccountRow(
-                icon: Icons.login_rounded,
-                title: '로그인 방식 확인',
-                subtitle: _authPendingNote,
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _AccountSection(
-            title: '보안',
-            rows: [
-              _AccountRow(
-                icon: Icons.logout_rounded,
-                title: '로그아웃',
-                subtitle: '현재 계정에서 로그아웃',
-                onTap: () => showLogoutDialog(context, ref),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          const _WithdrawalNote(),
-        ],
+            const SizedBox(height: 24),
+            _AccountSection(
+              title: '보안',
+              rows: [
+                _AccountRow(
+                  icon: Icons.logout_rounded,
+                  title: '로그아웃',
+                  subtitle: '현재 계정에서 로그아웃',
+                  onTap: () => showLogoutDialog(context, ref),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            const _WithdrawalNote(),
+          ],
+        ),
       ),
     );
   }
@@ -137,11 +141,7 @@ class _ProfileCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: MyTokens.cardSurface,
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-        boxShadow: MyTokens.cardShadow,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -151,13 +151,13 @@ class _ProfileCard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: MyTokens.accentSoftBg,
+                  color: context.glass.accentSoft,
                   shape: BoxShape.circle,
-                  border: Border.all(color: MyTokens.accentSoftBorder),
+                  border: Border.all(color: context.glass.chipSelectedBorder),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.person_rounded,
-                  color: MyTokens.accent,
+                  color: context.glass.accentText,
                   size: 32,
                 ),
               ),
@@ -174,8 +174,8 @@ class _ProfileCard extends StatelessWidget {
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: hasNickname
-                            ? MyTokens.textPrimary
-                            : MyTokens.placeholder,
+                            ? context.glass.textPrimary
+                            : context.glass.textTertiary,
                       ),
                     ),
                     if (email != null) ...[
@@ -184,9 +184,9 @@ class _ProfileCard extends StatelessWidget {
                         email,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: MyTokens.placeholder,
+                          color: context.glass.textTertiary,
                         ),
                       ),
                     ],
@@ -196,7 +196,7 @@ class _ProfileCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(height: 1, color: MyTokens.borderNeutral),
+          Divider(height: 1, color: context.glass.divider),
           const SizedBox(height: 12),
           _InfoLine(label: '만 나이', value: age == null ? null : '$age세'),
           const SizedBox(height: 8),
@@ -206,11 +206,11 @@ class _ProfileCard extends StatelessWidget {
             onPressed: onEdit,
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              backgroundColor: Colors.white,
-              foregroundColor: MyTokens.accentDark,
-              side: const BorderSide(color: MyTokens.accentSoftBorder),
+              backgroundColor: Colors.transparent,
+              foregroundColor: context.glass.chipSelectedText,
+              side: BorderSide(color: context.glass.chipSelectedBorder),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MyTokens.cardRadius),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
             ),
             icon: const Icon(Icons.edit_outlined, size: 16),
@@ -237,7 +237,7 @@ class _InfoLine extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 14, color: MyTokens.placeholder),
+          style: TextStyle(fontSize: 14, color: context.glass.textTertiary),
         ),
         const Spacer(),
         Text(
@@ -245,7 +245,9 @@ class _InfoLine extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: value == null ? MyTokens.placeholder : MyTokens.textPrimary,
+            color: value == null
+                ? context.glass.textTertiary
+                : context.glass.textPrimary,
           ),
         ),
       ],
@@ -260,11 +262,7 @@ class _ProfileCardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: MyTokens.cardSurface,
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-        boxShadow: MyTokens.cardShadow,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.lg),
       child: const Row(
         children: [
           SkeletonBox(
@@ -298,25 +296,21 @@ class _ProfileErrorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: MyTokens.cardSurface,
-        borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-        boxShadow: MyTokens.cardShadow,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.lg),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
               '계정 정보를 불러오지 못했어요.',
-              style: TextStyle(fontSize: 14, color: MyTokens.textPrimary),
+              style: TextStyle(fontSize: 14, color: context.glass.textPrimary),
             ),
           ),
           TextButton(
             onPressed: onRetry,
-            child: const Text(
+            child: Text(
               '다시 시도',
               style: TextStyle(
-                color: MyTokens.accentDark,
+                color: context.glass.chipSelectedText,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -341,19 +335,15 @@ class _AccountSection extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 16,
-            color: MyTokens.textPrimary,
+            color: context.glass.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
         Container(
-          decoration: BoxDecoration(
-            color: MyTokens.cardSurface,
-            borderRadius: BorderRadius.circular(MyTokens.cardRadius),
-            boxShadow: MyTokens.cardShadow,
-          ),
+          decoration: glassDecoration(context, radius: AppRadii.md),
           clipBehavior: Clip.antiAlias,
           // Transparent Material so row ripples paint above the card.
           child: Material(
@@ -362,11 +352,11 @@ class _AccountSection extends StatelessWidget {
               children: [
                 for (var i = 0; i < rows.length; i++) ...[
                   if (i > 0)
-                    const Divider(
+                    Divider(
                       height: 1,
                       indent: 16,
                       endIndent: 16,
-                      color: MyTokens.borderNeutral,
+                      color: context.glass.divider,
                     ),
                   rows[i],
                 ],
@@ -406,7 +396,9 @@ class _AccountRow extends StatelessWidget {
         height: 40,
         child: Icon(
           icon,
-          color: enabled ? MyTokens.accent : MyTokens.placeholder,
+          color: enabled
+              ? context.glass.accentText
+              : context.glass.textTertiary,
           size: 24,
         ),
       ),
@@ -415,18 +407,22 @@ class _AccountRow extends StatelessWidget {
         style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 16,
-          color: enabled ? MyTokens.textPrimary : MyTokens.placeholder,
+          color: enabled
+              ? context.glass.textPrimary
+              : context.glass.textTertiary,
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
           fontSize: 13,
-          color: enabled ? MyTokens.textPrimary : MyTokens.placeholder,
+          color: enabled
+              ? context.glass.textPrimary
+              : context.glass.textTertiary,
         ),
       ),
       trailing: enabled
-          ? const Icon(Icons.chevron_right, color: MyTokens.textMuted)
+          ? Icon(Icons.chevron_right, color: context.glass.textTertiary)
           : null,
     );
   }
@@ -439,21 +435,21 @@ class _WithdrawalNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       children: [
         Text(
           '회원 탈퇴',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: MyTokens.placeholder,
+            color: context.glass.textTertiary,
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
           '회원 탈퇴는 인증 서버 연동 후 이 화면에서 신청할 수 있어요.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, color: MyTokens.placeholder),
+          style: TextStyle(fontSize: 12, color: context.glass.textTertiary),
         ),
       ],
     );
@@ -481,9 +477,9 @@ mixin _ProfileSaveMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('프로필을 저장했어요.'),
-          backgroundColor: MyTokens.accent,
+        SnackBar(
+          content: const Text('프로필을 저장했어요.'),
+          backgroundColor: context.glass.accent,
         ),
       );
     } catch (_) {
@@ -498,8 +494,9 @@ mixin _ProfileSaveMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   void showError(String message) => setState(() => errorMessage = message);
 }
 
-/// Bottom-sheet chrome shared by the profile edit sheets: drag handle,
-/// title, description, [fields] and the 저장 button.
+/// Bottom-sheet chrome shared by the profile edit sheets: a [GlassSheet]
+/// (which draws the drag handle) holding the title, description, [fields]
+/// and the 저장 button.
 class _EditSheetFrame extends StatelessWidget {
   final String title;
   final String description;
@@ -523,60 +520,47 @@ class _EditSheetFrame extends StatelessWidget {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: MyTokens.cardSurface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: MyTokens.borderNeutral,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: MyTokens.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: MyTokens.placeholder,
-                ),
-              ),
-              const SizedBox(height: 20),
-              ...fields,
-              if (errorMessage != null) ...[
-                const SizedBox(height: 8),
+      child: GlassSheet(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Text(
-                  errorMessage!,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: MyTokens.negative,
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: context.glass.textPrimary,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: context.glass.textTertiary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ...fields,
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    errorMessage!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: context.glass.negative,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                SettingsSaveButton(isSaving: saving, onPressed: onSave),
               ],
-              const SizedBox(height: 24),
-              SettingsSaveButton(isSaving: saving, onPressed: onSave),
-            ],
+            ),
           ),
         ),
       ),
@@ -635,6 +619,7 @@ class _NicknameEditSheetState extends ConsumerState<_NicknameEditSheet>
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _save(),
           decoration: settingsInputDecoration(
+            context: context,
             labelText: '닉네임',
             prefixIcon: const Icon(Icons.badge_outlined),
           ),
@@ -701,6 +686,7 @@ class _ProfileEditSheetState extends ConsumerState<_ProfileEditSheet>
             LengthLimitingTextInputFormatter(3),
           ],
           decoration: settingsInputDecoration(
+            context: context,
             labelText: '만 나이',
             suffixText: '세',
             prefixIcon: const Icon(Icons.cake_outlined),
@@ -710,6 +696,7 @@ class _ProfileEditSheetState extends ConsumerState<_ProfileEditSheet>
         DropdownButtonFormField<String>(
           initialValue: _region,
           decoration: settingsInputDecoration(
+            context: context,
             labelText: '거주 지역',
             prefixIcon: const Icon(Icons.location_on_outlined),
           ),

@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/format/money_format.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../../core/theme/app_shadows.dart';
-import '../../home/theme/home_tokens.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/category/category_appearance.dart';
 import '../../policy/providers/policy_provider.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
@@ -13,6 +12,7 @@ import '../providers/daily_recommended_provider.dart';
 import '../screens/calendar_screen.dart';
 import '../screens/day_transactions_screen.dart';
 import '../utils/daily_budget_usage.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -48,8 +48,7 @@ class DayDetailSheet extends ConsumerStatefulWidget {
 class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
   String? _expandedPolicyId;
 
-  String _formatCurrency(int amount) =>
-      '${NumberFormat('#,###').format(amount)}원';
+  String _formatCurrency(int amount) => context.formatWon(amount);
 
   @override
   Widget build(BuildContext context) {
@@ -62,22 +61,9 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
       maxChildSize: 0.92,
       expand: false,
       builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: HomeTokens.pageBackground,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+        return GlassSheet(
           child: Column(
             children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
               Expanded(
                 child: ListView(
                   controller: scrollController,
@@ -88,26 +74,26 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                       children: [
                         Text(
                           DateFormat('M월 d일 (E)', 'ko_KR').format(day),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: HomeTokens.textDark,
+                            color: context.glass.textPrimary,
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close),
+                          icon: Icon(Icons.close, color: context.glass.textSecondary),
                           visualDensity: VisualDensity.compact,
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       '거래 내역',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: HomeTokens.textDark,
+                        color: context.glass.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -120,7 +106,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         child: Text(
                           '불러오지 못했습니다: $e',
-                          style: const TextStyle(color: HomeTokens.textMuted),
+                          style: TextStyle(color: context.glass.textTertiary),
                         ),
                       ),
                       data: (transactions) =>
@@ -157,41 +143,37 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      decoration: BoxDecoration(
-        color: HomeTokens.cardSurface,
-        borderRadius: BorderRadius.circular(AppRadii.compactInput),
-        boxShadow: AppShadows.card,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: _summaryItem('총 수입', income, HomeTokens.accent)),
+              Expanded(child: _summaryItem('총 수입', income, context.glass.accentText)),
               Expanded(
-                child: _summaryItem('총 지출', -expense, HomeTokens.negative),
+                child: _summaryItem('총 지출', -expense, context.glass.negative),
               ),
               Expanded(
                 child: _summaryItem(
                   '순변동',
                   net,
-                  net >= 0 ? HomeTokens.accent : HomeTokens.negative,
+                  net >= 0 ? context.glass.accentText : context.glass.negative,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColorTokens.borderNeutral),
+          Divider(height: 1, color: context.glass.divider),
           const SizedBox(height: 12),
           _BudgetUsageRow(day: widget.day, spent: expense),
           const SizedBox(height: 12),
           if (transactions.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
               child: Center(
                 child: Text(
                   '이 날은 등록된 거래가 없어요.',
-                  style: TextStyle(color: HomeTokens.textMuted),
+                  style: TextStyle(color: context.glass.textTertiary),
                 ),
               ),
             )
@@ -202,8 +184,8 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Text(
                   '… 외 ${transactions.length - 4}건',
-                  style: const TextStyle(
-                    color: HomeTokens.textMuted,
+                  style: TextStyle(
+                    color: context.glass.textTertiary,
                     fontSize: 13,
                   ),
                 ),
@@ -215,11 +197,12 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: HomeTokens.accent,
-                    side: const BorderSide(color: HomeTokens.accent),
+                    foregroundColor: context.glass.accentText,
+                    backgroundColor: context.glass.chipFill,
+                    side: BorderSide(color: context.glass.chipSelectedBorder),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadii.input),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
                     ),
                   ),
                   onPressed: () {
@@ -236,13 +219,11 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
               Expanded(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: HomeTokens.accent,
-                    foregroundColor: Colors.white,
+                    minimumSize: Size.zero,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadii.input),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
                     ),
-                    elevation: 0,
                   ),
                   onPressed: () {
                     Navigator.pop(context);
@@ -274,7 +255,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: HomeTokens.textMuted),
+          style: TextStyle(fontSize: 12, color: context.glass.textTertiary),
         ),
         const SizedBox(height: 4),
         Text(
@@ -315,16 +296,16 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
             Icon(
               categories.iconForTransaction(tx),
               size: 20,
-              color: HomeTokens.accent,
+              color: context.glass.accentText,
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: HomeTokens.textDark,
+                  color: context.glass.textPrimary,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -333,9 +314,9 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
             if (time.isNotEmpty)
               Text(
                 time,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: HomeTokens.textMuted,
+                  color: context.glass.textTertiary,
                 ),
               ),
             const SizedBox(width: 10),
@@ -344,7 +325,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: isIncome ? HomeTokens.accent : HomeTokens.negative,
+                color: isIncome ? context.glass.accentText : context.glass.negative,
               ),
             ),
           ],
@@ -369,20 +350,16 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
 
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-          decoration: BoxDecoration(
-            color: HomeTokens.cardSurface,
-            borderRadius: BorderRadius.circular(AppRadii.compactInput),
-            boxShadow: AppShadows.card,
-          ),
+          decoration: glassDecoration(context, radius: AppRadii.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 '관심 정책',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: HomeTokens.textDark,
+                  color: context.glass.textPrimary,
                 ),
               ),
               const SizedBox(height: 10),
@@ -429,10 +406,10 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: HomeTokens.textDark,
+                      color: context.glass.textPrimary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -442,10 +419,10 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                   const SizedBox(width: 8),
                   Text(
                     dDayLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: HomeTokens.accent,
+                      color: context.glass.accentText,
                     ),
                   ),
                 ],
@@ -453,7 +430,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                 Icon(
                   isExpanded ? Icons.expand_less : Icons.expand_more,
                   size: 20,
-                  color: HomeTokens.textFaint,
+                  color: context.glass.textSecondary,
                 ),
               ],
             ),
@@ -480,18 +457,18 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: HomeTokens.textMuted,
+                  color: context.glass.textTertiary,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 text,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: HomeTokens.textDark,
+                  color: context.glass.textPrimary,
                 ),
               ),
             ],
@@ -510,16 +487,16 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: HomeTokens.pageBackground,
-          borderRadius: BorderRadius.circular(8),
+          color: context.glass.insetFill,
+          borderRadius: BorderRadius.circular(AppRadii.sm),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (rows.isEmpty)
-              const Text(
+              Text(
                 '상세 정보가 아직 없어요.',
-                style: TextStyle(fontSize: 13, color: HomeTokens.textMuted),
+                style: TextStyle(fontSize: 13, color: context.glass.textTertiary),
               )
             else
               ...rows,
@@ -530,10 +507,10 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                   Navigator.pop(context);
                   context.push('/policy/${policy['id']}');
                 },
-                child: const Text(
+                child: Text(
                   '정책 상세보기 >',
                   style: TextStyle(
-                    color: HomeTokens.accent,
+                    color: context.glass.accentText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -557,7 +534,6 @@ class _BudgetUsageRow extends ConsumerWidget {
 
   const _BudgetUsageRow({required this.day, required this.spent});
 
-  static String _won(int amount) => '${NumberFormat('#,###').format(amount)}원';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -566,11 +542,11 @@ class _BudgetUsageRow extends ConsumerWidget {
     );
 
     return recommendedAsync.when(
-      loading: () => _message('권장 소비액을 불러오는 중이에요'),
-      error: (_, _) => _message('권장 소비액 정보를 불러올 수 없어요'),
+      loading: () => _message(context, '권장 소비액을 불러오는 중이에요'),
+      error: (_, _) => _message(context, '권장 소비액 정보를 불러올 수 없어요'),
       data: (recommended) {
         if (recommended == null) {
-          return _message('권장 소비액 정보를 불러올 수 없어요');
+          return _message(context, '권장 소비액 정보를 불러올 수 없어요');
         }
         final percent = dailyBudgetUsagePercent(
           spent: spent,
@@ -583,24 +559,24 @@ class _BudgetUsageRow extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '하루 권장 소비액',
-                    style: TextStyle(fontSize: 12, color: HomeTokens.textMuted),
+                    style: TextStyle(fontSize: 12, color: context.glass.textTertiary),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_won(recommended)} 중 ${_won(spent)} 사용',
-                    style: const TextStyle(
+                    '${context.formatWon(recommended)} 중 ${context.formatWon(spent)} 사용',
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: HomeTokens.textDark,
+                      color: context.glass.textPrimary,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 12),
-            _percentPill(percent),
+            _percentPill(context, percent),
           ],
         );
       },
@@ -611,14 +587,14 @@ class _BudgetUsageRow extends ConsumerWidget {
   // instead of showing 0% or infinity. Up to 100% reads in the app's green;
   // past it, in the same soft orange the report's over-budget badge uses -
   // informative, not alarming.
-  Widget _percentPill(double? percent) {
+  Widget _percentPill(BuildContext context, double? percent) {
     final over = percent != null && percent > 100;
     final fg = percent == null
-        ? HomeTokens.textFaint
-        : (over ? HomeTokens.negative : HomeTokens.accentDark);
+        ? context.glass.textSecondary
+        : (over ? context.glass.negative : context.glass.chipSelectedText);
     final bg = percent == null
-        ? AppColorTokens.surfaceOffWhite
-        : (over ? AppColorTokens.negativeSoftBg : AppColorTokens.softGreenTint);
+        ? context.glass.insetFill
+        : (over ? context.glass.negativeSoft : context.glass.accentSoft);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -636,8 +612,8 @@ class _BudgetUsageRow extends ConsumerWidget {
     );
   }
 
-  Widget _message(String text) => Text(
+  Widget _message(BuildContext context, String text) => Text(
     text,
-    style: const TextStyle(fontSize: 12, color: HomeTokens.textMuted),
+    style: TextStyle(fontSize: 12, color: context.glass.textTertiary),
   );
 }

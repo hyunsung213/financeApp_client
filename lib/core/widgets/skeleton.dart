@@ -45,13 +45,17 @@ class SkeletonBox extends StatefulWidget {
   State<SkeletonBox> createState() => _SkeletonBoxState();
 }
 
-class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStateMixin {
+class _SkeletonBoxState extends State<SkeletonBox>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -69,7 +73,11 @@ class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStat
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            color: Color.lerp(widget.baseColor, widget.highlightColor, _controller.value),
+            color: Color.lerp(
+              widget.baseColor,
+              widget.highlightColor,
+              _controller.value,
+            ),
             borderRadius: widget.borderRadius ?? BorderRadius.circular(8),
           ),
         );
@@ -184,7 +192,11 @@ class TransactionCardsSkeleton extends StatelessWidget {
             children: [
               const Expanded(child: SkeletonBox.line(height: 12)),
               const SizedBox(width: 6),
-              const SkeletonBox(width: 30, height: 14, borderRadius: BorderRadius.all(Radius.circular(6))),
+              const SkeletonBox(
+                width: 30,
+                height: 14,
+                borderRadius: BorderRadius.all(Radius.circular(6)),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -194,7 +206,11 @@ class TransactionCardsSkeleton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
               SkeletonBox.line(width: 34, height: 11),
-              SkeletonBox(width: 30, height: 30, borderRadius: BorderRadius.all(Radius.circular(15))),
+              SkeletonBox(
+                width: 30,
+                height: 30,
+                borderRadius: BorderRadius.all(Radius.circular(15)),
+              ),
             ],
           ),
         ],
@@ -270,7 +286,10 @@ class ReportSkeleton extends StatelessWidget {
             children: [
               _sectionHeader(),
               const SizedBox(height: 24),
-              const SkeletonBox(height: 170, borderRadius: BorderRadius.all(Radius.circular(12))),
+              const SkeletonBox(
+                height: 170,
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
               const SizedBox(height: 32),
               _sectionHeader(),
               const SizedBox(height: 24),
@@ -278,7 +297,11 @@ class ReportSkeleton extends StatelessWidget {
                 children: [
                   const Expanded(
                     child: Center(
-                      child: SkeletonBox(width: 150, height: 150, borderRadius: BorderRadius.all(Radius.circular(75))),
+                      child: SkeletonBox(
+                        width: 150,
+                        height: 150,
+                        borderRadius: BorderRadius.all(Radius.circular(75)),
+                      ),
                     ),
                   ),
                   Expanded(
@@ -289,7 +312,13 @@ class ReportSkeleton extends StatelessWidget {
                           padding: EdgeInsets.symmetric(vertical: 6),
                           child: Row(
                             children: [
-                              SkeletonBox(width: 8, height: 8, borderRadius: BorderRadius.all(Radius.circular(4))),
+                              SkeletonBox(
+                                width: 8,
+                                height: 8,
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(4),
+                                ),
+                              ),
                               SizedBox(width: 8),
                               Expanded(child: SkeletonBox.line(height: 12)),
                               SizedBox(width: 8),
@@ -309,7 +338,10 @@ class ReportSkeleton extends StatelessWidget {
                 3,
                 (i) => const Padding(
                   padding: EdgeInsets.only(bottom: 10),
-                  child: SkeletonBox(height: 48, borderRadius: BorderRadius.all(Radius.circular(12))),
+                  child: SkeletonBox(
+                    height: 48,
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
                 ),
               ),
             ],
@@ -343,13 +375,30 @@ class PolicyListSkeleton extends StatelessWidget {
           height: 38,
           child: Row(
             children: const [
-              SkeletonBox(width: 72, height: 34, borderRadius: BorderRadius.all(Radius.circular(18))),
+              SkeletonBox(
+                width: 72,
+                height: 34,
+                borderRadius: BorderRadius.all(Radius.circular(18)),
+              ),
               SizedBox(width: 8),
-              SkeletonBox(width: 92, height: 34, borderRadius: BorderRadius.all(Radius.circular(18))),
+              SkeletonBox(
+                width: 92,
+                height: 34,
+                borderRadius: BorderRadius.all(Radius.circular(18)),
+              ),
               SizedBox(width: 8),
-              SkeletonBox(width: 116, height: 34, borderRadius: BorderRadius.all(Radius.circular(18))),
+              SkeletonBox(
+                width: 116,
+                height: 34,
+                borderRadius: BorderRadius.all(Radius.circular(18)),
+              ),
               SizedBox(width: 8),
-              Expanded(child: SkeletonBox(height: 34, borderRadius: BorderRadius.all(Radius.circular(18)))),
+              Expanded(
+                child: SkeletonBox(
+                  height: 34,
+                  borderRadius: BorderRadius.all(Radius.circular(18)),
+                ),
+              ),
             ],
           ),
         ),
@@ -358,7 +407,13 @@ class PolicyListSkeleton extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -394,7 +449,11 @@ class PolicyListSkeleton extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
-                        SkeletonBox(width: 48, height: 18, borderRadius: BorderRadius.all(Radius.circular(4))),
+                        SkeletonBox(
+                          width: 48,
+                          height: 18,
+                          borderRadius: BorderRadius.all(Radius.circular(4)),
+                        ),
                         SizedBox(height: 10),
                         SkeletonBox.line(height: 14),
                         SizedBox(height: 8),
@@ -403,7 +462,11 @@ class PolicyListSkeleton extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const SkeletonBox(width: 64, height: 64, borderRadius: BorderRadius.all(Radius.circular(10))),
+                  const SkeletonBox(
+                    width: 64,
+                    height: 64,
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                  ),
                 ],
               ),
             ),
@@ -434,7 +497,10 @@ class FormSkeleton extends StatelessWidget {
               const SizedBox(height: 20),
               _labelRow(),
               const SizedBox(height: 20),
-              const SkeletonBox(height: 40, borderRadius: BorderRadius.all(Radius.circular(10))),
+              const SkeletonBox(
+                height: 40,
+                borderRadius: BorderRadius.all(Radius.circular(10)),
+              ),
             ],
           ),
         ),
@@ -442,7 +508,10 @@ class FormSkeleton extends StatelessWidget {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
@@ -460,11 +529,7 @@ class FormSkeleton extends StatelessWidget {
         SkeletonCard(
           padding: const EdgeInsets.all(20),
           child: Column(
-            children: [
-              _labelRow(),
-              const SizedBox(height: 20),
-              _labelRow(),
-            ],
+            children: [_labelRow(), const SizedBox(height: 20), _labelRow()],
           ),
         ),
       ],
@@ -496,7 +561,11 @@ class TransactionRowsSkeleton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             children: const [
-              SkeletonBox(width: 20, height: 20, borderRadius: BorderRadius.all(Radius.circular(6))),
+              SkeletonBox(
+                width: 20,
+                height: 20,
+                borderRadius: BorderRadius.all(Radius.circular(6)),
+              ),
               SizedBox(width: 10),
               Expanded(child: SkeletonBox.line(height: 14)),
               SizedBox(width: 10),

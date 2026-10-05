@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_radii.dart';
-import '../../home/theme/home_tokens.dart';
+import '../../../core/widgets/glass.dart';
 
 /// Figma node 238:4953 (filter chip row: "전체" + category pills).
 /// Category options come from whatever `Policy.category` values are already
@@ -50,27 +49,12 @@ class PolicyFilterChips extends StatelessWidget {
   }
 
   Widget _chip({required String label, required bool isSelected, required VoidCallback onTap}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 5),
-          decoration: BoxDecoration(
-            color: isSelected ? HomeTokens.chipActiveBg : HomeTokens.chipInactiveBg,
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-            border: Border.all(color: isSelected ? HomeTokens.chipActiveBorder : HomeTokens.chipInactiveBorder),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 16,
-              color: isSelected ? HomeTokens.accentDark : HomeTokens.textDark,
-            ),
-          ),
-        ),
-      ),
+    return GlassChip(
+      label: label,
+      selected: isSelected,
+      onTap: onTap,
+      fontSize: 15,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
     );
   }
 }

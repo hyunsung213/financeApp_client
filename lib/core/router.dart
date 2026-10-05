@@ -1,10 +1,8 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/theme.dart';
-import '../core/theme/surface_style.dart';
-import '../features/home/theme/home_tokens.dart';
+import '../core/theme/wallet_glass.dart';
+import '../core/widgets/glass.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/providers/onboarding_provider.dart';
 
@@ -197,27 +195,40 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
 
+  static const _tabs = [
+    (label: '홈', icon: Icons.home_rounded),
+    (label: '캘린더', icon: Icons.calendar_month_rounded),
+    (label: '리포트', icon: Icons.pie_chart_rounded),
+    (label: '뉴스', icon: Icons.article_rounded),
+    (label: '마이', icon: Icons.person_rounded),
+  ];
+
   @override
   Widget build(BuildContext context) {
     // False while anything sits above the shell (a bottom sheet, dialog, or a
     // pushed full-screen route), so the floating pill slides away instead of
     // hovering over modals.
     final isShellOnTop = ModalRoute.of(context)?.isCurrent ?? true;
+    final glass = context.glass;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: glass.backgroundBottom,
       body: Stack(
         children: [
+          // Level 0: one ambient backdrop shared by all five tabs (their own
+          // Scaffolds are transparent), so it is painted once, not per tab.
+          const Positioned.fill(child: WalletBackground()),
+
           // Main screen content
           navigationShell,
 
-          // Soft color backdrop behind the floating nav bar, so the mostly
-          // white/gray page content isn't colorless right at the bottom edge.
+          // Content scrolling under the pill fades into the page color, so
+          // the nav reads as floating above it rather than cutting it off.
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            height: 130,
+            height: 120,
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -225,8 +236,8 @@ class ScaffoldWithNavBar extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      HomeTokens.navActiveBg.withValues(alpha: 0),
-                      HomeTokens.navActiveBg.withValues(alpha: 0.9),
+                      glass.backgroundBottom.withValues(alpha: 0),
+                      glass.backgroundBottom.withValues(alpha: 0.85),
                     ],
                   ),
                 ),
@@ -234,7 +245,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
             ),
           ),
 
-          // Floating translucent bottom navigation bar
+          // Level 3: floating glass bottom navigation
           Positioned(
             left: 0,
             right: 0,
@@ -248,7 +259,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 180),
                   opacity: isShellOnTop ? 1 : 0,
-                  child: _buildNavBar(),
+                  child: _buildNavBar(context),
                 ),
               ),
             ),
@@ -258,58 +269,29 @@ class ScaffoldWithNavBar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavBar() {
+  Widget _buildNavBar(BuildContext context) {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 0, 28, 14),
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 14),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 380),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(32),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: AppSurfaces.floatingNav.blurSigma!,
-                  sigmaY: AppSurfaces.floatingNav.blurSigma!,
-                ),
-                child: Container(
-                  decoration: AppSurfaces.floatingNav.toBoxDecoration(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildNavItem(
-                        index: 0,
-                        label: '홈',
-                        icon: Icons.home_rounded,
-                      ),
-                      _buildNavItem(
-                        index: 1,
-                        label: '캘린더',
-                        icon: Icons.calendar_month_rounded,
-                      ),
-                      _buildNavItem(
-                        index: 2,
-                        label: '리포트',
-                        icon: Icons.pie_chart_rounded,
-                      ),
-                      _buildNavItem(
-                        index: 3,
-                        label: '뉴스',
-                        icon: Icons.article_rounded,
-                      ),
-                      _buildNavItem(
-                        index: 4,
-                        label: '마이',
-                        icon: Icons.person_rounded,
-                      ),
-                    ],
-                  ),
-                ),
+            child: GlassSurface(
+              level: GlassLevel.floating,
+              radius: 32,
+              blurSigma: GlassBlur.floating,
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: [
+                  for (var i = 0; i < _tabs.length; i++)
+                    _buildNavItem(
+                      context,
+                      index: i,
+                      label: _tabs[i].label,
+                      icon: _tabs[i].icon,
+                    ),
+                ],
               ),
             ),
           ),
@@ -318,63 +300,69 @@ class ScaffoldWithNavBar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem({
+  Widget _buildNavItem(
+    BuildContext context, {
     required int index,
     required String label,
     required IconData icon,
   }) {
+    final glass = context.glass;
     final isSelected = navigationShell.currentIndex == index;
+    final color = isSelected
+        ? glass.navActiveContent
+        : glass.navInactiveContent;
 
     // Active tab gets a pill background (Figma: #D6F3E8 fill, #007C4F
-    // content) instead of just a color swap, matching node 335:8091's
-    // Bottom Navigation Component.
+    // content) plus a heavier label, not just a color swap.
     return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            navigationShell.goBranch(
-              index,
-              initialLocation: index == navigationShell.currentIndex,
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            decoration: BoxDecoration(
-              color: isSelected ? HomeTokens.navActiveBg : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Center(
-                    child: Icon(
-                      icon,
-                      size: 22,
-                      color: isSelected
-                          ? HomeTokens.navActiveText
-                          : HomeTokens.navInactive,
+      child: Semantics(
+        selected: isSelected,
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () {
+              navigationShell.goBranch(
+                index,
+                initialLocation: index == navigationShell.currentIndex,
+              );
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? glass.navActiveFill
+                    : glass.navActiveFill.withValues(alpha: 0),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Center(child: Icon(icon, size: 22, color: color)),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: color,
+                      letterSpacing: -0.2,
                     ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? HomeTokens.navActiveText
-                        : HomeTokens.navInactive,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

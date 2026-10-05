@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../home/theme/home_tokens.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Figma node 248:6033 ("내 캘린더에 추가하시겠습니까?"): confirms adding a
 /// policy's application window to the user's Calendar.
@@ -63,32 +63,33 @@ class PolicyCalendarAddSheet extends StatelessWidget {
     final rangeLabel = [startLabel, endLabel].whereType<String>().join(' - ');
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: context.glass.surfaceFill,
+      surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.xl)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               '내 캘린더에 추가하시겠습니까?',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: context.glass.textPrimary),
             ),
             if (startLabel != null || endLabel != null) ...[
               const SizedBox(height: 16),
-              _buildRangePreview(),
+              _buildRangePreview(context),
               if (rangeLabel.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text(rangeLabel, style: const TextStyle(fontSize: 12, color: HomeTokens.accentDark)),
+                Text(rangeLabel, style: TextStyle(fontSize: 12, color: context.glass.chipSelectedText)),
               ],
             ],
             const SizedBox(height: 12),
             Text(
               '$title 내 캘린더에 추가하기',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: HomeTokens.accentDark),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.glass.chipSelectedText),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -98,8 +99,8 @@ class PolicyCalendarAddSheet extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: HomeTokens.accentDark,
-                      side: const BorderSide(color: Color(0xFFA9E1CF)),
+                      foregroundColor: context.glass.chipSelectedText,
+                      side: BorderSide(color: context.glass.chipSelectedBorder),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
                     ),
@@ -111,8 +112,6 @@ class PolicyCalendarAddSheet extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: HomeTokens.accent,
-                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
                       elevation: 0,
@@ -129,31 +128,31 @@ class PolicyCalendarAddSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildRangePreview() {
+  Widget _buildRangePreview(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _rangeDot(filled: false),
+        _rangeDot(context, filled: false),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: DottedLine(),
           ),
         ),
-        _rangeDot(filled: true),
+        _rangeDot(context, filled: true),
       ],
     );
   }
 
-  Widget _rangeDot({required bool filled}) {
+  Widget _rangeDot(BuildContext context, {required bool filled}) {
     return Container(
       width: 32,
       height: 32,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: filled ? HomeTokens.accent : Colors.white,
-        border: Border.all(color: HomeTokens.accent, width: 1.5),
+        color: filled ? context.glass.accent : context.glass.surfaceFill,
+        border: Border.all(color: context.glass.accentText, width: 1.5),
       ),
     );
   }
@@ -174,9 +173,9 @@ class DottedLine extends StatelessWidget {
           child: Row(
             children: List.generate(
               dashCount,
-              (_) => const Padding(
+              (_) => Padding(
                 padding: EdgeInsets.symmetric(horizontal: dashSpace / 2),
-                child: SizedBox(width: dashWidth, height: 2, child: DecoratedBox(decoration: BoxDecoration(color: HomeTokens.accent))),
+                child: SizedBox(width: dashWidth, height: 2, child: DecoratedBox(decoration: BoxDecoration(color: context.glass.accentText))),
               ),
             ),
           ),

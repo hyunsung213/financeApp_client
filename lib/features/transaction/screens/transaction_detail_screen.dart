@@ -2,13 +2,13 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme.dart';
+import '../../../core/format/money_format.dart';
 import '../../../core/theme/app_radii.dart';
-import '../../../core/theme/app_shadows.dart';
-import '../../home/theme/home_tokens.dart';
 import '../../../core/category/category_appearance.dart';
 import '../providers/transaction_provider.dart';
 import 'add_transaction_screen.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -34,8 +34,8 @@ class TransactionDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final txAsync = ref.watch(transactionByIdProvider(transactionId));
 
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           // Same rounded-bottom hero gradient as Report Main (Figma keeps
@@ -46,13 +46,13 @@ class TransactionDetailScreen extends ConsumerWidget {
             right: 0,
             height: 140,
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFF6DD9AB), Color(0x0000AF76)],
+                  colors: [context.glass.heroGradient[2], context.glass.heroGradient[2].withValues(alpha: 0)],
                 ),
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(AppRadii.button), bottomRight: Radius.circular(AppRadii.button)),
+                borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(AppRadii.button), bottomRight: Radius.circular(AppRadii.button)),
               ),
             ),
           ),
@@ -64,10 +64,10 @@ class TransactionDetailScreen extends ConsumerWidget {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: HomeTokens.textDark),
+                        icon: Icon(Icons.arrow_back_ios_new, size: 20, color: context.glass.textPrimary),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
-                      const Text('거래 상세', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: HomeTokens.textDark)),
+                      Text('거래 상세', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: context.glass.textPrimary)),
                     ],
                   ),
                 ),
@@ -83,7 +83,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -91,7 +91,6 @@ class _DetailBody extends ConsumerWidget {
   final Map<String, dynamic> tx;
   const _DetailBody({required this.tx});
 
-  String _formatCurrency(int amount) => '${NumberFormat('#,###').format(amount)}원';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -115,15 +114,15 @@ class _DetailBody extends ConsumerWidget {
               Container(
                 width: 72,
                 height: 72,
-                decoration: const BoxDecoration(color: HomeTokens.chipActiveBg, shape: BoxShape.circle),
-                child: Icon(categories.iconForTransaction(tx), size: 32, color: HomeTokens.accentDark),
+                decoration: BoxDecoration(color: context.glass.accentSoft, shape: BoxShape.circle),
+                child: Icon(categories.iconForTransaction(tx), size: 32, color: context.glass.chipSelectedText),
               ),
               const SizedBox(height: 12),
-              Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: HomeTokens.textDark)),
+              Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: context.glass.textPrimary)),
               const SizedBox(height: 6),
               Text(
-                '${isIncome ? '+' : '-'}${_formatCurrency(amount)}',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, color: isIncome ? HomeTokens.accentDark : HomeTokens.negative),
+                '${isIncome ? '+' : '-'}${context.formatWon(amount)}',
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, color: isIncome ? context.glass.chipSelectedText : context.glass.negative),
               ),
             ],
           ),
@@ -135,7 +134,7 @@ class _DetailBody extends ConsumerWidget {
           child: _EditableRow(
             label: '거래 유형',
             value: typeLabel,
-            valueColor: isIncome ? HomeTokens.accentDark : HomeTokens.negative,
+            valueColor: isIncome ? context.glass.chipSelectedText : context.glass.negative,
             onTap: () => AddTransactionModal.show(context, existingTransaction: tx),
           ),
         ),
@@ -162,7 +161,7 @@ class _DetailBody extends ConsumerWidget {
           child: _EditableRow(
             label: '메모',
             value: memo.isEmpty ? '메모 추가' : memo,
-            valueColor: HomeTokens.textMuted,
+            valueColor: context.glass.textTertiary,
             trailingIcon: Icons.edit_outlined,
             onTap: () => AddTransactionModal.show(context, existingTransaction: tx),
           ),
@@ -173,8 +172,8 @@ class _DetailBody extends ConsumerWidget {
           child: OutlinedButton(
             onPressed: () => _confirmDelete(context, ref),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.danger,
-              side: const BorderSide(color: Color(0xFFE1D7D5)),
+              foregroundColor: context.glass.negative,
+              side: BorderSide(color: context.glass.negative.withValues(alpha: 0.35)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
             ),
             child: const Text('거래 삭제', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20)),
@@ -192,7 +191,7 @@ class _DetailBody extends ConsumerWidget {
         content: const Text('이 내역을 삭제할까요?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('삭제', style: TextStyle(color: AppColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('삭제', style: TextStyle(color: context.glass.negative))),
         ],
       ),
     );
@@ -220,11 +219,7 @@ class _DetailCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.compactInput),
-        boxShadow: AppShadows.card,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.md),
       child: child,
     );
   }
@@ -249,17 +244,17 @@ class _EditableRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.compactInput),
+      borderRadius: BorderRadius.circular(AppRadii.md),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
-            SizedBox(width: 80, child: Text(label, style: const TextStyle(fontSize: 16, color: HomeTokens.textDark))),
+            SizedBox(width: 80, child: Text(label, style: TextStyle(fontSize: 16, color: context.glass.textPrimary))),
             Expanded(
-              child: Text(value, textAlign: TextAlign.right, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: valueColor ?? HomeTokens.textDark)),
+              child: Text(value, textAlign: TextAlign.right, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: valueColor ?? context.glass.textPrimary)),
             ),
             const SizedBox(width: 6),
-            Icon(trailingIcon, size: 20, color: HomeTokens.textMuted),
+            Icon(trailingIcon, size: 20, color: context.glass.textTertiary),
           ],
         ),
       ),
@@ -287,7 +282,7 @@ class _MoodRow extends StatelessWidget {
     final showDebugSample = kDebugMode;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(AppRadii.compactInput),
+      borderRadius: BorderRadius.circular(AppRadii.md),
       onTap: () => ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('소비 평가 기록 기능은 준비 중이에요.')),
       ),
@@ -295,20 +290,20 @@ class _MoodRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
-            const SizedBox(width: 80, child: Text('소비 평가', style: TextStyle(fontSize: 16, color: HomeTokens.textDark))),
+            SizedBox(width: 80, child: Text('소비 평가', style: TextStyle(fontSize: 16, color: context.glass.textPrimary))),
             Expanded(
               child: Text(
                 showDebugSample ? '아쉬운 소비' : '기록 없음',
                 textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: showDebugSample ? HomeTokens.negative : HomeTokens.textMuted),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: showDebugSample ? context.glass.negative : context.glass.textTertiary),
               ),
             ),
             if (showDebugSample) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.sentiment_dissatisfied, size: 20, color: HomeTokens.negative),
+              Icon(Icons.sentiment_dissatisfied, size: 20, color: context.glass.negative),
             ],
             const SizedBox(width: 6),
-            const Icon(Icons.chevron_right, size: 20, color: HomeTokens.textMuted),
+            Icon(Icons.chevron_right, size: 20, color: context.glass.textTertiary),
           ],
         ),
       ),

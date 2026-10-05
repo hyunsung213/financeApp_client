@@ -4,11 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../data/api/policy_api.dart';
-import '../../home/theme/home_tokens.dart';
 import '../providers/policy_provider.dart';
 import '../utils/policy_category_visual.dart';
 import '../utils/policy_dday.dart';
 import '../widgets/policy_calendar_add_sheet.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 final policyDetailProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, id) async {
   final api = ref.watch(policyApiProvider);
@@ -26,14 +27,14 @@ class PolicyDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(policyDetailProvider(policyId));
 
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('불러오지 못했습니다: $e', style: const TextStyle(color: HomeTokens.textMuted))),
+        error: (e, st) => Center(child: Text('불러오지 못했습니다: $e', style: TextStyle(color: context.glass.textTertiary))),
         data: (policy) => _DetailBody(policy: policy, policyId: policyId),
       ),
-    );
+    ));
   }
 }
 
@@ -159,13 +160,13 @@ class _DetailBody extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.pill)),
-                            child: Text(category, style: const TextStyle(fontSize: 13, color: HomeTokens.textDark, fontWeight: FontWeight.w600)),
+                            child: Text(category, style: TextStyle(fontSize: 13, color: context.glass.textPrimary, fontWeight: FontWeight.w600)),
                           ),
                           if (dDay != null) ...[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                              decoration: BoxDecoration(color: HomeTokens.negative, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
+                              decoration: BoxDecoration(color: context.glass.negative, borderRadius: BorderRadius.circular(AppRadii.md)),
                               child: Text(dDay, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                             ),
                           ],
@@ -189,15 +190,15 @@ class _DetailBody extends ConsumerWidget {
           sliver: SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadii.compactInput)),
+              decoration: glassDecoration(context, radius: AppRadii.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _sectionBlock('지원 대상', eligibility ?? '-'),
+                  _sectionBlock(context, '지원 대상', eligibility ?? '-'),
                   const SizedBox(height: 24),
-                  _sectionBlock('주요 내용', (policy['description'] ?? policy['summary'] ?? '내용 없음').toString()),
+                  _sectionBlock(context, '주요 내용', (policy['description'] ?? policy['summary'] ?? '내용 없음').toString()),
                   const SizedBox(height: 24),
-                  _sectionBlock('신청 방법', '자세한 신청 방법은 공식 홈페이지에서 확인할 수 있어요.'),
+                  _sectionBlock(context, '신청 방법', '자세한 신청 방법은 공식 홈페이지에서 확인할 수 있어요.'),
                 ],
               ),
             ),
@@ -211,9 +212,6 @@ class _DetailBody extends ConsumerWidget {
               height: 55,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: HomeTokens.accent,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: HomeTokens.accent.withValues(alpha: 0.4),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.button)),
                   elevation: 0,
                 ),
@@ -227,13 +225,13 @@ class _DetailBody extends ConsumerWidget {
     );
   }
 
-  Widget _sectionBlock(String title, String content) {
+  Widget _sectionBlock(BuildContext context, String title, String content) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: HomeTokens.textDark)),
+        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.glass.textPrimary)),
         const SizedBox(height: 8),
-        Text(content, style: const TextStyle(fontSize: 14, color: Color(0xFF8F8E8E), height: 1.4)),
+        Text(content, style: TextStyle(fontSize: 14, color: context.glass.textSecondary, height: 1.5)),
       ],
     );
   }

@@ -11,6 +11,9 @@ class GaugeProgressBar extends StatelessWidget {
   final Color backgroundColor;
   final List<Color> fillGradient;
 
+  /// Color of the 25/50/75% tick gaps - match whatever the gauge sits on.
+  final Color tickColor;
+
   const GaugeProgressBar({
     super.key,
     required this.ratio,
@@ -20,6 +23,7 @@ class GaugeProgressBar extends StatelessWidget {
     // fill's right edge (cap) always reads distinctly against the track,
     // regardless of what's rendered behind the card.
     this.fillGradient = const [Color(0xFF00C875), Color(0xFF00AE76)],
+    this.tickColor = Colors.white,
   });
 
   @override
@@ -60,7 +64,7 @@ class GaugeProgressBar extends StatelessWidget {
                   child: Container(
                     width: 2,
                     height: height,
-                    color: Colors.white,
+                    color: tickColor,
                   ),
                 ),
             ],

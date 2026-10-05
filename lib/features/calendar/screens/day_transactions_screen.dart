@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/format/money_format.dart';
 import '../../../core/category/category_appearance.dart';
-import '../../../core/theme.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
 import 'calendar_screen.dart';
+import '../../../core/theme/app_radii.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -17,19 +20,18 @@ class DayTransactionsScreen extends ConsumerWidget {
 
   const DayTransactionsScreen({super.key, required this.day});
 
-  String _formatCurrency(int amount) =>
-      '${NumberFormat('#,###').format(amount)}원';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(dailyTransactionsProvider(day));
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(DateFormat('M월 d일 (E)', 'ko_KR').format(day)),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        foregroundColor: context.glass.textPrimary,
         elevation: 0,
       ),
       body: transactionsAsync.when(
@@ -53,16 +55,17 @@ class DayTransactionsScreen extends ConsumerWidget {
             children: [
               Container(
                 width: double.infinity,
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                decoration: glassDecoration(context, radius: AppRadii.lg),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       '전체 거래 내역',
                       style: TextStyle(
                         fontSize: 15,
-                        color: AppColors.textSecondary,
+                        color: context.glass.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -70,23 +73,26 @@ class DayTransactionsScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: _summaryItem(
+                            context,
                             '총 수입',
                             income,
-                            AppColors.primary,
+                            context.glass.accentText,
                           ),
                         ),
                         Expanded(
                           child: _summaryItem(
+                            context,
                             '총 지출',
                             -expense,
-                            AppColors.danger,
+                            context.glass.negative,
                           ),
                         ),
                         Expanded(
                           child: _summaryItem(
+                            context,
                             '순변동',
                             net,
-                            net >= 0 ? AppColors.primary : AppColors.danger,
+                            net >= 0 ? context.glass.accentText : context.glass.negative,
                           ),
                         ),
                       ],
@@ -97,10 +103,10 @@ class DayTransactionsScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               Expanded(
                 child: transactions.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           '이 날은 등록된 거래가 없어요.',
-                          style: TextStyle(color: AppColors.textSecondary),
+                          style: TextStyle(color: context.glass.textSecondary),
                         ),
                       )
                     : ListView.separated(
@@ -110,34 +116,38 @@ class DayTransactionsScreen extends ConsumerWidget {
                         ),
                         itemCount: transactions.length,
                         separatorBuilder: (context, i) =>
-                            const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                        itemBuilder: (context, i) =>
-                            _transactionTile(
-                              context,
-                              transactions[i],
-                              ref.watch(categoryDirectoryProvider),
-                            ),
+                            Divider(height: 1, color: context.glass.divider),
+                        itemBuilder: (context, i) => _transactionTile(
+                          context,
+                          transactions[i],
+                          ref.watch(categoryDirectoryProvider),
+                        ),
                       ),
               ),
             ],
           );
         },
       ),
-    );
+    ));
   }
 
-  Widget _summaryItem(String label, int amount, Color color) {
+  Widget _summaryItem(
+    BuildContext context,
+    String label,
+    int amount,
+    Color color,
+  ) {
     final sign = amount > 0 ? '+' : '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 12, color: context.glass.textSecondary),
         ),
         const SizedBox(height: 4),
         Text(
-          '$sign${_formatCurrency(amount)}',
+          '$sign${context.formatWon(amount)}',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
@@ -168,10 +178,10 @@ class DayTransactionsScreen extends ConsumerWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
-        backgroundColor: AppColors.background,
-        child: const Icon(
+        backgroundColor: context.glass.insetFill,
+        child: Icon(
           Icons.receipt_long_outlined,
-          color: AppColors.textSecondary,
+          color: context.glass.textSecondary,
         ),
       ),
       title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -179,11 +189,11 @@ class DayTransactionsScreen extends ConsumerWidget {
         [categoryName, time].where((s) => s.isNotEmpty).join(' · '),
       ),
       trailing: Text(
-        '${isIncome ? '+' : '-'}${_formatCurrency(amount)}',
+        '${isIncome ? '+' : '-'}${context.formatWon(amount)}',
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 15,
-          color: isIncome ? AppColors.primary : AppColors.danger,
+          color: isIncome ? context.glass.accentText : context.glass.negative,
         ),
       ),
       onTap: () => AddTransactionModal.show(

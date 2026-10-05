@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../home/theme/home_tokens.dart';
 import '../providers/policy_provider.dart';
 import '../utils/policy_bookmark_action.dart';
 import '../widgets/policy_list_card.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Bookmark entry point kept after removing the old "관심 정책" tab (see
 /// docs/development-work-policy.md - Figma's FINAL_POLICY_SCREENS export has
@@ -25,12 +26,12 @@ class PolicyBookmarksScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bookmarksAsync = ref.watch(bookmarkedPoliciesProvider);
 
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('관심 정책', style: TextStyle(color: HomeTokens.textDark, fontWeight: FontWeight.bold)),
-        backgroundColor: HomeTokens.pageBackground,
-        foregroundColor: HomeTokens.textDark,
+        title: Text('관심 정책', style: TextStyle(color: context.glass.textPrimary, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, scrolledUnderElevation: 0,
+        foregroundColor: context.glass.textPrimary,
         elevation: 0,
       ),
       body: bookmarksAsync.when(
@@ -38,7 +39,7 @@ class PolicyBookmarksScreen extends ConsumerWidget {
         // instead of swapping it for a full-screen spinner.
         skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('불러오지 못했습니다: $e', style: const TextStyle(color: HomeTokens.textMuted))),
+        error: (e, st) => Center(child: Text('불러오지 못했습니다: $e', style: TextStyle(color: context.glass.textTertiary))),
         data: (fetched) {
           final overrides = ref.watch(bookmarkOverridesProvider);
           final policies = fetched.where((p) => overrides[(p['id'] ?? '').toString()] != false).toList();
@@ -47,9 +48,9 @@ class PolicyBookmarksScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.bookmark_border_rounded, size: 56, color: HomeTokens.textMuted.withValues(alpha: 0.6)),
+                  Icon(Icons.bookmark_border_rounded, size: 56, color: context.glass.textTertiary.withValues(alpha: 0.6)),
                   const SizedBox(height: 12),
-                  const Text('관심 등록한 정책이 없습니다.', style: TextStyle(color: HomeTokens.textMuted)),
+                  Text('관심 등록한 정책이 없습니다.', style: TextStyle(color: context.glass.textTertiary)),
                 ],
               ),
             );
@@ -71,6 +72,6 @@ class PolicyBookmarksScreen extends ConsumerWidget {
           );
         },
       ),
-    );
+    ));
   }
 }

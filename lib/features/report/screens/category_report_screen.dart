@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
-import '../../home/theme/home_tokens.dart';
 import '../../transaction/screens/transaction_list_screen.dart';
 import '../../../data/api/category_api.dart';
 import '../providers/report_provider.dart';
 import '../utils/report_insight_utils.dart';
 import '../widgets/category_share_bar.dart';
 import '../widgets/month_picker_sheet.dart';
+import '../../../core/format/money_format.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Category Report detail (Figma frames 114:5192 / 397:5357): donut +
 /// one card per 대분류 (the same roll-up the donut is drawn from), each showing
@@ -61,7 +64,7 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
   late String? _expandedCategory = widget.initialCategoryName;
 
   static const _colors = [
-    HomeTokens.accent,
+    AppColorTokens.accent,
     Color(0xFF64B5F6),
     Color(0xFFFFCA28),
     Color(0xFFCDDC39),
@@ -82,12 +85,12 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
     final month = ref.watch(reportMonthProvider);
     final dataAsync = ref.watch(monthlyReportDataProvider(month));
 
-    return Scaffold(
-      backgroundColor: HomeTokens.pageBackground,
+    return WalletBackground(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: HomeTokens.pageBackground,
+        backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, scrolledUnderElevation: 0,
         elevation: 0,
-        foregroundColor: HomeTokens.textDark,
+        foregroundColor: context.glass.textPrimary,
         title: const Text('카테고리별 지출', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: dataAsync.when(
@@ -110,34 +113,30 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppRadii.compactInput),
-                  boxShadow: AppShadows.card,
-                ),
+                decoration: glassDecoration(context, radius: AppRadii.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('카테고리 별 지출', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: HomeTokens.textDark)),
+                        Text('카테고리 별 지출', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: context.glass.textPrimary)),
                         InkWell(
                           onTap: () async {
                             final picked = await MonthPickerSheet.show(context, month);
                             if (picked != null) ref.read(reportMonthProvider.notifier).setMonth(picked);
                           },
-                          borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: HomeTokens.cardSurface,
-                              borderRadius: BorderRadius.circular(AppRadii.compactInput),
+                              color: context.glass.cardFill,
+                              borderRadius: BorderRadius.circular(AppRadii.md),
                               boxShadow: AppShadows.elevatedStrong,
                             ),
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              Text('${month.month}월', style: const TextStyle(fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
-                              const Icon(Icons.keyboard_arrow_down, size: 18, color: HomeTokens.textMuted),
+                              Text('${month.month}월', style: TextStyle(fontWeight: FontWeight.bold, color: context.glass.textPrimary)),
+                              Icon(Icons.keyboard_arrow_down, size: 18, color: context.glass.textTertiary),
                             ]),
                           ),
                         ),
@@ -145,7 +144,7 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
                     ),
                     const SizedBox(height: 16),
                     if (majors.isEmpty)
-                      const SizedBox(height: 80, child: Center(child: Text('이번 달 지출 카테고리가 아직 없어요', style: TextStyle(color: HomeTokens.textMuted))))
+                      SizedBox(height: 80, child: Center(child: Text('이번 달 지출 카테고리가 아직 없어요', style: TextStyle(color: context.glass.textTertiary))))
                     else
                       SizedBox(
                         height: 180,
@@ -161,8 +160,8 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
                                     sections: List.generate(majors.length, (i) => PieChartSectionData(color: _colors[i % _colors.length], value: majors[i].amount.toDouble(), title: '', radius: 25)),
                                   )),
                                   Column(mainAxisSize: MainAxisSize.min, children: [
-                                    const Text('합계', style: TextStyle(fontSize: 12, color: HomeTokens.textMuted)),
-                                    Text(formatWon(total), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                    Text('합계', style: TextStyle(fontSize: 12, color: context.glass.textTertiary)),
+                                    Text(context.formatWon(total), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                   ]),
                                 ],
                               ),
@@ -200,7 +199,7 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
           );
         },
       ),
-    );
+    ));
   }
 }
 
@@ -244,7 +243,7 @@ class _CategoryLegendState extends State<_CategoryLegend> {
             child: Row(children: [
               Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
               const SizedBox(width: 8),
-              Expanded(child: Text(widget.categories[i].name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: HomeTokens.textDark, fontSize: 13))),
+              Expanded(child: Text(widget.categories[i].name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.glass.textPrimary, fontSize: 13))),
               const SizedBox(width: 8),
               Text('${widget.categories[i].percentage.round()}%', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
             ]),
@@ -282,16 +281,12 @@ class _CategoryRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.compactInput),
-        boxShadow: AppShadows.card,
-      ),
+      decoration: glassDecoration(context, radius: AppRadii.md),
       child: Column(
         children: [
           InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(AppRadii.compactInput),
+            borderRadius: BorderRadius.circular(AppRadii.md),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -306,7 +301,7 @@ class _CategoryRow extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(expanded ? Icons.expand_less : Icons.expand_more, color: HomeTokens.textMuted),
+                  Icon(expanded ? Icons.expand_less : Icons.expand_more, color: context.glass.textTertiary),
                 ],
               ),
             ),
@@ -324,21 +319,22 @@ class _CategoryRow extends ConsumerWidget {
                 children: [
                   const Divider(height: 1),
                   const SizedBox(height: 12),
-                  _kv(Icons.payments_outlined, '금액', formatWon(category.amount)),
-                  _kv(Icons.percent_rounded, '전체 지출 중', '${category.percentage.round()}%'),
+                  _kv(context, Icons.payments_outlined, '금액', context.formatWon(category.amount)),
+                  _kv(context, Icons.percent_rounded, '전체 지출 중', '${category.percentage.round()}%'),
                   if (previousAmount != null)
                     _kv(
+                      context,
                       Icons.cached_rounded,
                       comparisonDayLabel == null ? '지난달' : '지난달 ($comparisonDayLabel)',
-                      '${formatWon(previousAmount!)} (${_pctLabel(category.amount, previousAmount!)})',
+                      '${context.formatWon(previousAmount!)} (${_pctLabel(category.amount, previousAmount!)})',
                     ),
-                  _kv(Icons.swap_vert_rounded, '거래 건수', '${category.transactionCount}건'),
+                  _kv(context, Icons.swap_vert_rounded, '거래 건수', '${category.transactionCount}건'),
                   // A lone leaf that just repeats the 대분류 name adds nothing - unless
                   // it is really "소분류 미지정" (saved on a 대분류 that has 소분류).
                   if (subCategories.length > 1 ||
                       (subCategories.isNotEmpty && (subCategories.first.isUnspecifiedSubcategory || subCategories.first.name != category.name))) ...[
                     const SizedBox(height: 8),
-                    const Text('소분류', style: TextStyle(fontSize: 12, color: HomeTokens.textMuted)),
+                    Text('소분류', style: TextStyle(fontSize: 12, color: context.glass.textTertiary)),
                     for (final sub in subCategories) _subRow(context, ref, sub),
                   ],
                   // `GET /api/transactions` matches `categoryId` exactly (a 대분류
@@ -349,7 +345,7 @@ class _CategoryRow extends ConsumerWidget {
                     const SizedBox(height: 12),
                     OutlinedButton(
                       onPressed: () => _openTransactions(context, ref, subCategories.firstOrNull?.name ?? category.name, categoryId: subCategories.firstOrNull?.categoryId),
-                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44), side: const BorderSide(color: HomeTokens.chipInactiveBorder)),
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44), side: BorderSide(color: context.glass.chipBorder)),
                       child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text('거래 내역 보기'), SizedBox(width: 4), Icon(Icons.chevron_right, size: 18)]),
                     ),
                   ],
@@ -379,12 +375,12 @@ class _CategoryRow extends ConsumerWidget {
                 sub.isUnspecifiedSubcategory ? unspecifiedSubcategoryLabel : sub.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: sub.isUnspecifiedSubcategory ? HomeTokens.textMuted : HomeTokens.textDark),
+                style: TextStyle(fontSize: 13, color: sub.isUnspecifiedSubcategory ? context.glass.textTertiary : context.glass.textPrimary),
               ),
             ),
             const SizedBox(width: 8),
-            Text(formatWon(sub.amount), style: const TextStyle(fontSize: 13, color: HomeTokens.textDark)),
-            const Icon(Icons.chevron_right, size: 16, color: HomeTokens.textMuted),
+            Text(context.formatWon(sub.amount), style: TextStyle(fontSize: 13, color: context.glass.textPrimary)),
+            Icon(Icons.chevron_right, size: 16, color: context.glass.textTertiary),
           ]),
         ),
       );
@@ -411,13 +407,13 @@ class _CategoryRow extends ConsumerWidget {
     ));
   }
 
-  Widget _kv(IconData icon, String k, String v) => Padding(
+  Widget _kv(BuildContext context, IconData icon, String k, String v) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(children: [
-          Icon(icon, size: 15, color: HomeTokens.textMuted),
+          Icon(icon, size: 15, color: context.glass.textTertiary),
           const SizedBox(width: 8),
-          Expanded(child: Text(k, style: const TextStyle(fontSize: 13, color: HomeTokens.textMuted))),
-          Text(v, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: HomeTokens.textDark)),
+          Expanded(child: Text(k, style: TextStyle(fontSize: 13, color: context.glass.textTertiary))),
+          Text(v, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: context.glass.textPrimary)),
         ]),
       );
 }

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import '../../home/theme/home_tokens.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// Shared pieces for the daily-spending line charts' "selected day" readout:
 /// the amount tooltip on top, the selected point, and the day badge below,
@@ -61,14 +61,14 @@ class ChartDayBadge extends StatelessWidget {
       decoration: BoxDecoration(
         // The same mint tint as before, but opaque (composited over the white
         // card) so the guide line can never show through the pill.
-        color: Color.alphaBlend(HomeTokens.accent.withValues(alpha: 0.10), Colors.white),
+        color: Color.alphaBlend(context.glass.accent.withValues(alpha: 0.12), context.glass.surfaceFill),
         borderRadius: BorderRadius.circular(kChartDayBadgeHeight / 2),
-        border: Border.all(color: HomeTokens.accent.withValues(alpha: 0.35), width: 1),
+        border: Border.all(color: context.glass.accent.withValues(alpha: 0.35), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('$day', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: HomeTokens.accentDark)),
+          Text('$day', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.glass.chipSelectedText)),
         ],
       ),
     );
@@ -78,12 +78,13 @@ class ChartDayBadge extends StatelessWidget {
 /// A subtle dotted vertical line that fills the box it is given (place it with
 /// `Positioned(left: x - width / 2, top: ..., bottom: ..., width: ...)`).
 class DottedVerticalGuide extends StatelessWidget {
-  final Color color;
-  const DottedVerticalGuide({super.key, this.color = HomeTokens.accent});
+  /// Defaults to the theme's brand green.
+  final Color? color;
+  const DottedVerticalGuide({super.key, this.color});
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(painter: _DottedLinePainter(color.withValues(alpha: 0.5)));
+    return CustomPaint(painter: _DottedLinePainter((color ?? context.glass.accent).withValues(alpha: 0.5)));
   }
 }
 

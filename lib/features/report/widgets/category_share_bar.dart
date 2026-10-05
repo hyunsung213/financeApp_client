@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../home/theme/home_tokens.dart';
-import '../utils/report_insight_utils.dart';
 import 'over_budget_badge.dart';
+import '../../../core/format/money_format.dart';
+import '../../../core/theme/wallet_glass.dart';
 
 /// One category row of the Category Report (Figma frames 114:5192 / 397:5357):
 /// name, spent amount, and that category's share of all spending, with a bar
@@ -33,10 +33,6 @@ class CategoryShareBar extends StatelessWidget {
     this.budgetAmount,
   });
 
-  // Figma's progress-track gray (397:5689 etc.) -- not close enough to any
-  // existing HomeTokens color to reuse one without drifting off-hex.
-  static const _trackColor = Color(0xFFE9E9E9);
-
   @override
   Widget build(BuildContext context) {
     final budget = budgetAmount;
@@ -48,13 +44,13 @@ class CategoryShareBar extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(categoryName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: HomeTokens.textDark)),
+              child: Text(categoryName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: context.glass.textPrimary)),
             ),
             const SizedBox(width: 6),
             if (isOverBudget) const OverBudgetBadge(),
-            Text(formatWon(spentAmount), style: TextStyle(fontWeight: FontWeight.bold, color: categoryColor)),
+            Text(context.formatWon(spentAmount), style: TextStyle(fontWeight: FontWeight.bold, color: categoryColor)),
             const SizedBox(width: 8),
-            Text('${sharePercent.round()}%', style: const TextStyle(fontSize: 13, color: HomeTokens.textMuted)),
+            Text('${sharePercent.round()}%', style: TextStyle(fontSize: 13, color: context.glass.textTertiary)),
           ],
         ),
         const SizedBox(height: 6),
@@ -63,7 +59,7 @@ class CategoryShareBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: (sharePercent / 100).clamp(0.0, 1.0),
             minHeight: 10,
-            backgroundColor: _trackColor,
+            backgroundColor: context.glass.track,
             valueColor: AlwaysStoppedAnimation(categoryColor),
           ),
         ),
