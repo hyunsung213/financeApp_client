@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../home/providers/home_provider.dart';
 import '../../../core/widgets/gradient_progress_bar.dart';
 import '../../../core/widgets/skeleton.dart';
+import '../../../core/widgets/success_overlay.dart';
 import '../providers/my_page_provider.dart';
 import '../providers/salary_budget_preview.dart';
 import '../theme/my_tokens.dart';
@@ -75,6 +76,7 @@ class _SalaryCycleSettingsScreenState
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
     final cleanSalary = _salaryController.text.replaceAll(
       RegExp(r'[^0-9]'),
       '',
@@ -110,19 +112,12 @@ class _SalaryCycleSettingsScreenState
         ]);
       } catch (_) {}
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('저장했어요.'),
-            backgroundColor: MyTokens.accent,
-          ),
-        );
-      }
-    } catch (e) {
+      if (mounted) showSuccessOverlay(context, '저장했어요!');
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')));
+        ).showSnackBar(const SnackBar(content: Text('저장하지 못했어요. 다시 시도해주세요.')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

@@ -35,10 +35,7 @@ Map<String, dynamic> _homeJson(
 }) {
   final total = salary + (additional ?? 0);
   final usable =
-      total -
-      (total * 20 ~/ 100) -
-      (total * 10 ~/ 100) -
-      (total * 25 ~/ 100);
+      total - (total * 20 ~/ 100) - (total * 10 ~/ 100) - (total * 25 ~/ 100);
   return {
     'daysUntilSalary': 27,
     'cycle': {'startDate': '2026-10-01', 'projectedEndDate': '2026-10-31'},
@@ -53,10 +50,12 @@ Map<String, dynamic> _homeJson(
 }
 
 class _FakeBackend extends FinanceApi {
-  _FakeBackend(this.salary, {this.additional = 0}) : super(Dio());
+  _FakeBackend(this.salary, {this.additional = 0, this.fail = false})
+    : super(Dio());
 
   int salary;
   final int additional;
+  final bool fail;
   final saved = <int>[];
 
   @override
@@ -65,6 +64,7 @@ class _FakeBackend extends FinanceApi {
     required int salaryDay,
     required int reportingStartDay,
   }) async {
+    if (fail) throw DioException(requestOptions: RequestOptions());
     saved.add(salaryAmount);
     salary = salaryAmount;
   }
@@ -197,6 +197,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(api.saved, [800000]);
+      await tester.pump(const Duration(seconds: 2));
       await tester.scrollUntilVisible(
         find.textContaining('쓸 수 있는 예산'),
         -300,
@@ -205,6 +206,64 @@ void main() {
       expect(find.text('쓸 수 있는 예산 260,000원 남았어요'), findsOneWidget);
       expect(find.text('저장하면 현재 예산에 바로 반영돼요.'), findsNothing);
       expect(find.text('쓸 수 있는 예산 1,025,000원 남았어요'), findsNothing);
+    });
+
+    Future<void> tapSave(WidgetTester tester) async {
+      final save = find.text('저장');
+      await tester.scrollUntilVisible(
+        save,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(save);
+    }
+
+    testWidgets('confirms a successful save with the success overlay', (
+      tester,
+    ) async {
+      final api = await pump(tester, _FakeBackend(2500000));
+      await typeSalary(tester, '800000');
+      await tapSave(tester);
+      // Not shown until the save and the refetch have both finished.
+      expect(find.text('저장했어요!'), findsNothing);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(api.saved, [800000]);
+      expect(find.text('저장했어요!'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+
+      // Gone within 1.5s: held ~1s, then a short fade-out.
+      await tester.pump(const Duration(milliseconds: 1000));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('저장했어요!'), findsNothing);
+    });
+
+    testWidgets('a failed save shows the error and no success overlay', (
+      tester,
+    ) async {
+      await pump(tester, _FakeBackend(2500000, fail: true));
+      await typeSalary(tester, '800000');
+      await tapSave(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('저장했어요!'), findsNothing);
+      expect(find.text('저장하지 못했어요. 다시 시도해주세요.'), findsOneWidget);
+    });
+
+    testWidgets('saving twice in a row keeps a single overlay', (tester) async {
+      final api = await pump(tester, _FakeBackend(2500000));
+      await tapSave(tester);
+      await tester.pumpAndSettle();
+      await tapSave(tester);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(api.saved, [2500000, 2500000]);
+      expect(find.text('저장했어요!'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
     });
 
     testWidgets('says when the budget includes additional income', (
