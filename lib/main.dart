@@ -2,10 +2,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/branding/wallet_brand.dart';
+import 'core/app_lock/app_lock_gate.dart';
 import 'core/config/app_config.dart';
+import 'core/format/money_format.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
 import 'core/providers/current_date_provider.dart';
+import 'core/providers/theme_mode_provider.dart';
 import 'core/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,11 +83,14 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    final moneyFormat = ref.watch(moneyDisplayFormatProvider);
 
     return MaterialApp.router(
-      // Browser tab title on the web; Android keeps its existing label.
-      title: kIsWeb ? '월릿' : 'Finance Client',
+      // Browser tab title on the web, task title in Android's recents.
+      title: WalletBrand.name,
       theme: appTheme,
+      darkTheme: appDarkTheme,
+      themeMode: ref.watch(themeModeProvider),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       scrollBehavior: const NoOverscrollBehavior(),
@@ -94,7 +101,7 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
             child: Container(
               constraints: const BoxConstraints(maxWidth: 430), // Pro Max width approx
               decoration: BoxDecoration(
-                color: appTheme.scaffoldBackgroundColor,
+                color: Theme.of(context).scaffoldBackgroundColor,
                 boxShadow: [
                   BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20),
                 ],
@@ -113,7 +120,10 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
                         constraints.maxHeight,
                       ),
                     ),
-                    child: child!,
+                    child: MoneyFormatScope(
+                      format: moneyFormat,
+                      child: AppLockGate(child: child!),
+                    ),
                   );
                 },
               ),
