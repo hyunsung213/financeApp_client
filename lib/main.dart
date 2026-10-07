@@ -13,16 +13,30 @@ import 'core/providers/theme_mode_provider.dart';
 import 'core/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'features/auth/providers/auth_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
 
-  // Sync initial notification backend config to native Android
+  // Restores the saved Supabase session (if any) before the router picks the
+  // start screen; `AuthNotifier` then follows every auth change.
+  if (AppConfig.authConfigured) {
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      publishableKey: AppConfig.supabaseAnonKey,
+    );
+  }
+
+  // Sync initial notification backend config (and the current access token,
+  // which the native sync worker sends as a Bearer token) to native Android.
   if (!kIsWeb && Platform.isAndroid) {
     await NotificationService.updateConfig(
       baseUrl: AppConfig.apiBaseUrl,
+      authToken: AppConfig.authConfigured
+          ? Supabase.instance.client.auth.currentSession?.accessToken
+          : null,
     );
   }
 

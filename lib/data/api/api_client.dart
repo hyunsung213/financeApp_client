@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/config/app_config.dart';
 import '../demo/demo_backend_adapter.dart';
 
@@ -27,9 +28,14 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // TODO: Use real Supabase token when Supabase is initialized.
-          // For now, backend is configured to accept requests without Authorization header for development.
-          // options.headers['Authorization'] = 'Bearer mock-jwt-token';
+          // The backend identifies the user from this token alone (it never
+          // trusts a userId in the request). Without Supabase configured
+          // (local dev) no header is sent and the backend must be running
+          // with DEV_AUTH_BYPASS=true.
+          final token = await _accessToken();
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
           return handler.next(options);
         },
         onResponse: (response, handler) {
@@ -44,5 +50,23 @@ class ApiClient {
     );
 
     return dio;
+  }
+
+  /// The current session's access token, refreshed first if it has expired
+  /// (supabase_flutter normally refreshes in the background; this covers a
+  /// request fired right after the app resumes).
+  static Future<String?> _accessToken() async {
+    if (!AppConfig.authConfigured) return null;
+    final auth = Supabase.instance.client.auth;
+    var session = auth.currentSession;
+    if (session != null && session.isExpired) {
+      try {
+        session = (await auth.refreshSession()).session;
+      } catch (_) {
+        // Keep the expired token: the backend answers 401 and the user is
+        // asked to sign in again, instead of failing silently here.
+      }
+    }
+    return session?.accessToken;
   }
 }

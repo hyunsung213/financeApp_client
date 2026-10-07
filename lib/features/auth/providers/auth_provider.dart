@@ -1,8 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../../core/config/app_config.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../data/demo/demo_store.dart';
 import '../../../data/mocks/db.dart'; // Keeping for User model
+
+/// Whether the last Supabase sign-in asked for 자동 로그인. Supabase keeps the
+/// session on disk either way; when this is false the next cold start signs
+/// out first, so the LOGIN screen's choice still holds.
+const String keepSignedInPreferenceKey = 'auth.keepSignedIn';
 
 /// App-wide [SharedPreferences], overridden in `main()` once loaded. Null in
 /// tests and anywhere it isn't provided, which simply disables persistence.
@@ -36,12 +43,14 @@ class _MockSessionStore {
   void clear() => _prefs?.remove(_emailKey);
 }
 
-/// Pre-Supabase sign-in state.
+/// Sign-in state.
 ///
-/// There is no real auth yet: "signing in" only records the entered email
-/// (see [MockAuthActions.signIn]). Screens and the router depend only on
-/// [AuthState], so replacing this notifier's internals with a Supabase
-/// session doesn't touch them.
+/// With Supabase configured ([AppConfig.authConfigured]) this mirrors the
+/// Supabase session: restored on launch, updated on every auth event, and the
+/// access token is what the API client sends. Otherwise the dev-only mock
+/// sign-in below applies, which only records the entered email (see
+/// [MockAuthActions.signIn]). Screens and the router depend only on
+/// [AuthState] either way.
 class AuthNotifier extends Notifier<AuthState> {
   _MockSessionStore get _mockSession =>
       _MockSessionStore(ref.read(sharedPreferencesProvider));
@@ -56,8 +65,51 @@ class AuthNotifier extends Notifier<AuthState> {
           true;
       return inDemo ? _demoSignedIn() : AuthState();
     }
+    if (AppConfig.authConfigured) return _buildFromSupabase();
     final email = _mockSession.read();
     return email == null ? AuthState() : _signedIn(email);
+  }
+
+  AuthState _buildFromSupabase() {
+    final auth = Supabase.instance.client.auth;
+    final subscription = auth.onAuthStateChange.listen((change) {
+      final session = change.session;
+      state = session == null ? AuthState() : _fromSupabaseUser(session.user);
+      // The Android notification sync worker authenticates with the same
+      // token, so it follows sign-in, sign-out and token refresh.
+      NotificationService.updateConfig(
+        baseUrl: AppConfig.apiBaseUrl,
+        authToken: session?.accessToken,
+      );
+    });
+    ref.onDispose(subscription.cancel);
+
+    final session = auth.currentSession;
+    if (session == null) return AuthState();
+    final keepSignedIn =
+        ref.read(sharedPreferencesProvider)?.getBool(keepSignedInPreferenceKey) ??
+        true;
+    if (!keepSignedIn) {
+      // Signed in without 자동 로그인: a relaunch asks for credentials again.
+      auth.signOut();
+      return AuthState();
+    }
+    return _fromSupabaseUser(session.user);
+  }
+
+  AuthState _fromSupabaseUser(User user) {
+    final email = user.email ?? '';
+    final name = user.userMetadata?['name'];
+    return AuthState(
+      isAuthenticated: true,
+      user: MockUser(
+        id: user.id,
+        email: email,
+        name: name is String && name.trim().isNotEmpty
+            ? name.trim()
+            : email.split('@')[0],
+      ),
+    );
   }
 
   AuthState _signedIn(String email) => AuthState(
@@ -83,6 +135,14 @@ class AuthNotifier extends Notifier<AuthState> {
       // Leaving the demo discards the visitor's sample edits as well.
       ref.read(sharedPreferencesProvider)?.remove(_demoSessionKey);
       DemoStore.instance.reset();
+      state = AuthState();
+      return;
+    }
+    if (AppConfig.authConfigured) {
+      // Ends the Supabase session (and its refresh token); the auth listener
+      // clears the native sync worker's token. State flips right away so the
+      // router leaves Home even if the network call is slow.
+      Supabase.instance.client.auth.signOut().catchError((_) {});
       state = AuthState();
       return;
     }

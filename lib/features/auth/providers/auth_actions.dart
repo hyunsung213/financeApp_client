@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/config/app_config.dart';
 import 'auth_provider.dart';
 
@@ -65,6 +66,12 @@ class MockAuthActions implements AuthActions {
     required String password,
     required bool keepSignedIn,
   }) async {
+    // A release build without SUPABASE_URL / SUPABASE_ANON_KEY must not
+    // "sign in" without credentials: the backend would reject every call
+    // anyway (DEV_AUTH_BYPASS is ignored in production).
+    if (kReleaseMode) {
+      throw const AuthActionException('인증 서버 설정이 없어 로그인할 수 없어요.');
+    }
     _ref.read(authProvider.notifier).login(email, keepSignedIn: keepSignedIn);
   }
 
@@ -127,8 +134,96 @@ class DemoAuthActions implements AuthActions {
       throw _demoOnly;
 }
 
+/// Supabase Auth (email + password). The session it creates is what
+/// [AuthNotifier] mirrors and what the API client sends as a Bearer token.
+class SupabaseAuthActions implements AuthActions {
+  SupabaseAuthActions(this._ref);
+
+  final Ref _ref;
+
+  GoTrueClient get _auth => Supabase.instance.client.auth;
+
+  @override
+  Future<void> signIn({
+    required String email,
+    required String password,
+    required bool keepSignedIn,
+  }) => _run(() async {
+    await _auth.signInWithPassword(email: email, password: password);
+    await _ref
+        .read(sharedPreferencesProvider)
+        ?.setBool(keepSignedInPreferenceKey, keepSignedIn);
+  });
+
+  @override
+  Future<void> signUp({
+    required String name,
+    required String email,
+    required String password,
+  }) => _run(
+    () => _auth.signUp(email: email, password: password, data: {'name': name}),
+  );
+
+  @override
+  Future<void> requestPasswordReset({required String email}) =>
+      _run(() => _auth.resetPasswordForEmail(email));
+
+  @override
+  Future<void> resendVerificationEmail({required String email}) =>
+      _run(() => _auth.resend(type: OtpType.signup, email: email));
+
+  @override
+  Future<void> updatePassword({required String newPassword}) => _run(() async {
+    if (_auth.currentSession == null) {
+      throw const AuthActionException('재설정 메일의 링크로 다시 들어와 주세요.');
+    }
+    await _auth.updateUser(UserAttributes(password: newPassword));
+  });
+
+  Future<void> _run(Future<void> Function() action) async {
+    try {
+      await action();
+    } on AuthActionException {
+      rethrow;
+    } on AuthException catch (e) {
+      throw AuthActionException(authErrorMessage(e.code, e.message));
+    }
+  }
+}
+
+/// User-facing text for a Supabase Auth error. [code] is the server's error
+/// code (see https://supabase.com/docs/guides/auth/debugging/error-codes);
+/// unknown codes fall back to a generic message rather than the raw one.
+@visibleForTesting
+String authErrorMessage(String? code, String message) {
+  switch (code) {
+    case 'invalid_credentials':
+      return '이메일 또는 비밀번호가 올바르지 않아요.';
+    case 'email_not_confirmed':
+      return '이메일 인증을 먼저 완료해주세요.';
+    case 'user_already_exists':
+    case 'email_exists':
+      return '이미 가입된 이메일이에요.';
+    case 'weak_password':
+      return '더 안전한 비밀번호를 사용해주세요.';
+    case 'over_email_send_rate_limit':
+    case 'over_request_rate_limit':
+      return '요청이 너무 많아요. 잠시 후 다시 시도해주세요.';
+    case 'same_password':
+      return '이전과 다른 비밀번호를 입력해주세요.';
+    case 'user_not_found':
+      return '등록되지 않은 이메일이에요.';
+    default:
+      return '요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.';
+  }
+}
+
 final authActionsProvider = Provider<AuthActions>(
-  (ref) => AppConfig.demoMode ? const DemoAuthActions() : MockAuthActions(ref),
+  (ref) => AppConfig.demoMode
+      ? const DemoAuthActions()
+      : AppConfig.authConfigured
+      ? SupabaseAuthActions(ref)
+      : MockAuthActions(ref),
 );
 
 /// Figma LOGIN shows social login and a guest entry, but neither is supported
