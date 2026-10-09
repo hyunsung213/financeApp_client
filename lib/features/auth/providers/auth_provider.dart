@@ -19,7 +19,15 @@ class AuthState {
   final bool isAuthenticated;
   final MockUser? user;
 
-  AuthState({this.isAuthenticated = false, this.user});
+  /// Signed out because the backend or Supabase rejected the session, not by
+  /// the user: LOGIN says so once. Cleared by the next sign-in.
+  final bool sessionExpired;
+
+  AuthState({
+    this.isAuthenticated = false,
+    this.user,
+    this.sessionExpired = false,
+  });
 }
 
 /// DEV-ONLY stand-in for the Supabase session: remembers which email was
@@ -74,7 +82,13 @@ class AuthNotifier extends Notifier<AuthState> {
     final auth = Supabase.instance.client.auth;
     final subscription = auth.onAuthStateChange.listen((change) {
       final session = change.session;
-      state = session == null ? AuthState() : _fromSupabaseUser(session.user);
+      state = session == null
+          ? AuthState(
+              sessionExpired:
+                  state.sessionExpired ||
+                  change.signOutReason == SignOutReason.sessionExpired,
+            )
+          : _fromSupabaseUser(session.user);
       // The Android notification sync worker authenticates with the same
       // token, so it follows sign-in, sign-out and token refresh.
       NotificationService.updateConfig(
@@ -148,6 +162,24 @@ class AuthNotifier extends Notifier<AuthState> {
     }
     _mockSession.clear();
     state = AuthState();
+  }
+
+  /// The session can't be used any more (the backend keeps answering 401 and
+  /// it couldn't be refreshed): ends it locally and returns to LOGIN, which
+  /// tells the user to sign in again. Safe to call for every one of several
+  /// concurrent failures.
+  void expireSession() {
+    if (state.sessionExpired && !state.isAuthenticated) return;
+    if (AppConfig.authConfigured) {
+      final auth = Supabase.instance.client.auth;
+      // Local scope: the session is already dead on the server.
+      if (auth.currentSession != null) {
+        auth.signOut(scope: SignOutScope.local).catchError((_) {});
+      }
+    } else if (!AppConfig.demoMode) {
+      _mockSession.clear();
+    }
+    state = AuthState(sessionExpired: true);
   }
 
   /// Web demo entry (`DEMO_MODE=true` only): a signed-in state backed by the

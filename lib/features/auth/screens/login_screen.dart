@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_config.dart';
+import '../../../data/api/api_error.dart';
 import '../providers/auth_actions.dart';
 import '../providers/auth_provider.dart';
 import '../theme/auth_tokens.dart';
@@ -23,6 +24,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   bool _keepSignedIn = true;
   bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sent here because the session was rejected, not by the user's own
+    // logout: say why once.
+    if (ref.read(authProvider).sessionExpired) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showAuthMessage(
+          context,
+          const ApiFailure(ApiFailureKind.unauthorized).userMessage,
+        );
+      });
+    }
+  }
 
   @override
   void dispose() {

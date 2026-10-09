@@ -15,6 +15,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'data/api/api_error.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,8 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
+      // Failed backend calls are not retried in a loop (see apiRetry).
+      retry: apiRetry,
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       child: const FinanceApp(),
     ),
