@@ -9,6 +9,7 @@ import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/surface_style.dart';
 import '../../../core/theme/wallet_glass.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/error_retry_view.dart';
 import '../../../core/widgets/manual_input_fab.dart';
 import '../../../core/widgets/tab_header.dart';
 import '../../../data/api/finance_api.dart';
@@ -106,18 +107,16 @@ final dailyTransactionsProvider =
     FutureProvider.family<List<dynamic>, DateTime>((ref, day) async {
       final txApi = ref.watch(transactionApiProvider);
       final dateStr = DateFormat('yyyy-MM-dd').format(day);
-      try {
-        final data = await txApi.getTransactions(
-          startDate: dateStr,
-          endDate: dateStr,
-        );
-        if (data['items'] is List) return data['items'] as List<dynamic>;
-        if (data['transactions'] is List)
-          return data['transactions'] as List<dynamic>;
-        return [];
-      } catch (e) {
-        return [];
-      }
+      // Errors propagate: the day's screens show them with 다시 시도, never
+      // as "이 날은 등록된 거래가 없어요".
+      final data = await txApi.getTransactions(
+        startDate: dateStr,
+        endDate: dateStr,
+      );
+      if (data['items'] is List) return data['items'] as List<dynamic>;
+      if (data['transactions'] is List)
+        return data['transactions'] as List<dynamic>;
+      return [];
     });
 
 /// The user's configured payday (재사용: same `FinanceApi.getSetting()` call
@@ -371,7 +370,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                       AppRadii.md,
                                     ),
                                   ),
-                                  child: _buildSummaryRow(monthlyReportAsync),
+                                  child: _buildSummaryRow(
+                                    monthlyReportAsync,
+                                    onRetry: () => ref.invalidate(
+                                      monthlyReportProvider((
+                                        start: cycle.start,
+                                        end: cycle.end,
+                                      )),
+                                    ),
+                                  ),
                                 ),
                               ),
                               _buildCalendarGrid(
@@ -545,11 +552,23 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   // `error: (e, st) => const SizedBox(height: 21)` branch fired and rendered
   // nothing). The card structure below is now always built; only the value
   // area changes per state.
+  //
+  // A failed load with nothing to show replaces the figures with an error and
+  // 다시 시도: otherwise the empty grid would read as a month without
+  // spending.
   Widget _buildSummaryRow(
-    AsyncValue<Map<DateTime, DailyReportEntry>> monthlyReportAsync,
-  ) {
+    AsyncValue<Map<DateTime, DailyReportEntry>> monthlyReportAsync, {
+    required VoidCallback onRetry,
+  }) {
     final isInitialLoad =
         monthlyReportAsync.isLoading && !monthlyReportAsync.hasValue;
+    if (monthlyReportAsync.hasError && !monthlyReportAsync.hasValue && !isInitialLoad) {
+      return ErrorRetryView(
+        title: '캘린더 정보를 불러오지 못했어요',
+        error: monthlyReportAsync.error!,
+        onRetry: onRetry,
+      );
+    }
 
     int? income;
     int? expense;
@@ -567,19 +586,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       expense = exp;
       noSpendDays = noSpend;
     });
-
-    // Figma visual QA only: this app currently has no reachable backend in
-    // preview, so monthlyReportAsync settles into an error state with no
-    // data. Rather than leave the card empty, kDebugMode builds fall back to
-    // Frame 25's own sample numbers so the layout can be reviewed. This is a
-    // local presentation fallback only - it never touches DailyReportEntry,
-    // the provider, or production data, and the tree-shaker drops this
-    // whole branch from release builds.
-    if (income == null && !isInitialLoad && kDebugMode) {
-      income = 1000000;
-      expense = 500000;
-      noSpendDays = 3;
-    }
 
     final noSpendLabel = isInitialLoad ? '-' : (noSpendDays?.toString() ?? '-');
     final incomeLabel = income != null

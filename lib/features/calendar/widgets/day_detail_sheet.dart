@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/format/money_format.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/error_retry_view.dart';
 import '../../../core/category/category_appearance.dart';
 import '../../policy/providers/policy_provider.dart';
 import '../../transaction/screens/add_transaction_screen.dart';
@@ -13,7 +14,6 @@ import '../screens/calendar_screen.dart';
 import '../screens/day_transactions_screen.dart';
 import '../utils/daily_budget_usage.dart';
 import '../../../core/theme/wallet_glass.dart';
-import '../../../data/api/api_error.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -105,9 +105,13 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                       ),
                       error: (e, st) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: Text(
-                          '불러오지 못했습니다.\n${userErrorMessage(e)}',
-                          style: TextStyle(color: context.glass.textTertiary),
+                        child: Center(
+                          child: ErrorRetryView(
+                            title: '거래 내역을 불러오지 못했어요',
+                            error: e,
+                            onRetry: () =>
+                                ref.invalidate(dailyTransactionsProvider(day)),
+                          ),
                         ),
                       ),
                       data: (transactions) =>

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -85,10 +86,14 @@ class NotificationSettingsScreen extends ConsumerWidget {
             ),
           ),
         ),
-        error: (e, st) => Text(
-          '권한 확인 오류: $e',
-          style: TextStyle(color: context.glass.negative),
-        ),
+        error: (e, st) {
+          // The platform error stays in the debug log; users get plain words.
+          if (kDebugMode) debugPrint('Notification access check failed: $e');
+          return Text(
+            '알림 권한을 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
+            style: TextStyle(color: context.glass.negative),
+          );
+        },
         data: (status) {
           // Card-notification capture is an Android notification listener;
           // web (and iOS) builds only explain where it is available.
