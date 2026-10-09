@@ -16,6 +16,7 @@ import 'budget_plan_settings_screen.dart';
 import '../../../core/format/money_format.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 class SalaryCycleSettingsScreen extends ConsumerStatefulWidget {
   const SalaryCycleSettingsScreen({super.key});
@@ -139,7 +140,7 @@ class _SalaryCycleSettingsScreenState
         body: myPageAsync.when(
           loading: () => const FormSkeleton(),
           error: (error, stack) =>
-              Center(child: Text('데이터를 불러오지 못했습니다: $error')),
+              Center(child: Text('데이터를 불러오지 못했습니다.\n${userErrorMessage(error)}', textAlign: TextAlign.center)),
           data: (data) {
             _initializeData(data);
 

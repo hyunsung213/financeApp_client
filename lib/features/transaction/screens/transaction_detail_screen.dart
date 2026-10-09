@@ -9,6 +9,7 @@ import '../providers/transaction_provider.dart';
 import 'add_transaction_screen.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -74,7 +75,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                 Expanded(
                   child: txAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => Center(child: Text('거래 내역을 불러오지 못했어요\n$e', textAlign: TextAlign.center)),
+                    error: (e, st) => Center(child: Text('거래 내역을 불러오지 못했어요\n${userErrorMessage(e)}', textAlign: TextAlign.center)),
                     data: (tx) => _DetailBody(tx: tx),
                   ),
                 ),
@@ -206,7 +207,7 @@ class _DetailBody extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('삭제 중 오류 발생: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userErrorMessage(e))));
       }
     }
   }

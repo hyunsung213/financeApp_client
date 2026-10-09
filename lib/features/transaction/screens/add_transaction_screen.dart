@@ -931,7 +931,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(apiErrorMessage(e) ?? '저장 중 오류 발생: $e')));
+        ).showSnackBar(SnackBar(content: Text(userErrorMessage(e))));
       }
     } finally {
       if (mounted) {
@@ -975,7 +975,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('삭제 중 오류 발생: $e')));
+        ).showSnackBar(SnackBar(content: Text(userErrorMessage(e))));
       }
     } finally {
       if (mounted) {

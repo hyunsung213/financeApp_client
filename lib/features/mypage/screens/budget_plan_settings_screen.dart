@@ -10,6 +10,7 @@ import '../widgets/settings_form.dart';
 import '../../../core/format/money_format.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 /// 예산 배분 설정: the 12-item budget plan (저축/투자 + 10 지출 대분류), saved
 /// as a whole through `PUT /api/finance/budget-plan`. Saving also re-budgets
@@ -130,7 +131,7 @@ class _BudgetPlanSettingsScreenState
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')));
+        ).showSnackBar(SnackBar(content: Text(userErrorMessage(e))));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -156,7 +157,7 @@ class _BudgetPlanSettingsScreenState
         body: myPageAsync.when(
           loading: () => const FormSkeleton(),
           error: (error, stack) =>
-              Center(child: Text('데이터를 불러오지 못했습니다: $error')),
+              Center(child: Text('데이터를 불러오지 못했습니다.\n${userErrorMessage(error)}', textAlign: TextAlign.center)),
           data: (data) {
             _initializeData(data);
             final totalPercentage = _calculateTotalPercentage();

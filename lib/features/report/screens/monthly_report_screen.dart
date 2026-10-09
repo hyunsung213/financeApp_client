@@ -14,6 +14,7 @@ import 'monthly_insight_detail_screens.dart';
 import '../../../core/format/money_format.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 /// Monthly Report detail: 소비 흐름 비교 + 월별 총지출 비교 + 주차별 비교
 /// (Figma frames 114:5143, 431:6676, 431:7759). The three insight rows from
@@ -49,7 +50,7 @@ class MonthlyReportScreen extends ConsumerWidget {
       ),
       body: dataAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('불러오지 못했어요\n$e', textAlign: TextAlign.center)),
+        error: (e, st) => Center(child: Text('불러오지 못했어요\n${userErrorMessage(e)}', textAlign: TextAlign.center)),
         data: (data) {
           return ListView(
             padding: const EdgeInsets.all(20),

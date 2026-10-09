@@ -13,6 +13,7 @@ import '../widgets/month_picker_sheet.dart';
 import '../../../core/format/money_format.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 /// Category Report detail (Figma frames 114:5192 / 397:5357): donut +
 /// one card per 대분류 (the same roll-up the donut is drawn from), each showing
@@ -95,7 +96,7 @@ class _CategoryReportScreenState extends ConsumerState<CategoryReportScreen> {
       ),
       body: dataAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('불러오지 못했어요\n$e', textAlign: TextAlign.center)),
+        error: (e, st) => Center(child: Text('불러오지 못했어요\n${userErrorMessage(e)}', textAlign: TextAlign.center)),
         data: (data) {
           // Donut, legend, and the cards below all read this one 대분류 roll-up,
           // so a card's amount, percentage and color always match its slice.

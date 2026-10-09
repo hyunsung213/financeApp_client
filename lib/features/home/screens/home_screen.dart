@@ -13,6 +13,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/surface_style.dart';
 import '../../../core/theme/wallet_glass.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/error_retry_view.dart';
 import '../../../core/widgets/manual_input_fab.dart';
 import '../../../core/widgets/tab_header.dart';
 import '../../../data/api/category_api.dart';
@@ -163,57 +164,23 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ),
-                              error: (err, st) {
-                                // Full exception stays in the debug console only - the
-                                // card must never surface DioException/SocketException
-                                // internals (host, port, etc.) to end users.
-                                debugPrint('홈 데이터 로딩 실패: $err');
-                                return GlassSurface(
-                                  radius: AppRadii.xl,
-                                  fill: glass.heroCardFill,
-                                  border: glass.heroCardBorder,
-                                  blurSigma: GlassBlur.card,
-                                  padding: const EdgeInsets.all(20),
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.error_outline,
-                                          color: glass.negative,
-                                          size: 36,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          '홈 정보를 불러오지 못했어요',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                            color: glass.textPrimary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '잠시 후 다시 시도해주세요.',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: glass.textSecondary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        ElevatedButton(
-                                          onPressed: () =>
-                                              ref.invalidate(homeDataProvider),
-                                          child: const Text('다시 시도'),
-                                        ),
-                                      ],
-                                    ),
+                              // The API client logs the exception (debug
+                              // builds only); the card shows plain words.
+                              error: (err, st) => GlassSurface(
+                                radius: AppRadii.xl,
+                                fill: glass.heroCardFill,
+                                border: glass.heroCardBorder,
+                                blurSigma: GlassBlur.card,
+                                padding: const EdgeInsets.all(20),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: ErrorRetryView(
+                                    title: '홈 정보를 불러오지 못했어요',
+                                    error: err,
+                                    onRetry: () => _onRefresh(ref),
                                   ),
-                                );
-                              },
+                                ),
+                              ),
                               data: (data) => _HomeHeroCard(
                                 data: data,
                                 onTodayTap: () =>
@@ -325,11 +292,21 @@ class HomeScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          error: (e, st) => Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              '거래 내역 로딩 오류: $e',
-                              style: TextStyle(color: glass.textTertiary),
+                          // Not the "no transactions" card below: a failed
+                          // load must not look like an empty day.
+                          error: (e, st) => GlassCard(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 24,
+                              horizontal: 20,
+                            ),
+                            radius: AppRadii.md,
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ErrorRetryView(
+                                title: '거래 내역을 불러오지 못했어요',
+                                error: e,
+                                onRetry: () => _onRefresh(ref),
+                              ),
                             ),
                           ),
                           data: (transactions) {
@@ -437,11 +414,18 @@ class HomeScreen extends ConsumerWidget {
     ref.invalidate(homeDataProvider);
     ref.invalidate(homeRecentTransactionsProvider);
     ref.invalidate(recentRegrettableTransactionsProvider);
-    await Future.wait([
-      ref.read(homeDataProvider.future),
-      ref.read(homeRecentTransactionsProvider.future),
-      ref.read(recentRegrettableTransactionsProvider.future),
-    ]);
+    // The filter chips' categories are cached app-wide; reload them only if
+    // they failed (e.g. loaded while the backend was down).
+    if (ref.read(categoriesProvider).hasError) ref.invalidate(categoriesProvider);
+    try {
+      await Future.wait([
+        ref.read(homeDataProvider.future),
+        ref.read(homeRecentTransactionsProvider.future),
+        ref.read(recentRegrettableTransactionsProvider.future),
+      ]);
+    } catch (_) {
+      // Each section shows its own error with a retry.
+    }
   }
 
   void _showTodayDetailSheet(BuildContext context, HomeData data) {

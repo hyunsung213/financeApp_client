@@ -10,6 +10,7 @@ import '../utils/policy_dday.dart';
 import '../widgets/policy_calendar_add_sheet.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 final policyDetailProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, id) async {
   final api = ref.watch(policyApiProvider);
@@ -31,7 +32,7 @@ class PolicyDetailScreen extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('불러오지 못했습니다: $e', style: TextStyle(color: context.glass.textTertiary))),
+        error: (e, st) => Center(child: Text('불러오지 못했습니다.\n${userErrorMessage(e)}', textAlign: TextAlign.center, style: TextStyle(color: context.glass.textTertiary))),
         data: (policy) => _DetailBody(policy: policy, policyId: policyId),
       ),
     ));

@@ -13,6 +13,7 @@ import '../screens/calendar_screen.dart';
 import '../screens/day_transactions_screen.dart';
 import '../utils/daily_budget_usage.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -105,7 +106,7 @@ class _DayDetailSheetState extends ConsumerState<DayDetailSheet> {
                       error: (e, st) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         child: Text(
-                          '불러오지 못했습니다: $e',
+                          '불러오지 못했습니다.\n${userErrorMessage(e)}',
                           style: TextStyle(color: context.glass.textTertiary),
                         ),
                       ),

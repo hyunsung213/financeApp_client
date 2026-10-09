@@ -8,6 +8,7 @@ import 'calendar_screen.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 int _toInt(dynamic value) {
   if (value == null) return 0;
@@ -36,7 +37,7 @@ class DayTransactionsScreen extends ConsumerWidget {
       ),
       body: transactionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('불러오지 못했습니다: $e')),
+        error: (e, st) => Center(child: Text('불러오지 못했습니다.\n${userErrorMessage(e)}', textAlign: TextAlign.center)),
         data: (transactions) {
           int income = 0;
           int expense = 0;

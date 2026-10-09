@@ -140,29 +140,27 @@ final homeRecentTransactionsProvider =
       final today = ref.watch(currentDateProvider);
       final todayStr = DateFormat('yyyy-MM-dd').format(today);
 
-      try {
-        final res = await txApi.getTransactions(
-          startDate: todayStr,
-          endDate: todayStr,
-          categoryId: filter == 'ALL' ? null : filter,
-          limit: 50,
-        );
-        List<dynamic> list = [];
-        if (res['items'] is List) {
-          list = res['items'] as List<dynamic>;
-        } else if (res['transactions'] is List) {
-          list = res['transactions'] as List<dynamic>;
-        }
-
-        // Filter to ensure only today's transactions are returned
-        return list.where((tx) {
-          if (tx is! Map) return false;
-          final occurredAt = (tx['occurredAt'] ?? '').toString();
-          return occurredAt.startsWith(todayStr);
-        }).toList();
-      } catch (e) {
-        return [];
+      // Errors propagate: Home shows them as an error with a retry, never as
+      // "오늘 등록된 거래 내역이 없습니다".
+      final res = await txApi.getTransactions(
+        startDate: todayStr,
+        endDate: todayStr,
+        categoryId: filter == 'ALL' ? null : filter,
+        limit: 50,
+      );
+      List<dynamic> list = [];
+      if (res['items'] is List) {
+        list = res['items'] as List<dynamic>;
+      } else if (res['transactions'] is List) {
+        list = res['transactions'] as List<dynamic>;
       }
+
+      // Filter to ensure only today's transactions are returned
+      return list.where((tx) {
+        if (tx is! Map) return false;
+        final occurredAt = (tx['occurredAt'] ?? '').toString();
+        return occurredAt.startsWith(todayStr);
+      }).toList();
     });
 
 /// How many recent "아쉬운 소비" entries the home screen shows. Not a Figma

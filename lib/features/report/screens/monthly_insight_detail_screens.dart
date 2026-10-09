@@ -8,6 +8,7 @@ import '../utils/report_date_utils.dart';
 import '../../../core/format/money_format.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 /// Monthly Total Comparison Detail (Figma frame 118, `431:6676`) and Weekly
 /// Comparison Detail (Figma frame 157, `431:7759`) — separate, navigable
@@ -63,7 +64,7 @@ class WeeklyExpenseDetailScreen extends ConsumerWidget {
     return dataAsync.when(
       data: (data) => WeeklyComparisonDetailScreen(month: month, data: data),
       loading: () => _placeholder(context, const CircularProgressIndicator()),
-      error: (e, st) => _placeholder(context, Text('불러오지 못했어요\n$e', textAlign: TextAlign.center)),
+      error: (e, st) => _placeholder(context, Text('불러오지 못했어요\n${userErrorMessage(e)}', textAlign: TextAlign.center)),
     );
   }
 

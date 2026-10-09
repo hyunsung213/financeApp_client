@@ -6,6 +6,7 @@ import '../utils/policy_bookmark_action.dart';
 import '../widgets/policy_list_card.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/theme/wallet_glass.dart';
+import '../../../data/api/api_error.dart';
 
 /// Bookmark entry point kept after removing the old "관심 정책" tab (see
 /// docs/development-work-policy.md - Figma's FINAL_POLICY_SCREENS export has
@@ -39,7 +40,7 @@ class PolicyBookmarksScreen extends ConsumerWidget {
         // instead of swapping it for a full-screen spinner.
         skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('불러오지 못했습니다: $e', style: TextStyle(color: context.glass.textTertiary))),
+        error: (e, st) => Center(child: Text('불러오지 못했습니다.\n${userErrorMessage(e)}', textAlign: TextAlign.center, style: TextStyle(color: context.glass.textTertiary))),
         data: (fetched) {
           final overrides = ref.watch(bookmarkOverridesProvider);
           final policies = fetched.where((p) => overrides[(p['id'] ?? '').toString()] != false).toList();

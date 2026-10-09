@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/error_retry_view.dart';
+import '../../../data/api/category_api.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/surface_style.dart';
@@ -49,82 +51,121 @@ class ReportScreen extends ConsumerWidget {
     return Scaffold(
       // The tab shell paints the ambient background behind every tab.
       backgroundColor: Colors.transparent,
-      body: dataAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: context.glass.accent)),
-        error: (e, st) => SafeArea(child: Center(child: Text('리포트를 불러오지 못했어요\n$e', textAlign: TextAlign.center, style: TextStyle(color: context.glass.textSecondary)))),
-        data: (data) {
-          // Top inset is handled by the header band itself (it paints under
-          // the status bar), so only the bottom inset is reserved here.
-          return SafeArea(
-            top: false,
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                TabHeaderBand(
-                  child: Column(
-                    children: [
-                      TabHeaderTitleRow(
-                        title: '이번 달 소비,',
-                        subtitle: '잘 관리하고 있어요.',
-                        actions: [TabHeaderIconButton(icon: Icons.notifications_none, onPressed: () {})],
+      // Pull-to-refresh and 다시 시도 both re-request the report. The screen
+      // stays mounted while other tabs are shown, so a failed load would
+      // otherwise stay on screen even after the backend is back.
+      body: RefreshIndicator(
+        color: context.glass.accent,
+        onRefresh: () => _reload(ref, currentMonth),
+        child: dataAsync.when(
+          // A retry after an error shows the spinner rather than the old error.
+          skipLoadingOnRefresh: dataAsync.hasValue,
+          loading: () => Center(child: CircularProgressIndicator(color: context.glass.accent)),
+          error: (e, st) => LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: SafeArea(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: ErrorRetryView(
+                        title: '리포트를 불러오지 못했어요',
+                        error: e,
+                        onRetry: () => _reload(ref, currentMonth),
                       ),
-                      const SizedBox(height: 20),
-                      _HeroSummaryPanel(
-                        totalExpense: data.totalExpense,
-                        momPct: data.momPct,
-                        month: currentMonth,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sectionGap),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: _DailyFlowCard(
-                    month: currentMonth,
-                    points: data.dailyPoints,
-                    highlightDay: data.highlightDay,
-                    highlightAmount: data.highlightAmount,
-                    onMore: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: _CategoryCard(
-                    totalExpense: data.totalExpense,
-                    categories: data.categories,
-                    onMore: () => CategoryReportScreen.open(context, initialMonth: currentMonth),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: _InsightSummaryCard(
-                    highlights: data.highlights,
-                    onMore: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
-                    ),
-                    onOpen: (highlight) => _openHighlight(context, ref, highlight, currentMonth),
-                  ),
-                ),
-                // Report's own ListView paints *under* the floating
-                // bottom-nav pill from ScaffoldWithNavBar (a separate
-                // Stack layer in router.dart, not Scaffold.bottomNavigationBar),
-                // so scroll content needs to reserve that pill's own
-                // footprint or the last card ends up hidden behind it.
-                // The enclosing SafeArea above already reserves the
-                // device's own bottom inset (system nav/gesture area),
-                // so only the pill's height + a little breathing room is
-                // added here - adding MediaQuery's bottom inset again
-                // here too would double-count it.
-                const SizedBox(height: kBottomNavBarHeight + 20),
-              ],
+              ),
             ),
-          );
-        },
+          ),
+          data: (data) {
+            // Top inset is handled by the header band itself (it paints under
+            // the status bar), so only the bottom inset is reserved here.
+            return SafeArea(
+              top: false,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  TabHeaderBand(
+                    child: Column(
+                      children: [
+                        TabHeaderTitleRow(
+                          title: '이번 달 소비,',
+                          subtitle: '잘 관리하고 있어요.',
+                          actions: [TabHeaderIconButton(icon: Icons.notifications_none, onPressed: () {})],
+                        ),
+                        const SizedBox(height: 20),
+                        _HeroSummaryPanel(
+                          totalExpense: data.totalExpense,
+                          momPct: data.momPct,
+                          month: currentMonth,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sectionGap),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: _DailyFlowCard(
+                      month: currentMonth,
+                      points: data.dailyPoints,
+                      highlightDay: data.highlightDay,
+                      highlightAmount: data.highlightAmount,
+                      onMore: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: _CategoryCard(
+                      totalExpense: data.totalExpense,
+                      categories: data.categories,
+                      onMore: () => CategoryReportScreen.open(context, initialMonth: currentMonth),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: _InsightSummaryCard(
+                      highlights: data.highlights,
+                      onMore: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => MonthlyReportScreen(initialMonth: currentMonth)),
+                      ),
+                      onOpen: (highlight) => _openHighlight(context, ref, highlight, currentMonth),
+                    ),
+                  ),
+                  // Report's own ListView paints *under* the floating
+                  // bottom-nav pill from ScaffoldWithNavBar (a separate
+                  // Stack layer in router.dart, not Scaffold.bottomNavigationBar),
+                  // so scroll content needs to reserve that pill's own
+                  // footprint or the last card ends up hidden behind it.
+                  // The enclosing SafeArea above already reserves the
+                  // device's own bottom inset (system nav/gesture area),
+                  // so only the pill's height + a little breathing room is
+                  // added here - adding MediaQuery's bottom inset again
+                  // here too would double-count it.
+                  const SizedBox(height: kBottomNavBarHeight + 20),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
+  }
+
+  Future<void> _reload(WidgetRef ref, DateTime month) async {
+    // Category names come from an app-wide cache; reload it only if it failed.
+    if (ref.read(categoriesProvider).hasError) ref.invalidate(categoriesProvider);
+    try {
+      ref.invalidate(reportMainDataProvider(month));
+      await ref.read(reportMainDataProvider(month).future);
+    } catch (_) {
+      // The error is on screen with its own retry.
+    }
   }
 }
 

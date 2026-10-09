@@ -147,7 +147,7 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
                       error: (e, st) => SizedBox(
                         height: 44,
                         child: Center(
-                          child: Text('에러: $e', style: const TextStyle(fontSize: 12)),
+                          child: Text(userErrorMessage(e), style: const TextStyle(fontSize: 12)),
                         ),
                       ),
                       data: (categories) {
@@ -326,7 +326,7 @@ class _QuickAddFormState extends ConsumerState<QuickAddForm> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(apiErrorMessage(e) ?? '등록 중 오류 발생: $e')),
+          SnackBar(content: Text(userErrorMessage(e))),
         );
       }
     } finally {
