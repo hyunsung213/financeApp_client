@@ -19,9 +19,14 @@ class NotificationAccessNotifier extends AsyncNotifier<NotificationAccessStatus>
 }
 
 final notificationAccessProvider =
-    AsyncNotifierProvider<NotificationAccessNotifier, NotificationAccessStatus>(() {
-  return NotificationAccessNotifier();
-});
+    AsyncNotifierProvider<NotificationAccessNotifier, NotificationAccessStatus>(
+  () {
+    return NotificationAccessNotifier();
+  },
+  // A failed platform check will not fix itself in seconds; show the error
+  // at once instead of a spinner through the default retry backoff.
+  retry: (_, _) => null,
+);
 
 final recentNotificationsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {

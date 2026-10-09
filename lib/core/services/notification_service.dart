@@ -14,30 +14,32 @@ class NotificationService {
 
   static Stream<Map<String, dynamic>>? _eventStream;
 
-  /// Check if the notification listener access permission is granted
+  /// Whether the Android notification listener plugin is available.
+  @visibleForTesting
+  static bool Function() isAndroid = () => !kIsWeb && Platform.isAndroid;
+
+  /// Check if the notification listener access permission is granted.
+  ///
+  /// A failed check is not a denial: plugin/channel errors reach the caller
+  /// so the screen can say it could not tell instead of "허용되지 않음".
   static Future<NotificationAccessStatus> isNotificationAccessGranted() async {
-    if (kIsWeb || !Platform.isAndroid) {
+    if (!isAndroid()) {
       return NotificationAccessStatus.unsupported;
     }
 
-    try {
-      final granted =
-          await _methodChannel.invokeMethod<bool>(
-            'isNotificationAccessGranted',
-          ) ??
-          false;
-      return granted
-          ? NotificationAccessStatus.granted
-          : NotificationAccessStatus.denied;
-    } catch (e) {
-      debugPrint('Error checking notification access: $e');
-      return NotificationAccessStatus.denied;
-    }
+    final granted =
+        await _methodChannel.invokeMethod<bool>(
+          'isNotificationAccessGranted',
+        ) ??
+        false;
+    return granted
+        ? NotificationAccessStatus.granted
+        : NotificationAccessStatus.denied;
   }
 
   /// Open Android Notification Listener Settings screen
   static Future<bool> openNotificationAccessSettings() async {
-    if (kIsWeb || !Platform.isAndroid) {
+    if (!isAndroid()) {
       return false;
     }
 
@@ -59,7 +61,7 @@ class NotificationService {
     required String baseUrl,
     String? authToken,
   }) async {
-    if (kIsWeb || !Platform.isAndroid) {
+    if (!isAndroid()) {
       return false;
     }
 
@@ -81,7 +83,7 @@ class NotificationService {
   static Future<List<Map<String, dynamic>>> getRecentNotifications({
     int limit = 50,
   }) async {
-    if (kIsWeb || !Platform.isAndroid) {
+    if (!isAndroid()) {
       return [];
     }
 
@@ -102,7 +104,7 @@ class NotificationService {
 
   /// Trigger manual sync of pending notifications via WorkManager
   static Future<bool> triggerManualSync() async {
-    if (kIsWeb || !Platform.isAndroid) {
+    if (!isAndroid()) {
       return false;
     }
 
@@ -118,7 +120,7 @@ class NotificationService {
 
   /// Stream of real-time notification events when app is in foreground
   static Stream<Map<String, dynamic>> get notificationEvents {
-    if (kIsWeb || !Platform.isAndroid) {
+    if (!isAndroid()) {
       return const Stream.empty();
     }
 
